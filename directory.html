@@ -5,22 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>平台通訊錄 | Platform Directory - UVACO</title>
 <link rel="stylesheet" href="styles.css">
-<script>
-// 首次開啟導向：若尚未建立/儲存名片，直接進入編輯頁（onboarding）
-(function () {
-  try {
-    var params = new URLSearchParams(window.location.search || '');
-    if (params.get('skipOnboarding') === '1') return;
-    var onboarded = localStorage.getItem('UVACO_ONBOARDED') === '1';
-    if (!onboarded) {
-      // 用 replace 避免返回鍵卡在導向頁
-      window.location.replace('edit.html?mode=onboarding&next=directory.html');
-    }
-  } catch (e) {
-    // 忽略（例如隱私模式禁用 localStorage）
-  }
-})();
-</script>
 </head>
 
 <body class="theme-dark lang-zh">

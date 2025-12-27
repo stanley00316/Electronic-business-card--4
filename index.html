@@ -22,12 +22,24 @@
   </div>
 
   <script>
-    // 保留 querystring/hash，避免分享連結參數遺失
+    // 首次進站導向：
+    // - 若尚未完成建立：導到編輯頁 onboarding
+    // - 否則：導到通訊錄
+    // 同時保留 querystring/hash，避免分享連結參數遺失
     (function () {
-      var target = 'directory.html';
       var qs = window.location.search || '';
       var hash = window.location.hash || '';
-      window.location.replace(target + qs + hash);
+      var target = 'directory.html';
+      try {
+        var params = new URLSearchParams(qs || '');
+        if (params.get('skipOnboarding') === '1') {
+          target = 'directory.html';
+        } else {
+          var onboarded = localStorage.getItem('UVACO_ONBOARDED') === '1';
+          target = onboarded ? 'directory.html' : 'edit.html?mode=onboarding&next=directory.html';
+        }
+      } catch (e) {}
+      window.location.replace(target + (target.indexOf('?') >= 0 ? '' : qs) + hash);
     })();
   </script>
 </body>
