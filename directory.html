@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>平台通訊錄 | Platform Directory - UVACO</title>
+<link rel="stylesheet" href="styles.css">
+<script>
+// 首次開啟導向：若尚未建立/儲存名片，直接進入編輯頁（onboarding）
+(function () {
+  try {
+    var params = new URLSearchParams(window.location.search || '');
+    if (params.get('skipOnboarding') === '1') return;
+    var onboarded = localStorage.getItem('UVACO_ONBOARDED') === '1';
+    if (!onboarded) {
+      // 用 replace 避免返回鍵卡在導向頁
+      window.location.replace('edit.html?mode=onboarding&next=directory.html');
+    }
+  } catch (e) {
+    // 忽略（例如隱私模式禁用 localStorage）
+  }
+})();
+</script>
+</head>
+
+<body class="theme-dark lang-zh">
+
+<!-- 背景泡泡 -->
+<div class="bg-blob blob1"></div>
+<div class="bg-blob blob2"></div>
+
+<!-- 平台通訊錄頁面 -->
+<div class="directory-page">
+  <!-- 頂部標題欄 -->
+  <div class="directory-header">
+    <a href="yuyuko.html" class="directory-back-btn">←</a>
+    <h1 class="directory-title lang-zh">平台通訊錄</h1>
+    <h1 class="directory-title lang-en">Platform Directory</h1>
+    <button class="directory-add-friend-btn" onclick="openAddFriendModal()">
+      <span class="lang-zh">+ 新增好友</span>
+      <span class="lang-en">+ Add Friend</span>
+    </button>
+  </div>
+  
+  <!-- 搜尋欄容器（移到內容區域外，因為是固定定位） -->
+  <div class="directory-search-wrapper">
+    <input 
+      type="text" 
+      class="directory-search" 
+      id="directorySearchInput"
+      data-placeholder-zh="搜尋公司、姓名、職務、類別、地區..."
+      data-placeholder-en="Search company, name, position, category, region..."
+      placeholder="搜尋公司、姓名、職務、類別、地區..."
+      onkeyup="handleDirectorySearch(event)"
+      onclick="showSearchOptions()"
+      onfocus="showSearchOptions()"
+    >
+    
+    <!-- 搜尋選項彈出視窗 -->
+    <div class="directory-search-options" id="directorySearchOptions">
+      <button class="directory-search-option-btn" onclick="openAdvancedFilter()">
+        <span class="lang-zh">進階</span>
+        <span class="lang-en">Advanced</span>
+      </button>
+    </div>
+  </div>
+  
+  <!-- 內容區域 -->
+  <div class="directory-content">
+    <!-- 進階篩選面板 -->
+    <div class="directory-filter-panel" id="directoryFilterPanel">
+      <div class="directory-filter-group">
+        <label class="directory-filter-label lang-zh">類別</label>
+        <label class="directory-filter-label lang-en">Category</label>
+        <!-- 類別兩層式選擇器（Modal/Bottom Sheet 引導：大類 → 細項） -->
+        <input
+          type="text"
+          class="directory-filter-select two-level-picker-trigger"
+          id="filterCategoryDisplay"
+          readonly
+          data-placeholder-zh="選擇類別（大類 / 細項）"
+          data-placeholder-en="Select category (Category / Subcategory)"
+          placeholder="選擇類別（大類 / 細項）"
+          onclick="openTwoLevelPicker('category', 'filter')"
+        >
+        <!-- 兼容：保留原本的值欄位（不再用 select 顯示） -->
+        <input type="hidden" id="filterCategory" value="">
+      </div>
+      
+      <div class="directory-filter-group">
+        <label class="directory-filter-label lang-zh">地區</label>
+        <label class="directory-filter-label lang-en">Region</label>
+        <!-- 地區三層式選擇器（Modal/Bottom Sheet 引導：區域 → 縣市 → 區） -->
+        <input
+          type="text"
+          class="directory-filter-select region-picker-trigger"
+          id="filterRegionDisplay"
+          readonly
+          data-placeholder-zh="選擇地區（區域 / 縣市 / 區）"
+          data-placeholder-en="Select region (Area / City / District)"
+          placeholder="選擇地區（區域 / 縣市 / 區）"
+          onclick="openRegionPicker('filter')"
+        >
+        <!-- 兼容：保留原本的值欄位（不再用 select 顯示） -->
+        <input type="hidden" id="filterRegionZone" value="">
+        <input type="hidden" id="filterRegionCity" value="">
+        <input type="hidden" id="filterRegionDistrict" value="">
+      </div>
+      
+      <div class="directory-filter-group">
+        <label class="directory-filter-label lang-zh">專業領域</label>
+        <label class="directory-filter-label lang-en">Professional Field</label>
+        <!-- 專業領域兩層式選擇器（Modal/Bottom Sheet 引導：大類 → 細項） -->
+        <input
+          type="text"
+          class="directory-filter-select two-level-picker-trigger"
+          id="filterFieldDisplay"
+          readonly
+          data-placeholder-zh="選擇專業領域（大類 / 細項）"
+          data-placeholder-en="Select field (Category / Subcategory)"
+          placeholder="選擇專業領域（大類 / 細項）"
+          onclick="openTwoLevelPicker('field', 'filter')"
+        >
+        <!-- 兼容：保留原本的值欄位（不再用 select 顯示） -->
+        <input type="hidden" id="filterField" value="">
+      </div>
+      
+      <div class="directory-filter-group">
+        <label class="directory-filter-label lang-zh">公司</label>
+        <label class="directory-filter-label lang-en">Company</label>
+        <select class="directory-filter-select" id="filterCompany" data-lang-zh="全部公司" data-lang-en="All Companies">
+          <option value="" data-lang-zh="全部公司" data-lang-en="All Companies"></option>
+          <!-- 選項由 JS 產生（完整索引：會自動累積你新增好友的公司） -->
+        </select>
+      </div>
+      
+      <div class="directory-filter-actions">
+        <button class="directory-filter-btn directory-filter-btn-clear" onclick="clearDirectoryFilters()">
+          <span class="lang-zh">清除篩選</span>
+          <span class="lang-en">Clear Filters</span>
+        </button>
+        <button class="directory-filter-btn directory-filter-btn-apply" onclick="applyDirectoryFilters()">
+          <span class="lang-zh">套用篩選</span>
+          <span class="lang-en">Apply Filters</span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- 結果標題 -->
+    <div class="directory-results-header">
+      <span class="lang-zh">找到 <span class="directory-results-count" id="directoryResultsCount">0</span> 筆結果</span>
+      <span class="lang-en">Found <span class="directory-results-count" id="directoryResultsCountEn">0</span> results</span>
+    </div>
+    
+    <!-- 結果列表（目前為空狀態） -->
+    <div class="directory-empty-state" id="directoryResults">
+      <div class="directory-empty-icon">🔍</div>
+      <div class="directory-empty-text lang-zh">
+        找不到符合條件的名片<br>
+        請嘗試調整搜尋關鍵字或篩選條件
+      </div>
+      <div class="directory-empty-text lang-en">
+        No business cards matching the criteria found.<br>
+        Please try adjusting your search keywords or filters.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增好友模態框 -->
+<div class="add-friend-overlay" id="addFriendOverlay" onclick="closeAddFriendModal(event)">
+  <div class="add-friend-modal" onclick="event.stopPropagation()">
+    <div class="add-friend-modal-header">
+      <h2 class="add-friend-modal-title lang-zh">新增好友</h2>
+      <h2 class="add-friend-modal-title lang-en">Add Friend</h2>
+      <button class="add-friend-modal-close" onclick="closeAddFriendModal()">×</button>
+    </div>
+    
+    <div class="add-friend-tabs">
+      <button class="add-friend-tab active" onclick="switchAddFriendTab('single')" id="tabSingle">
+        <span class="lang-zh">單筆新增</span>
+        <span class="lang-en">Single Add</span>
+      </button>
+      <button class="add-friend-tab" onclick="switchAddFriendTab('batch')" id="tabBatch">
+        <span class="lang-zh">匯入聯絡人</span>
+        <span class="lang-en">Import Contacts</span>
+      </button>
+    </div>
+    
+    <!-- 單筆新增表單 -->
+    <div class="add-friend-tab-content active" id="tabContentSingle">
+      <form class="add-friend-form" onsubmit="submitSingleFriend(event)">
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">姓名 *</label>
+          <label class="add-friend-form-label lang-en">Name *</label>
+          <input type="text" class="add-friend-form-input" id="friendName" required>
+        </div>
+        
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">公司</label>
+          <label class="add-friend-form-label lang-en">Company</label>
+          <input type="text" class="add-friend-form-input" id="friendCompany">
+        </div>
+        
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">職務</label>
+          <label class="add-friend-form-label lang-en">Position</label>
+          <input type="text" class="add-friend-form-input" id="friendPosition">
+        </div>
+        
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">電話</label>
+          <label class="add-friend-form-label lang-en">Phone</label>
+          <input type="tel" class="add-friend-form-input" id="friendPhone">
+        </div>
+        
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">Email</label>
+          <label class="add-friend-form-label lang-en">Email</label>
+          <input type="email" class="add-friend-form-input" id="friendEmail">
+        </div>
+        
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">類別</label>
+          <label class="add-friend-form-label lang-en">Category</label>
+          <!-- 類別兩層式選擇器（Modal/Bottom Sheet 引導：大類 → 細項） -->
+          <input
+            type="text"
+            class="add-friend-form-select two-level-picker-trigger"
+            id="friendCategoryDisplay"
+            readonly
+            data-placeholder-zh="選擇類別（大類 / 細項）"
+            data-placeholder-en="Select category (Category / Subcategory)"
+            placeholder="選擇類別（大類 / 細項）"
+            onclick="openTwoLevelPicker('category', 'friend')"
+          >
+          <!-- 兼容：保留原本的值欄位（不再用 select 顯示） -->
+          <input type="hidden" id="friendCategory" value="">
+        </div>
+        
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">地區</label>
+          <label class="add-friend-form-label lang-en">Region</label>
+          <input
+            type="text"
+            class="add-friend-form-select region-picker-trigger"
+            id="friendRegionDisplay"
+            readonly
+            data-placeholder-zh="選擇地區（區域 / 縣市 / 區）"
+            data-placeholder-en="Select region (Area / City / District)"
+            placeholder="選擇地區（區域 / 縣市 / 區）"
+            onclick="openRegionPicker('friend')"
+          >
+          <!-- 兼容：保留原本的值欄位（不再用 select 顯示） -->
+          <input type="hidden" id="friendRegionZone" value="">
+          <input type="hidden" id="friendRegionCity" value="">
+          <input type="hidden" id="friendRegionDistrict" value="">
+        </div>
+
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">專業領域</label>
+          <label class="add-friend-form-label lang-en">Professional Field</label>
+          <!-- 專業領域兩層式選擇器（Modal/Bottom Sheet 引導：大類 → 細項） -->
+          <input
+            type="text"
+            class="add-friend-form-select two-level-picker-trigger"
+            id="friendFieldDisplay"
+            readonly
+            data-placeholder-zh="選擇專業領域（大類 / 細項）"
+            data-placeholder-en="Select field (Category / Subcategory)"
+            placeholder="選擇專業領域（大類 / 細項）"
+            onclick="openTwoLevelPicker('field', 'friend')"
+          >
+          <!-- 兼容：保留原本的值欄位（不再用 select 顯示） -->
+          <input type="hidden" id="friendField" value="">
+        </div>
+        
+        <div class="add-friend-form-actions">
+          <button type="button" class="add-friend-btn add-friend-btn-cancel" onclick="closeAddFriendModal()">
+            <span class="lang-zh">取消</span>
+            <span class="lang-en">Cancel</span>
+          </button>
+          <button type="submit" class="add-friend-btn add-friend-btn-submit">
+            <span class="lang-zh">新增</span>
+            <span class="lang-en">Add</span>
+          </button>
+        </div>
+      </form>
+    </div>
+    
+    <!-- 批量上傳 -->
+    <div class="add-friend-tab-content" id="tabContentBatch">
+      <div class="add-friend-batch-content">
+        <div class="add-friend-batch-info">
+          <div class="add-friend-batch-icon">📥</div>
+          <p class="add-friend-batch-text lang-zh">
+            下載範例檔案，填寫後上傳即可匯入聯絡人（CSV）
+          </p>
+          <p class="add-friend-batch-text lang-en">
+            Download the sample file, fill it in, and upload to import contacts (CSV)
+          </p>
+        </div>
+        
+        <div class="add-friend-batch-download">
+          <a href="#" class="add-friend-download-link" onclick="downloadSampleFile(event)">
+            <span class="add-friend-download-icon">📄</span>
+            <div>
+              <div class="add-friend-download-title lang-zh">下載範例檔案</div>
+              <div class="add-friend-download-title lang-en">Download Sample File</div>
+              <div class="add-friend-download-subtitle lang-zh">Excel 格式 (.xlsx)</div>
+              <div class="add-friend-download-subtitle lang-en">Excel Format (.xlsx)</div>
+            </div>
+          </a>
+        </div>
+        
+        <div class="add-friend-form-group">
+          <label class="add-friend-form-label lang-zh">選擇檔案</label>
+          <label class="add-friend-form-label lang-en">Select File</label>
+          <div class="add-friend-file-upload">
+            <input type="file" class="add-friend-file-input" id="batchFileInput" accept=".xlsx,.xls,.csv" onchange="handleBatchFileSelect(event)">
+            <label for="batchFileInput" class="add-friend-file-label">
+              <span class="add-friend-file-icon"><img src="file-icon.svg" alt="File" style="width: 32px; height: 32px;"></span>
+              <span class="add-friend-file-text lang-zh" id="batchFileName">選擇檔案或拖放至此</span>
+              <span class="add-friend-file-text lang-en" id="batchFileNameEn">Choose file or drag here</span>
+            </label>
+          </div>
+        </div>
+        
+        <div class="add-friend-form-actions">
+          <button type="button" class="add-friend-btn add-friend-btn-cancel" onclick="closeAddFriendModal()">
+            <span class="lang-zh">取消</span>
+            <span class="lang-en">Cancel</span>
+          </button>
+          <button type="button" class="add-friend-btn add-friend-btn-submit" onclick="submitBatchUpload()" id="batchUploadBtn" disabled>
+            <span class="lang-zh">匯入</span>
+            <span class="lang-en">Import</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 地區三層式選擇器（共用 Modal/Bottom Sheet） -->
+<div class="region-picker-overlay" id="regionPickerOverlay" onclick="closeRegionPicker(event)">
+  <div class="region-picker-sheet" onclick="event.stopPropagation()">
+    <div class="region-picker-header">
+      <button class="region-picker-back" id="regionPickerBackBtn" onclick="regionPickerBack()" aria-label="Back">←</button>
+      <div class="region-picker-title">
+        <span class="lang-zh" id="regionPickerTitleZh">選擇區域</span>
+        <span class="lang-en" id="regionPickerTitleEn">Select Area</span>
+      </div>
+      <button class="region-picker-close" onclick="closeRegionPicker()" aria-label="Close">×</button>
+    </div>
+
+    <div class="region-picker-body">
+      <div class="region-picker-list" id="regionPickerList"></div>
+
+      <div class="region-picker-custom" id="regionPickerCustom">
+        <div class="region-picker-custom-label lang-zh">自訂區域名稱</div>
+        <div class="region-picker-custom-label lang-en">Custom area name</div>
+        <input type="text" class="region-picker-custom-input" id="regionPickerCustomInput" placeholder="例如：海外">
+        <div class="region-picker-custom-actions">
+          <button class="region-picker-btn region-picker-btn-cancel" onclick="regionPickerCancelCustom()">
+            <span class="lang-zh">取消</span><span class="lang-en">Cancel</span>
+          </button>
+          <button class="region-picker-btn region-picker-btn-ok" onclick="regionPickerConfirmCustom()">
+            <span class="lang-zh">下一步</span><span class="lang-en">Next</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 兩層式選擇器（類別/專業領域共用 Modal/Bottom Sheet） -->
+<div class="region-picker-overlay" id="twoLevelPickerOverlay" onclick="closeTwoLevelPicker(event)">
+  <div class="region-picker-sheet" onclick="event.stopPropagation()">
+    <div class="region-picker-header">
+      <button class="region-picker-back" id="twoLevelPickerBackBtn" onclick="twoLevelPickerBack()" aria-label="Back">←</button>
+      <div class="region-picker-title">
+        <span class="lang-zh" id="twoLevelPickerTitleZh">選擇</span>
+        <span class="lang-en" id="twoLevelPickerTitleEn">Select</span>
+      </div>
+      <button class="region-picker-close" onclick="closeTwoLevelPicker()" aria-label="Close">×</button>
+    </div>
+
+    <div class="region-picker-body">
+      <div class="region-picker-list" id="twoLevelPickerList"></div>
+
+      <div class="region-picker-custom" id="twoLevelPickerCustom">
+        <div class="region-picker-custom-label lang-zh">自訂</div>
+        <div class="region-picker-custom-label lang-en">Custom</div>
+        <input type="text" class="region-picker-custom-input" id="twoLevelPickerCustomInput" placeholder="請輸入自訂名稱" maxlength="50">
+        <div class="region-picker-custom-actions">
+          <button class="region-picker-btn region-picker-btn-cancel" onclick="twoLevelPickerCancelCustom()">
+            <span class="lang-zh">取消</span><span class="lang-en">Cancel</span>
+          </button>
+          <button class="region-picker-btn region-picker-btn-ok" onclick="twoLevelPickerConfirmCustom()">
+            <span class="lang-zh">完成</span><span class="lang-en">Done</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 底部導航欄 -->
+<nav class="bottom-nav">
+  <a href="directory.html" class="nav-item">
+    <span class="nav-icon">📋</span>
+    <span class="nav-label lang-zh">通訊錄</span>
+    <span class="nav-label lang-en">Directory</span>
+  </a>
+  <a href="settings.html" class="nav-item">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label lang-zh">設定</span>
+    <span class="nav-label lang-en">Settings</span>
+  </a>
+</nav>
+
+<script src="common.js"></script>
+<script>
+function getCurrentLang() {
+  const zhElements = document.querySelectorAll('.lang-zh');
+  return zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+}
+
+// ===== 完整索引：類別 / 地區 / 專業領域 / 公司 =====
+// - 類別/地區/專業領域：固定完整清單
+// - 公司：會從「新增好友」的 company 自動累積成索引（越用越完整）
+
+// ===== 類別兩層式資料結構（大類 → 細項） =====
+const CATEGORY_CASCADE = {
+  categories: [
+    { key: 'business', zh: '商業', en: 'Business' },
+    { key: 'tech', zh: '科技', en: 'Technology' },
+    { key: 'service', zh: '服務', en: 'Service' },
+    { key: 'finance', zh: '金融', en: 'Finance' },
+    { key: 'health', zh: '健康/保健', en: 'Health' },
+    { key: 'education', zh: '教育', en: 'Education' },
+    { key: 'real-estate', zh: '不動產', en: 'Real Estate' },
+    { key: 'legal', zh: '法律', en: 'Legal' },
+    { key: 'design', zh: '設計', en: 'Design' },
+    { key: 'manufacturing', zh: '製造', en: 'Manufacturing' },
+    { key: 'retail', zh: '零售', en: 'Retail' },
+    { key: 'food', zh: '餐飲', en: 'Food & Beverage' },
+    { key: 'government', zh: '政府/非營利', en: 'Government / Non-profit' }
+  ],
+  subcategoriesByCategory: {
+    'business': ['B2B 商業', 'B2C 商業', '電商', '貿易', '批發'],
+    'tech': ['軟體開發', '硬體製造', '網路服務', '資訊安全', '人工智慧'],
+    'service': ['顧問服務', '專業服務', '物流服務', '清潔服務', '保全服務'],
+    'finance': ['銀行', '保險', '證券', '投資', '會計'],
+    'health': ['醫療', '保健', '健身', '美容', '養生'],
+    'education': ['學校教育', '補習教育', '職業訓練', '線上教育', '語言教育'],
+    'real-estate': ['不動產開發', '不動產仲介', '物業管理', '室內設計', '裝潢'],
+    'legal': ['律師事務所', '法律顧問', '專利事務', '公證', '調解'],
+    'design': ['平面設計', '網頁設計', '工業設計', '空間設計', '品牌設計'],
+    'manufacturing': ['電子製造', '機械製造', '食品製造', '紡織製造', '化學製造'],
+    'retail': ['百貨', '超市', '便利商店', '專賣店', '網路零售'],
+    'food': ['餐廳', '咖啡廳', '飲料店', '外送', '食品製造'],
+    'government': ['政府機關', '公營事業', '非營利組織', '社福機構', '研究機構']
+  }
+};
+
+// ===== 專業領域兩層式資料結構（大類 → 細項） =====
+const FIELD_CASCADE = {
+  categories: [
+    { key: 'marketing-sales', zh: '行銷 / 業務', en: 'Marketing / Sales' },
+    { key: 'tech', zh: '資訊科技', en: 'Information Technology' },
+    { key: 'design-creative', zh: '設計 / 創意', en: 'Design / Creative' },
+    { key: 'healthcare', zh: '醫療 / 長照', en: 'Healthcare / Long-term Care' },
+    { key: 'education-consulting', zh: '教育 / 顧問', en: 'Education / Consulting' },
+    { key: 'food-service', zh: '餐飲 / 服務', en: 'Food & Beverage / Service' },
+    { key: 'operations', zh: '營運 / 管理', en: 'Operations / Management' },
+    { key: 'finance-accounting', zh: '財務 / 會計', en: 'Finance / Accounting' },
+    { key: 'hr', zh: '人資', en: 'Human Resources' },
+    { key: 'legal', zh: '法務', en: 'Legal' },
+    { key: 'customer-success', zh: '客服 / 客戶成功', en: 'Customer Success' },
+    { key: 'product', zh: '產品', en: 'Product' }
+  ],
+  subcategoriesByCategory: {
+    'marketing-sales': ['數位行銷', '社群媒體', '內容行銷', 'SEO/SEM', '廣告投放', 'B2B 業務', 'B2C 業務', '電商銷售', '通路管理'],
+    'tech': ['前端工程', '後端工程', '全端工程', 'DevOps', '資料科學', '行動開發', '資訊安全', '雲端服務'],
+    'design-creative': ['UI/UX 設計', '平面設計', '網頁設計', '影音製作', '動畫', '品牌設計', '包裝設計'],
+    'healthcare': ['醫療', '護理', '長照', '復健', '藥學', '醫檢', '營養'],
+    'education-consulting': ['教學', '培訓', '顧問', '教練', '課程設計', '教材開發'],
+    'food-service': ['餐廳管理', '廚藝', '服務生', '調酒師', '咖啡師', '外送服務'],
+    'operations': ['營運管理', '專案管理', '品質管理', '供應鏈管理', '流程優化'],
+    'finance-accounting': ['財務分析', '會計', '審計', '稅務', '投資分析', '風險管理'],
+    'hr': ['招募', '訓練發展', '薪酬福利', '員工關係', '組織發展'],
+    'legal': ['法務', '合約管理', '智慧財產', '法規遵循', '訴訟'],
+    'customer-success': ['客戶服務', '客戶成功', '技術支援', '帳戶管理', '關係維護'],
+    'product': ['產品管理', '產品設計', '產品行銷', '產品分析', '產品策略']
+  }
+};
+
+// 向後兼容：保留 DIRECTORY_INDEX（但不再用於選擇器）
+const DIRECTORY_INDEX = {
+  categories: [],
+  fields: []
+};
+
+// 自訂索引（使用者在「其他」輸入後會記住）
+const CUSTOM_INDEX_KEY = 'directoryCustomIndex';
+
+// ===== 兩層式選擇器（類別/專業領域共用邏輯） =====
+const TWO_LEVEL_PICKER = {
+  isOpen: false,
+  type: null, // 'category' | 'field'
+  target: null, // 'filter' | 'friend'
+  step: 'category', // 'category' | 'subcategory' | 'custom'
+  temp: {
+    categoryKey: '',
+    categoryLabel: '',
+    subcategoryKey: '',
+    subcategoryLabel: ''
+  }
+};
+
+function setTwoLevelPickerTitle() {
+  const titleZh = document.getElementById('twoLevelPickerTitleZh');
+  const titleEn = document.getElementById('twoLevelPickerTitleEn');
+  if (!titleZh || !titleEn) return;
+  const currentLang = getCurrentLang();
+  
+  if (TWO_LEVEL_PICKER.step === 'category') {
+    if (TWO_LEVEL_PICKER.type === 'category') {
+      titleZh.textContent = '選擇類別';
+      titleEn.textContent = 'Select Category';
+    } else {
+      titleZh.textContent = '選擇專業領域';
+      titleEn.textContent = 'Select Professional Field';
+    }
+  } else if (TWO_LEVEL_PICKER.step === 'subcategory' || TWO_LEVEL_PICKER.step === 'custom') {
+    titleZh.textContent = TWO_LEVEL_PICKER.temp.categoryLabel || '選擇細項';
+    titleEn.textContent = TWO_LEVEL_PICKER.temp.categoryLabel || 'Select Subcategory';
+  }
+}
+
+function setTwoLevelPickerBackVisibility() {
+  const backBtn = document.getElementById('twoLevelPickerBackBtn');
+  if (!backBtn) return;
+  backBtn.style.visibility = (TWO_LEVEL_PICKER.step === 'category') ? 'hidden' : 'visible';
+}
+
+function openTwoLevelPicker(type, target) {
+  const overlay = document.getElementById('twoLevelPickerOverlay');
+  if (!overlay) return;
+  TWO_LEVEL_PICKER.isOpen = true;
+  TWO_LEVEL_PICKER.type = type;
+  TWO_LEVEL_PICKER.target = target;
+  TWO_LEVEL_PICKER.step = 'category';
+  TWO_LEVEL_PICKER.temp = { categoryKey: '', categoryLabel: '', subcategoryKey: '', subcategoryLabel: '' };
+  document.body.style.overflow = 'hidden';
+  overlay.classList.add('show');
+  renderTwoLevelPicker();
+}
+
+function closeTwoLevelPicker(event) {
+  if (event && event.target && event.target.id !== 'twoLevelPickerOverlay') return;
+  const overlay = document.getElementById('twoLevelPickerOverlay');
+  if (!overlay) return;
+  TWO_LEVEL_PICKER.isOpen = false;
+  TWO_LEVEL_PICKER.type = null;
+  TWO_LEVEL_PICKER.target = null;
+  document.body.style.overflow = '';
+  overlay.classList.remove('show');
+  const custom = document.getElementById('twoLevelPickerCustom');
+  const list = document.getElementById('twoLevelPickerList');
+  if (custom) custom.classList.remove('show');
+  if (list) list.classList.remove('hide');
+}
+
+function twoLevelPickerBack() {
+  if (TWO_LEVEL_PICKER.step === 'subcategory' || TWO_LEVEL_PICKER.step === 'custom') {
+    TWO_LEVEL_PICKER.step = 'category';
+    TWO_LEVEL_PICKER.temp.subcategoryKey = '';
+    TWO_LEVEL_PICKER.temp.subcategoryLabel = '';
+  }
+  renderTwoLevelPicker();
+}
+
+function twoLevelPickerCancelCustom() {
+  TWO_LEVEL_PICKER.step = 'subcategory';
+  renderTwoLevelPicker();
+}
+
+function twoLevelPickerConfirmCustom() {
+  const input = document.getElementById('twoLevelPickerCustomInput');
+  const label = String(input?.value || '').trim();
+  if (!label) {
+    const msg = getCurrentLang() === 'zh' ? '請輸入自訂名稱' : 'Please enter a custom name';
+    alert(msg);
+    return;
+  }
+  TWO_LEVEL_PICKER.temp.subcategoryKey = 'custom';
+  TWO_LEVEL_PICKER.temp.subcategoryLabel = label;
+  applyTwoLevelPickerResult();
+  closeTwoLevelPicker();
+}
+
+function renderTwoLevelPicker() {
+  setTwoLevelPickerTitle();
+  setTwoLevelPickerBackVisibility();
+
+  const list = document.getElementById('twoLevelPickerList');
+  const custom = document.getElementById('twoLevelPickerCustom');
+  if (!list || !custom) return;
+
+  if (TWO_LEVEL_PICKER.step === 'custom') {
+    list.classList.add('hide');
+    custom.classList.add('show');
+    const input = document.getElementById('twoLevelPickerCustomInput');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 0);
+    }
+    return;
+  }
+
+  custom.classList.remove('show');
+  list.classList.remove('hide');
+
+  const currentLang = getCurrentLang();
+  let items = [];
+  const data = TWO_LEVEL_PICKER.type === 'category' ? CATEGORY_CASCADE : FIELD_CASCADE;
+
+  if (TWO_LEVEL_PICKER.step === 'category') {
+    items = data.categories.map(c => ({
+      key: c.key,
+      label: currentLang === 'zh' ? c.zh : c.en
+    }));
+  } else if (TWO_LEVEL_PICKER.step === 'subcategory') {
+    const categoryKey = TWO_LEVEL_PICKER.temp.categoryKey;
+    const subcategories = data.subcategoriesByCategory[categoryKey] || [];
+    items = subcategories.map(s => ({ key: s, label: s }));
+    // 第二層：添加「其他」選項（可自訂）
+    items.push({ key: 'other', label: '其他' });
+  }
+
+  if (!items.length) {
+    list.innerHTML = `
+      <div class="region-picker-empty">
+        <div class="lang-zh">此層沒有可選項目</div>
+        <div class="lang-en">No options available</div>
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = items.map(it => `
+    <button type="button" class="region-picker-item" onclick="twoLevelPickerSelect('${TWO_LEVEL_PICKER.step}','${String(it.key).replace(/'/g,"&#39;")}')">
+      ${it.label}
+    </button>
+  `).join('');
+}
+
+function twoLevelPickerSelect(step, key) {
+  const data = TWO_LEVEL_PICKER.type === 'category' ? CATEGORY_CASCADE : FIELD_CASCADE;
+  
+  if (step === 'category') {
+    const category = data.categories.find(c => c.key === key);
+    TWO_LEVEL_PICKER.temp.categoryKey = key;
+    TWO_LEVEL_PICKER.temp.categoryLabel = category ? category.zh : key;
+    TWO_LEVEL_PICKER.step = 'subcategory';
+    renderTwoLevelPicker();
+    return;
+  }
+
+  if (step === 'subcategory') {
+    if (key === 'other') {
+      TWO_LEVEL_PICKER.step = 'custom';
+      renderTwoLevelPicker();
+      return;
+    }
+    TWO_LEVEL_PICKER.temp.subcategoryKey = key;
+    TWO_LEVEL_PICKER.temp.subcategoryLabel = key;
+    applyTwoLevelPickerResult();
+    closeTwoLevelPicker();
+  }
+}
+
+function applyTwoLevelPickerResult() {
+  const t = TWO_LEVEL_PICKER.target;
+  const type = TWO_LEVEL_PICKER.type;
+  if (!t || !type) return;
+  
+  const valueEl = document.getElementById(t === 'filter' 
+    ? (type === 'category' ? 'filterCategory' : 'filterField')
+    : (type === 'category' ? 'friendCategory' : 'friendField'));
+  const displayEl = document.getElementById(t === 'filter'
+    ? (type === 'category' ? 'filterCategoryDisplay' : 'filterFieldDisplay')
+    : (type === 'category' ? 'friendCategoryDisplay' : 'friendFieldDisplay'));
+
+  const parts = [];
+  if (TWO_LEVEL_PICKER.temp.categoryLabel) parts.push(TWO_LEVEL_PICKER.temp.categoryLabel);
+  if (TWO_LEVEL_PICKER.temp.subcategoryLabel) parts.push(TWO_LEVEL_PICKER.temp.subcategoryLabel);
+  const displayText = parts.join(' / ');
+
+  if (valueEl) valueEl.value = displayText;
+  if (displayEl) displayEl.value = displayText;
+}
+
+// ===== 地區（三級聯動）：區域 → 縣市 → 區 =====
+// 註：英文區名為簡化處理（同中文），可後續再補正規英譯
+const REGION_CASCADE = {
+  zones: [
+    { value: 'north', zh: '北', en: 'North' },
+    { value: 'central', zh: '中', en: 'Central' },
+    { value: 'south', zh: '南', en: 'South' },
+    { value: 'east', zh: '東', en: 'East' },
+    { value: 'islands', zh: '離島', en: 'Islands' },
+    { value: 'overseas', zh: '海外', en: 'Overseas' },
+    { value: 'other', zh: '其他', en: 'Other' }
+  ],
+  citiesByZone: {
+    north: [
+      { value: 'taipei', zh: '台北市', en: 'Taipei City' },
+      { value: 'newtaipei', zh: '新北市', en: 'New Taipei City' },
+      { value: 'keelung', zh: '基隆市', en: 'Keelung City' },
+      { value: 'taoyuan', zh: '桃園市', en: 'Taoyuan City' },
+      { value: 'hsinchu-city', zh: '新竹市', en: 'Hsinchu City' },
+      { value: 'hsinchu-county', zh: '新竹縣', en: 'Hsinchu County' },
+      { value: 'yilan', zh: '宜蘭縣', en: 'Yilan County' }
+    ],
+    central: [
+      { value: 'miaoli', zh: '苗栗縣', en: 'Miaoli County' },
+      { value: 'taichung', zh: '台中市', en: 'Taichung City' },
+      { value: 'changhua', zh: '彰化縣', en: 'Changhua County' },
+      { value: 'nantou', zh: '南投縣', en: 'Nantou County' },
+      { value: 'yunlin', zh: '雲林縣', en: 'Yunlin County' }
+    ],
+    south: [
+      { value: 'chiayi-city', zh: '嘉義市', en: 'Chiayi City' },
+      { value: 'chiayi-county', zh: '嘉義縣', en: 'Chiayi County' },
+      { value: 'tainan', zh: '台南市', en: 'Tainan City' },
+      { value: 'kaohsiung', zh: '高雄市', en: 'Kaohsiung City' },
+      { value: 'pingtung', zh: '屏東縣', en: 'Pingtung County' }
+    ],
+    east: [
+      { value: 'hualien', zh: '花蓮縣', en: 'Hualien County' },
+      { value: 'taitung', zh: '台東縣', en: 'Taitung County' }
+    ],
+    islands: [
+      { value: 'penghu', zh: '澎湖縣', en: 'Penghu County' },
+      { value: 'kinmen', zh: '金門縣', en: 'Kinmen County' },
+      { value: 'matsu', zh: '連江縣（馬祖）', en: 'Lienchiang County (Matsu)' }
+    ],
+    overseas: [],
+    other: []
+  },
+  districtsByCity: {
+    taipei: ['中正區','大同區','中山區','松山區','大安區','萬華區','信義區','士林區','北投區','內湖區','南港區','文山區'],
+    newtaipei: ['板橋區','三重區','中和區','永和區','新莊區','新店區','土城區','蘆洲區','汐止區','樹林區','淡水區','鶯歌區','三峽區','瑞芳區','五股區','泰山區','林口區','深坑區','石碇區','坪林區','三芝區','石門區','八里區','平溪區','雙溪區','貢寮區','金山區','萬里區','烏來區'],
+    keelung: ['仁愛區','信義區','中正區','中山區','安樂區','暖暖區','七堵區'],
+    taoyuan: ['桃園區','中壢區','平鎮區','八德區','楊梅區','蘆竹區','大溪區','龍潭區','龜山區','大園區','觀音區','新屋區','復興區'],
+    'hsinchu-city': ['東區','北區','香山區'],
+    'hsinchu-county': ['竹北市','竹東鎮','新埔鎮','關西鎮','湖口鄉','新豐鄉','芎林鄉','橫山鄉','北埔鄉','寶山鄉','峨眉鄉','尖石鄉','五峰鄉'],
+    yilan: ['宜蘭市','羅東鎮','蘇澳鎮','頭城鎮','礁溪鄉','壯圍鄉','員山鄉','冬山鄉','五結鄉','三星鄉','大同鄉','南澳鄉'],
+    miaoli: ['苗栗市','頭份市','苑裡鎮','通霄鎮','竹南鎮','後龍鎮','卓蘭鎮','大湖鄉','公館鄉','銅鑼鄉','南庄鄉','頭屋鄉','三義鄉','西湖鄉','造橋鄉','三灣鄉','獅潭鄉','泰安鄉'],
+    taichung: ['中區','東區','南區','西區','北區','北屯區','西屯區','南屯區','太平區','大里區','霧峰區','烏日區','豐原區','后里區','石岡區','東勢區','和平區','新社區','潭子區','大雅區','神岡區','大肚區','沙鹿區','龍井區','梧棲區','清水區','大甲區','外埔區','大安區'],
+    changhua: ['彰化市','員林市','和美鎮','鹿港鎮','溪湖鎮','田中鎮','北斗鎮','二林鎮','線西鄉','伸港鄉','福興鄉','秀水鄉','花壇鄉','芬園鄉','大村鄉','埔鹽鄉','埔心鄉','永靖鄉','社頭鄉','二水鄉','田尾鄉','埤頭鄉','芳苑鄉','大城鄉','竹塘鄉','溪州鄉'],
+    nantou: ['南投市','埔里鎮','草屯鎮','竹山鎮','集集鎮','名間鄉','鹿谷鄉','中寮鄉','魚池鄉','國姓鄉','水里鄉','信義鄉','仁愛鄉'],
+    yunlin: ['斗六市','斗南鎮','虎尾鎮','西螺鎮','土庫鎮','北港鎮','古坑鄉','大埤鄉','莿桐鄉','林內鄉','二崙鄉','崙背鄉','麥寮鄉','東勢鄉','褒忠鄉','臺西鄉','元長鄉','四湖鄉','口湖鄉','水林鄉'],
+    'chiayi-city': ['東區','西區'],
+    'chiayi-county': ['太保市','朴子市','布袋鎮','大林鎮','民雄鄉','溪口鄉','新港鄉','六腳鄉','東石鄉','義竹鄉','鹿草鄉','水上鄉','中埔鄉','竹崎鄉','梅山鄉','番路鄉','大埔鄉','阿里山鄉'],
+    tainan: ['中西區','東區','南區','北區','安平區','安南區','永康區','歸仁區','新化區','左鎮區','玉井區','楠西區','南化區','仁德區','關廟區','龍崎區','官田區','麻豆區','佳里區','西港區','七股區','將軍區','學甲區','北門區','新營區','後壁區','白河區','東山區','六甲區','下營區','柳營區','鹽水區','善化區','大內區','山上區','新市區','安定區'],
+    kaohsiung: ['楠梓區','左營區','鼓山區','三民區','鹽埕區','前金區','新興區','苓雅區','前鎮區','小港區','旗津區','鳳山區','大寮區','鳥松區','林園區','仁武區','大樹區','岡山區','路竹區','橋頭區','梓官區','彌陀區','永安區','燕巢區','田寮區','阿蓮區','茄萣區','湖內區','旗山區','美濃區','內門區','杉林區','甲仙區','六龜區','茂林區','桃源區','那瑪夏區'],
+    pingtung: ['屏東市','潮州鎮','東港鎮','恆春鎮','萬丹鄉','長治鄉','麟洛鄉','九如鄉','里港鄉','鹽埔鄉','高樹鄉','萬巒鄉','內埔鄉','竹田鄉','新埤鄉','枋寮鄉','新園鄉','崁頂鄉','林邊鄉','南州鄉','佳冬鄉','琉球鄉','車城鄉','滿州鄉','枋山鄉','三地門鄉','霧臺鄉','瑪家鄉','泰武鄉','來義鄉','春日鄉','獅子鄉','牡丹鄉'],
+    hualien: ['花蓮市','鳳林鎮','玉里鎮','新城鄉','吉安鄉','壽豐鄉','光復鄉','豐濱鄉','瑞穗鄉','富里鄉','秀林鄉','萬榮鄉','卓溪鄉'],
+    taitung: ['臺東市','成功鎮','關山鎮','卑南鄉','鹿野鄉','池上鄉','東河鄉','長濱鄉','太麻里鄉','大武鄉','綠島鄉','蘭嶼鄉','延平鄉','金峰鄉','達仁鄉','海端鄉'],
+    penghu: ['馬公市','湖西鄉','白沙鄉','西嶼鄉','望安鄉','七美鄉'],
+    kinmen: ['金城鎮','金湖鎮','金沙鎮','金寧鄉','烈嶼鄉','烏坵鄉'],
+    matsu: ['南竿鄉','北竿鄉','莒光鄉','東引鄉']
+  }
+};
+
+function safeSlug(input) {
+  return String(input || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\-]/g, '')
+    .slice(0, 60);
+}
+
+function addOptionsToSelect(selectEl, options) {
+  options.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.setAttribute('data-lang-zh', opt.zh);
+    option.setAttribute('data-lang-en', opt.en);
+    // 文字會由 common.js 的 updateDirectorySelectOptions() 依語言自動更新
+    option.textContent = opt.zh;
+    selectEl.appendChild(option);
+  });
+}
+
+function getCustomIndex() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_INDEX_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+      regions: Array.isArray(parsed.regions) ? parsed.regions : [],
+      fields: Array.isArray(parsed.fields) ? parsed.fields : [],
+      // 新版地區三級聯動的自訂選項
+      regionCities: Array.isArray(parsed.regionCities) ? parsed.regionCities : [],
+      regionDistricts: Array.isArray(parsed.regionDistricts) ? parsed.regionDistricts : []
+    };
+  } catch (e) {
+    return { categories: [], regions: [], fields: [], regionCities: [], regionDistricts: [] };
+  }
+}
+
+function setCustomIndex(next) {
+  try {
+    localStorage.setItem(CUSTOM_INDEX_KEY, JSON.stringify(next));
+  } catch (e) {}
+}
+
+function normalizeCustomLabel(zh, en) {
+  const a = String(zh || '').trim();
+  const b = String(en || '').trim();
+  if (!a && !b) return null;
+  return { zh: a || b, en: b || a };
+}
+
+function makeCustomValue(kind, labelZh) {
+  const base = safeSlug(labelZh) || 'custom';
+  return `custom-${kind}-${base}`;
+}
+
+function upsertCustomOption(kind, label) {
+  const idx = getCustomIndex();
+  const list = idx[kind] || [];
+  const value = makeCustomValue(kind, label.zh);
+  if (!list.some(o => o && o.value === value)) {
+    list.push({ value, zh: label.zh, en: label.en });
+  }
+  idx[kind] = list;
+  setCustomIndex(idx);
+  return { value, zh: label.zh, en: label.en };
+}
+
+function insertOptionBeforeOther(selectEl, opt) {
+  if (!selectEl || !opt) return;
+  // 避免重複
+  if (selectEl.querySelector(`option[value="${opt.value}"]`)) return;
+  const el = document.createElement('option');
+  el.value = opt.value;
+  el.setAttribute('data-lang-zh', opt.zh);
+  el.setAttribute('data-lang-en', opt.en);
+  el.textContent = opt.zh;
+
+  const otherOption = selectEl.querySelector('option[value="other"]');
+  if (otherOption) {
+    selectEl.insertBefore(el, otherOption);
+  } else {
+    selectEl.appendChild(el);
+  }
+}
+
+function wireOtherToCustomTargets(selectEl, storageKind, targets, promptTitleZh, promptTitleEn, triggerValue = 'other') {
+  if (!selectEl) return;
+  selectEl.addEventListener('change', function() {
+    if (selectEl.value !== triggerValue) return;
+
+    const zhElements = document.querySelectorAll('.lang-zh');
+    const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+
+    const zhLabel = prompt(
+      currentLang === 'zh'
+        ? `請輸入自訂${promptTitleZh}（中文）：`
+        : `Enter custom ${promptTitleEn} (Chinese label):`
+    );
+    const enLabel = prompt(
+      currentLang === 'zh'
+        ? `請輸入自訂${promptTitleZh}（英文，可留空）：`
+        : `Enter custom ${promptTitleEn} (English label, optional):`
+    );
+
+    const label = normalizeCustomLabel(zhLabel, enLabel);
+    if (!label) {
+      // 取消或空白：回到未選
+      selectEl.value = '';
+      return;
+    }
+
+    const saved = upsertCustomOption(storageKind, label);
+
+    // 同步插入目標 selects
+    (targets || []).forEach(sel => insertOptionBeforeOther(sel, saved));
+
+    // 重新套用語言文字
+    if (typeof updateDirectorySelectOptions === 'function') updateDirectorySelectOptions();
+
+    // 選中自訂選項
+    selectEl.value = saved.value;
+  });
+}
+
+function wireOtherToCustom(selectEl, kind) {
+  // 向後兼容：舊的「類別/專業領域」使用固定 targets
+  if (!selectEl) return;
+  if (kind === 'categories') {
+    wireOtherToCustomTargets(selectEl, 'categories', [document.getElementById('filterCategory'), document.getElementById('friendCategory')], '類別', 'category');
+  } else if (kind === 'fields') {
+    wireOtherToCustomTargets(selectEl, 'fields', [document.getElementById('filterField'), document.getElementById('friendField')], '專業領域', 'professional field');
+  }
+}
+
+function initDirectoryIndexes() {
+  // 類別和專業領域已改為兩層式選擇器，不再需要初始化 select
+  // 保留此函數以備其他索引初始化需求
+  
+  refreshCompanyIndex();
+
+  // 讓語言切換立即反映到新加入的 option 文字
+  if (typeof updateDirectorySelectOptions === 'function') {
+    updateDirectorySelectOptions();
+  }
+}
+
+function resetSelect(selectEl, firstValue) {
+  if (!selectEl) return;
+  const first = selectEl.querySelector('option[value="' + (firstValue ?? '') + '"]');
+  const keep = first ? first.outerHTML : '';
+  selectEl.innerHTML = keep;
+}
+
+function addSimpleOptions(selectEl, opts, includeOther) {
+  if (!selectEl) return;
+  opts.forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt.value;
+    o.setAttribute('data-lang-zh', opt.zh);
+    o.setAttribute('data-lang-en', opt.en);
+    o.textContent = opt.zh;
+    selectEl.appendChild(o);
+  });
+  if (includeOther) {
+    const other = document.createElement('option');
+    other.value = 'other';
+    other.setAttribute('data-lang-zh', '其他');
+    other.setAttribute('data-lang-en', 'Other');
+    other.textContent = '其他';
+    selectEl.appendChild(other);
+  }
+}
+
+function addDistrictOptions(selectEl, districts, includeOther) {
+  if (!selectEl) return;
+  districts.forEach(d => {
+    const o = document.createElement('option');
+    const v = safeSlug(d);
+    o.value = v || d;
+    o.setAttribute('data-lang-zh', d);
+    o.setAttribute('data-lang-en', d);
+    o.textContent = d;
+    selectEl.appendChild(o);
+  });
+  if (includeOther) {
+    const other = document.createElement('option');
+    other.value = 'other';
+    other.setAttribute('data-lang-zh', '其他');
+    other.setAttribute('data-lang-en', 'Other');
+    other.textContent = '其他';
+    selectEl.appendChild(other);
+  }
+}
+
+function addCustomTriggerOption(selectEl) {
+  if (!selectEl) return;
+  if (selectEl.querySelector('option[value="custom"]')) return;
+  const opt = document.createElement('option');
+  opt.value = 'custom';
+  opt.setAttribute('data-lang-zh', '自訂…');
+  opt.setAttribute('data-lang-en', 'Custom…');
+  opt.textContent = '自訂…';
+  selectEl.appendChild(opt);
+}
+
+function initRegionCascade(zoneSel, citySel, distSel, opts) {
+  if (!zoneSel || !citySel || !distSel) return;
+  const allowOther = !!opts?.allowOther;
+
+  // zone
+  addSimpleOptions(zoneSel, REGION_CASCADE.zones.filter(z => z.value !== 'other'), allowOther);
+
+  function rebuildCities() {
+    const zone = zoneSel.value;
+    // reset city & district
+    resetSelect(citySel, '');
+    resetSelect(distSel, '');
+
+    if (!zone) {
+      if (typeof updateDirectorySelectOptions === 'function') updateDirectorySelectOptions();
+      return;
+    }
+    if (zone === 'overseas') {
+      // overseas：直接讓縣市/區維持空白（可選其他自訂）
+      if (allowOther) {
+        addSimpleOptions(citySel, [], true);
+        addSimpleOptions(distSel, [], true);
+        addCustomTriggerOption(citySel);
+        addCustomTriggerOption(distSel);
+      }
+      if (typeof updateDirectorySelectOptions === 'function') updateDirectorySelectOptions();
+      return;
+    }
+    if (zone === 'other') {
+      // 讓 citySel 觸發 other 自訂
+      if (allowOther) {
+        addSimpleOptions(citySel, [], true);
+        addCustomTriggerOption(citySel);
+      }
+      if (typeof updateDirectorySelectOptions === 'function') updateDirectorySelectOptions();
+      return;
+    }
+
+    const cities = REGION_CASCADE.citiesByZone[zone] || [];
+    addSimpleOptions(citySel, cities, allowOther);
+    if (allowOther) addCustomTriggerOption(citySel);
+    if (typeof updateDirectorySelectOptions === 'function') updateDirectorySelectOptions();
+  }
+
+  function rebuildDistricts() {
+    const city = citySel.value;
+    resetSelect(distSel, '');
+    if (!city) {
+      if (typeof updateDirectorySelectOptions === 'function') updateDirectorySelectOptions();
+      return;
+    }
+    if (city === 'other' || city === 'custom') {
+      // 若縣市為「其他」或「自訂…」，區先提供其他與自訂…
+      if (allowOther) {
+        addSimpleOptions(distSel, [], true);
+        addCustomTriggerOption(distSel);
+      }
+      if (typeof updateDirectorySelectOptions === 'function') updateDirectorySelectOptions();
+      return;
+    }
+    const districts = REGION_CASCADE.districtsByCity[city] || [];
+    addDistrictOptions(distSel, districts, allowOther);
+    if (allowOther) addCustomTriggerOption(distSel);
+    if (typeof updateDirectorySelectOptions === 'function') updateDirectorySelectOptions();
+  }
+
+  zoneSel.addEventListener('change', rebuildCities);
+  citySel.addEventListener('change', rebuildDistricts);
+
+  // 其他自訂（縣市 / 區）
+  // 自訂邏輯已由 initDirectoryIndexes() 以 targets 方式統一掛載
+}
+
+function getStoredFriends() {
+  try {
+    const raw = localStorage.getItem('directoryFriends');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setStoredFriends(list) {
+  try {
+    localStorage.setItem('directoryFriends', JSON.stringify(list));
+  } catch (e) {}
+}
+
+function refreshCompanyIndex() {
+  const filterCompany = document.getElementById('filterCompany');
+  if (!filterCompany) return;
+
+  // 清除除第一個（全部公司）以外的 option
+  const first = filterCompany.querySelector('option[value=""]');
+  filterCompany.innerHTML = '';
+  if (first) {
+    filterCompany.appendChild(first);
+  } else {
+    const allOpt = document.createElement('option');
+    allOpt.value = '';
+    allOpt.setAttribute('data-lang-zh', '全部公司');
+    allOpt.setAttribute('data-lang-en', 'All Companies');
+    allOpt.textContent = '全部公司';
+    filterCompany.appendChild(allOpt);
+  }
+
+  // 基礎公司（可擴充）
+  const baseCompanies = [
+    { key: 'uvaco', zh: 'UVACO', en: 'UVACO' },
+    { key: 'puzhong', zh: '葡眾企業', en: 'Puzhong Enterprise' }
+  ];
+
+  const friends = getStoredFriends();
+  const extraNames = friends
+    .map(f => (f && f.company ? String(f.company).trim() : ''))
+    .filter(Boolean);
+
+  const uniq = new Map(); // key -> {zh,en}
+  baseCompanies.forEach(c => uniq.set(c.key, { zh: c.zh, en: c.en }));
+  extraNames.forEach(name => {
+    const key = safeSlug(name) || name;
+    if (!uniq.has(key)) {
+      uniq.set(key, { zh: name, en: name });
+    }
+  });
+
+  // 排序：先 baseCompanies，再其餘依中文/英文名排序
+  const baseKeys = new Set(baseCompanies.map(c => c.key));
+  const rest = Array.from(uniq.entries())
+    .filter(([k]) => !baseKeys.has(k))
+    .sort((a, b) => a[1].zh.localeCompare(b[1].zh, 'zh-Hant'));
+
+  baseCompanies.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.key;
+    opt.setAttribute('data-lang-zh', c.zh);
+    opt.setAttribute('data-lang-en', c.en);
+    opt.textContent = c.zh;
+    filterCompany.appendChild(opt);
+  });
+
+  rest.forEach(([key, label]) => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.setAttribute('data-lang-zh', label.zh);
+    opt.setAttribute('data-lang-en', label.en);
+    opt.textContent = label.zh;
+    filterCompany.appendChild(opt);
+  });
+
+  if (typeof updateDirectorySelectOptions === 'function') {
+    updateDirectorySelectOptions();
+  }
+}
+
+// 顯示搜尋選項彈出視窗
+function showSearchOptions() {
+  const options = document.getElementById('directorySearchOptions');
+  options.classList.add('show');
+}
+
+// 關閉搜尋選項彈出視窗
+function closeSearchOptions() {
+  const options = document.getElementById('directorySearchOptions');
+  options.classList.remove('show');
+}
+
+// 打開進階篩選
+function openAdvancedFilter() {
+  closeSearchOptions(); // 關閉搜尋選項彈出視窗
+  const panel = document.getElementById('directoryFilterPanel');
+  
+  // 如果面板未打開，則打開它
+  if (!panel.classList.contains('show')) {
+    panel.classList.add('show');
+  }
+  
+  // 滾動到進階篩選面板
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// 切換進階篩選面板（保留此函數以備不時之需）
+function toggleDirectoryFilter() {
+  const panel = document.getElementById('directoryFilterPanel');
+  panel.classList.toggle('show');
+}
+
+// 清除篩選條件
+function clearDirectoryFilters() {
+  document.getElementById('filterCategory').value = '';
+  const filterCategoryDisplay = document.getElementById('filterCategoryDisplay');
+  if (filterCategoryDisplay) filterCategoryDisplay.value = '';
+  document.getElementById('filterRegionZone').value = '';
+  document.getElementById('filterRegionCity').value = '';
+  document.getElementById('filterRegionDistrict').value = '';
+  const filterRegionDisplay = document.getElementById('filterRegionDisplay');
+  if (filterRegionDisplay) filterRegionDisplay.value = '';
+  document.getElementById('filterField').value = '';
+  const filterFieldDisplay = document.getElementById('filterFieldDisplay');
+  if (filterFieldDisplay) filterFieldDisplay.value = '';
+  document.getElementById('filterCompany').value = '';
+  document.getElementById('directorySearchInput').value = '';
+  searchDirectory();
+  // 關閉進階面板，回到通訊錄
+  closeAdvancedFilter();
+}
+
+// 套用篩選條件
+function applyDirectoryFilters() {
+  searchDirectory();
+  // 關閉進階面板，回到通訊錄
+  closeAdvancedFilter();
+}
+
+// 關閉進階篩選面板
+function closeAdvancedFilter() {
+  const panel = document.getElementById('directoryFilterPanel');
+  panel.classList.remove('show');
+  closeSearchOptions();
+  
+  // 滾動到結果區域
+  const resultsHeader = document.querySelector('.directory-results-header');
+  if (resultsHeader) {
+    resultsHeader.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// 搜尋處理
+function handleDirectorySearch(event) {
+  if (event.key === 'Enter' || event.type === 'keyup') {
+    closeSearchOptions(); // 關閉搜尋選項
+    searchDirectory();
+  }
+}
+
+// 執行搜尋
+function searchDirectory() {
+  const searchTerm = document.getElementById('directorySearchInput').value.toLowerCase();
+  const category = document.getElementById('filterCategory').value;
+  const regionZone = document.getElementById('filterRegionZone').value;
+  const regionCity = document.getElementById('filterRegionCity').value;
+  const regionDistrict = document.getElementById('filterRegionDistrict').value;
+  const field = document.getElementById('filterField').value;
+  const company = document.getElementById('filterCompany').value;
+  
+  // 這裡可以連接實際的搜尋 API
+  // 目前顯示空結果
+  const resultsCount = 0;
+  updateDirectoryResults(resultsCount);
+}
+
+// 更新搜尋結果
+function updateDirectoryResults(count) {
+  document.getElementById('directoryResultsCount').textContent = count;
+  document.getElementById('directoryResultsCountEn').textContent = count;
+  
+  const resultsDiv = document.getElementById('directoryResults');
+  if (count === 0) {
+    resultsDiv.innerHTML = `
+      <div class="directory-empty-icon">🔍</div>
+      <div class="directory-empty-text lang-zh">
+        找不到符合條件的名片<br>
+        請嘗試調整搜尋關鍵字或篩選條件
+      </div>
+      <div class="directory-empty-text lang-en">
+        No business cards matching the criteria found.<br>
+        Please try adjusting your search keywords or filters.
+      </div>
+    `;
+    // 更新語言顯示
+    const zhElements = document.querySelectorAll('.lang-zh');
+    const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+    document.querySelectorAll('#directoryResults .lang-zh').forEach(el => {
+      el.style.display = currentLang === 'zh' ? 'block' : 'none';
+    });
+    document.querySelectorAll('#directoryResults .lang-en').forEach(el => {
+      el.style.display = currentLang === 'en' ? 'block' : 'none';
+    });
+  }
+}
+
+// 點擊外部關閉搜尋選項
+document.addEventListener('click', function(event) {
+  const searchInput = document.getElementById('directorySearchInput');
+  const searchOptions = document.getElementById('directorySearchOptions');
+  const filterPanel = document.getElementById('directoryFilterPanel');
+  
+  // 如果點擊的不是搜尋框、搜尋選項或篩選面板，則關閉選項
+  if (!searchInput.contains(event.target) && 
+      !searchOptions.contains(event.target) && 
+      !filterPanel.contains(event.target)) {
+    closeSearchOptions();
+  }
+});
+
+// ===== 新增好友功能 =====
+
+// 打開新增好友模態框
+function openAddFriendModal() {
+  const overlay = document.getElementById('addFriendOverlay');
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  // 重置表單
+  switchAddFriendTab('single');
+}
+
+// 關閉新增好友模態框
+function closeAddFriendModal(event) {
+  if (event && event.target.id !== 'addFriendOverlay') {
+    return;
+  }
+  const overlay = document.getElementById('addFriendOverlay');
+  overlay.classList.remove('show');
+  document.body.style.overflow = '';
+  // 重置表單
+  document.querySelector('.add-friend-form').reset();
+  document.getElementById('batchFileInput').value = '';
+  document.getElementById('batchFileName').textContent = '選擇檔案或拖放至此';
+  document.getElementById('batchFileNameEn').textContent = 'Choose file or drag here';
+  document.getElementById('batchUploadBtn').disabled = true;
+  const friendRegionDisplay = document.getElementById('friendRegionDisplay');
+  if (friendRegionDisplay) friendRegionDisplay.value = '';
+}
+
+// ===== 地區三層式選擇器（Modal/Bottom Sheet）=====
+const REGION_PICKER = {
+  isOpen: false,
+  target: null, // 'filter' | 'friend'
+  step: 'zone', // 'zone' | 'city' | 'district' | 'customZone'
+  temp: {
+    zoneKey: '',
+    zoneLabel: '',
+    cityKey: '',
+    cityLabel: '',
+    districtKey: '',
+    districtLabel: ''
+  }
+};
+
+function getZoneItemsForStep1() {
+  // 需求：只顯示五區域 + 自訂…
+  return [
+    { key: 'north', zh: '北部', en: 'North' },
+    { key: 'central', zh: '中部', en: 'Central' },
+    { key: 'south', zh: '南部', en: 'South' },
+    { key: 'east', zh: '東部', en: 'East' },
+    { key: 'islands', zh: '離島', en: 'Islands' },
+    { key: 'custom', zh: '自訂…', en: 'Custom…', isCustom: true }
+  ];
+}
+
+function getAllCitiesUnique() {
+  const all = [];
+  Object.keys(REGION_CASCADE.citiesByZone || {}).forEach(zone => {
+    (REGION_CASCADE.citiesByZone[zone] || []).forEach(c => all.push(c));
+  });
+  const uniq = new Map(); // value -> item
+  all.forEach(c => { if (c && c.value && !uniq.has(c.value)) uniq.set(c.value, c); });
+  return Array.from(uniq.values());
+}
+
+function setRegionPickerTitle() {
+  const titleZh = document.getElementById('regionPickerTitleZh');
+  const titleEn = document.getElementById('regionPickerTitleEn');
+  if (!titleZh || !titleEn) return;
+  if (REGION_PICKER.step === 'zone') {
+    titleZh.textContent = '選擇區域';
+    titleEn.textContent = 'Select Area';
+  } else if (REGION_PICKER.step === 'city') {
+    titleZh.textContent = REGION_PICKER.temp.zoneLabel || '選擇縣市';
+    titleEn.textContent = REGION_PICKER.temp.zoneLabel || 'Select City/County';
+  } else if (REGION_PICKER.step === 'district') {
+    titleZh.textContent = REGION_PICKER.temp.cityLabel || '選擇區/鄉鎮市';
+    titleEn.textContent = REGION_PICKER.temp.cityLabel || 'Select District';
+  } else if (REGION_PICKER.step === 'customZone') {
+    titleZh.textContent = '自訂區域';
+    titleEn.textContent = 'Custom Area';
+  }
+}
+
+function setRegionPickerBackVisibility() {
+  const backBtn = document.getElementById('regionPickerBackBtn');
+  if (!backBtn) return;
+  backBtn.style.visibility = (REGION_PICKER.step === 'zone') ? 'hidden' : 'visible';
+}
+
+function openRegionPicker(target) {
+  const overlay = document.getElementById('regionPickerOverlay');
+  if (!overlay) return;
+  REGION_PICKER.isOpen = true;
+  REGION_PICKER.target = target;
+  REGION_PICKER.step = 'zone';
+  REGION_PICKER.temp = { zoneKey:'', zoneLabel:'', cityKey:'', cityLabel:'', districtKey:'', districtLabel:'' };
+  document.body.style.overflow = 'hidden';
+  overlay.classList.add('show');
+  renderRegionPicker();
+}
+
+function closeRegionPicker(event) {
+  if (event && event.target && event.target.id !== 'regionPickerOverlay') return;
+  const overlay = document.getElementById('regionPickerOverlay');
+  if (!overlay) return;
+  REGION_PICKER.isOpen = false;
+  REGION_PICKER.target = null;
+  document.body.style.overflow = '';
+  overlay.classList.remove('show');
+  const custom = document.getElementById('regionPickerCustom');
+  const list = document.getElementById('regionPickerList');
+  if (custom) custom.classList.remove('show');
+  if (list) list.classList.remove('hide');
+}
+
+function regionPickerBack() {
+  if (REGION_PICKER.step === 'district') {
+    REGION_PICKER.step = 'city';
+    REGION_PICKER.temp.districtKey = '';
+    REGION_PICKER.temp.districtLabel = '';
+  } else if (REGION_PICKER.step === 'city') {
+    REGION_PICKER.step = 'zone';
+    REGION_PICKER.temp.cityKey = '';
+    REGION_PICKER.temp.cityLabel = '';
+  } else if (REGION_PICKER.step === 'customZone') {
+    REGION_PICKER.step = 'zone';
+  }
+  renderRegionPicker();
+}
+
+function regionPickerCancelCustom() {
+  REGION_PICKER.step = 'zone';
+  renderRegionPicker();
+}
+
+function regionPickerConfirmCustom() {
+  const input = document.getElementById('regionPickerCustomInput');
+  const label = String(input?.value || '').trim();
+  if (!label) {
+    const msg = getCurrentLang() === 'zh' ? '請輸入自訂區域名稱' : 'Please enter a custom area name';
+    alert(msg);
+    return;
+  }
+  REGION_PICKER.temp.zoneKey = 'custom';
+  REGION_PICKER.temp.zoneLabel = label;
+  REGION_PICKER.step = 'city';
+  renderRegionPicker();
+}
+
+function renderRegionPicker() {
+  setRegionPickerTitle();
+  setRegionPickerBackVisibility();
+
+  const list = document.getElementById('regionPickerList');
+  const custom = document.getElementById('regionPickerCustom');
+  if (!list || !custom) return;
+
+  if (REGION_PICKER.step === 'customZone') {
+    list.classList.add('hide');
+    custom.classList.add('show');
+    const input = document.getElementById('regionPickerCustomInput');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 0);
+    }
+    return;
+  }
+
+  custom.classList.remove('show');
+  list.classList.remove('hide');
+
+  const currentLang = getCurrentLang();
+  let items = [];
+
+  if (REGION_PICKER.step === 'zone') {
+    items = getZoneItemsForStep1().map(z => ({
+      key: z.key,
+      label: currentLang === 'zh' ? z.zh : z.en
+    }));
+  } else if (REGION_PICKER.step === 'city') {
+    const zoneKey = REGION_PICKER.temp.zoneKey;
+    const cityItems = zoneKey === 'custom'
+      ? getAllCitiesUnique()
+      : (REGION_CASCADE.citiesByZone[zoneKey] || []);
+    items = cityItems.map(c => ({
+      key: c.value,
+      label: currentLang === 'zh' ? c.zh : c.en
+    }));
+  } else if (REGION_PICKER.step === 'district') {
+    const cityKey = REGION_PICKER.temp.cityKey;
+    const districts = REGION_CASCADE.districtsByCity[cityKey] || [];
+    items = districts.map(d => ({ key: d, label: d }));
+  }
+
+  if (!items.length) {
+    list.innerHTML = `
+      <div class="region-picker-empty">
+        <div class="lang-zh">此層沒有可選項目</div>
+        <div class="lang-en">No options available</div>
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = items.map(it => `
+    <button type="button" class="region-picker-item" onclick="regionPickerSelect('${REGION_PICKER.step}','${String(it.key).replace(/'/g,"&#39;")}')">
+      ${it.label}
+    </button>
+  `).join('');
+}
+
+function regionPickerSelect(step, key) {
+  if (step === 'zone') {
+    if (key === 'custom') {
+      REGION_PICKER.step = 'customZone';
+      renderRegionPicker();
+      return;
+    }
+    const zone = getZoneItemsForStep1().find(z => z.key === key);
+    REGION_PICKER.temp.zoneKey = key;
+    REGION_PICKER.temp.zoneLabel = zone ? zone.zh : key;
+    REGION_PICKER.step = 'city';
+    renderRegionPicker();
+    return;
+  }
+
+  if (step === 'city') {
+    const zoneKey = REGION_PICKER.temp.zoneKey;
+    const cities = zoneKey === 'custom' ? getAllCitiesUnique() : (REGION_CASCADE.citiesByZone[zoneKey] || []);
+    const city = cities.find(c => c.value === key);
+    REGION_PICKER.temp.cityKey = key;
+    REGION_PICKER.temp.cityLabel = city ? city.zh : key;
+    REGION_PICKER.step = 'district';
+    renderRegionPicker();
+    return;
+  }
+
+  if (step === 'district') {
+    REGION_PICKER.temp.districtKey = key;
+    REGION_PICKER.temp.districtLabel = key;
+    applyRegionPickerResult();
+    closeRegionPicker();
+  }
+}
+
+function applyRegionPickerResult() {
+  const t = REGION_PICKER.target;
+  if (!t) return;
+  const zoneEl = document.getElementById(t === 'filter' ? 'filterRegionZone' : 'friendRegionZone');
+  const cityEl = document.getElementById(t === 'filter' ? 'filterRegionCity' : 'friendRegionCity');
+  const distEl = document.getElementById(t === 'filter' ? 'filterRegionDistrict' : 'friendRegionDistrict');
+  const displayEl = document.getElementById(t === 'filter' ? 'filterRegionDisplay' : 'friendRegionDisplay');
+
+  if (zoneEl) zoneEl.value = REGION_PICKER.temp.zoneLabel || '';
+  if (cityEl) cityEl.value = REGION_PICKER.temp.cityLabel || '';
+  if (distEl) distEl.value = REGION_PICKER.temp.districtLabel || '';
+
+  const displayText = [REGION_PICKER.temp.zoneLabel, REGION_PICKER.temp.cityLabel, REGION_PICKER.temp.districtLabel]
+    .filter(Boolean)
+    .join(' / ');
+  if (displayEl) displayEl.value = displayText;
+}
+
+// 切換新增好友標籤頁
+function switchAddFriendTab(tab) {
+  // 更新標籤按鈕狀態
+  document.querySelectorAll('.add-friend-tab').forEach(btn => btn.classList.remove('active'));
+  if (tab === 'single') {
+    document.getElementById('tabSingle').classList.add('active');
+  } else {
+    document.getElementById('tabBatch').classList.add('active');
+  }
+  
+  // 更新內容區域
+  document.querySelectorAll('.add-friend-tab-content').forEach(content => content.classList.remove('active'));
+  if (tab === 'single') {
+    document.getElementById('tabContentSingle').classList.add('active');
+  } else {
+    document.getElementById('tabContentBatch').classList.add('active');
+  }
+}
+
+// 提交單筆新增
+function submitSingleFriend(event) {
+  event.preventDefault();
+  
+  const friendData = {
+    name: document.getElementById('friendName').value,
+    company: document.getElementById('friendCompany').value,
+    position: document.getElementById('friendPosition').value,
+    phone: document.getElementById('friendPhone').value,
+    email: document.getElementById('friendEmail').value,
+    category: document.getElementById('friendCategory')?.value || '',
+    categoryDisplay: document.getElementById('friendCategoryDisplay')?.value || '',
+    regionZone: document.getElementById('friendRegionZone')?.value || '',
+    regionCity: document.getElementById('friendRegionCity')?.value || '',
+    regionDistrict: document.getElementById('friendRegionDistrict')?.value || '',
+    field: (document.getElementById('friendField')?.value || ''),
+    fieldDisplay: (document.getElementById('friendFieldDisplay')?.value || '')
+  };
+
+  // 存到 localStorage，作為「公司索引」與後續通訊錄資料來源
+  const friends = getStoredFriends();
+  friends.push({
+    ...friendData,
+    createdAt: Date.now()
+  });
+  setStoredFriends(friends);
+  refreshCompanyIndex();
+  
+  // 這裡可以連接實際的 API
+  console.log('新增好友:', friendData);
+  
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  const msg = currentLang === 'zh' ? '好友已新增！' : 'Friend added successfully!';
+  alert(msg);
+  
+  // 關閉模態框
+  closeAddFriendModal();
+  
+  // 刷新搜尋結果
+  searchDirectory();
+}
+
+// 下載範例檔案
+function downloadSampleFile(event) {
+  event.preventDefault();
+  
+  // 創建範例 Excel 數據
+  const sampleData = [
+    ['姓名', '公司', '職務', '電話', 'Email', '類別', '地區', '專業領域'],
+    ['張三', 'UVACO', '業務經理', '0912345678', 'zhang@example.com', '商業', '台北市', '業務/銷售'],
+    ['李四', '葡眾企業', '行銷專員', '0923456789', 'li@example.com', '服務', '新北市', '行銷/品牌']
+  ];
+  
+  // 轉換為 CSV 格式（簡化版，實際應該使用 Excel 庫）
+  const csvContent = sampleData.map(row => row.join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  
+  link.setAttribute('href', url);
+  link.setAttribute('download', '聯絡人匯入範例.csv');
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  const msg = currentLang === 'zh' ? '範例檔案已下載' : 'Sample file downloaded';
+  // alert(msg);
+}
+
+// 處理批量檔案選擇
+function handleBatchFileSelect(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const fileName = file.name;
+    document.getElementById('batchFileName').textContent = fileName;
+    document.getElementById('batchFileNameEn').textContent = fileName;
+    document.getElementById('batchUploadBtn').disabled = false;
+  } else {
+    document.getElementById('batchFileName').textContent = '選擇檔案或拖放至此';
+    document.getElementById('batchFileNameEn').textContent = 'Choose file or drag here';
+    document.getElementById('batchUploadBtn').disabled = true;
+  }
+}
+
+// 提交批量上傳
+function submitBatchUpload() {
+  const fileInput = document.getElementById('batchFileInput');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    const zhElements = document.querySelectorAll('.lang-zh');
+    const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+    const msg = currentLang === 'zh' ? '請選擇檔案' : 'Please select a file';
+    alert(msg);
+    return;
+  }
+  
+  // 這裡可以連接實際的 API 上傳檔案
+  console.log('上傳檔案:', file.name);
+  
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  const msg = currentLang === 'zh' ? '檔案上傳成功！' : 'File uploaded successfully!';
+  alert(msg);
+  
+  // 關閉模態框
+  closeAddFriendModal();
+  
+  // 刷新搜尋結果
+  searchDirectory();
+}
+
+// 初始化（確保在 common.js initLangAndTheme 後也會把 option 文字切到正確語言）
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initDirectoryIndexes, 0);
+  });
+} else {
+  setTimeout(initDirectoryIndexes, 0);
+}
+</script>
+
+</body>
+</html>
+

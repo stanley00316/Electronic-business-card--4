@@ -1,0 +1,250 @@
+/* ===== 主題 5：紫色主題 ===== */
+
+/* 整體背景與文字 */
+body.theme-5 {
+  /* 全站 accent：主題 5（紫） */
+  --uvaco-green: #a78bfa;
+  --uvaco-green-rgb: 167, 139, 250;
+  background: linear-gradient(135deg, #581c87 0%, #7c3aed 50%, #9333ea 100%);
+  color: #ffffff;
+}
+
+/* 背景泡泡 */
+body.theme-5 .bg-blob.blob1 {
+  background: rgba(167, 139, 250, 0.4);
+}
+
+body.theme-5 .bg-blob.blob2 {
+  background: rgba(147, 51, 234, 0.3);
+}
+
+/* 名片卡片 - 支援 body.theme-5 和 .card.card-theme-5 */
+body.theme-5 .card,
+.card.card-theme-5 {
+  --uvaco-green: #a855f7;
+  --uvaco-green-rgb: 168, 85, 247;
+  background: linear-gradient(135deg, rgba(88,28,135,0.95) 0%, rgba(147,51,234,0.9) 100%) !important;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 34px rgba(147,51,234,0.4);
+  border: 1px solid rgba(196,181,253,0.3);
+}
+
+body.theme-5 .card .name,
+.card.card-theme-5 .name { 
+  color: #ffffff; 
+}
+
+body.theme-5 .card .tagline,
+.card.card-theme-5 .tagline { 
+  color: #f3e8ff; 
+}
+
+body.theme-5 .card .divider,
+.card.card-theme-5 .divider { 
+  background: rgba(255,255,255,0.15); 
+}
+
+body.theme-5 .card .section-label,
+.card.card-theme-5 .section-label { 
+  color: #e9d5ff; 
+}
+
+body.theme-5 .card .btn-primary,
+.card.card-theme-5 .btn-primary {
+  background: #a78bfa;
+  color: #581c87;
+}
+
+body.theme-5 .card .btn-secondary,
+.card.card-theme-5 .btn-secondary {
+  background: rgba(88,28,135,0.5);
+  border: 1px solid #a78bfa;
+  color: #f3e8ff;
+}
+
+body.theme-5 .card .hint,
+.card.card-theme-5 .hint {
+  background: rgba(255,255,255,0.1);
+  color: #f3e8ff;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+body.theme-5 .card .info-label,
+.card.card-theme-5 .info-label {
+  color: #e9d5ff;
+}
+
+body.theme-5 .card .info-value,
+body.theme-5 .card .address-text,
+.card.card-theme-5 .info-value,
+.card.card-theme-5 .address-text { 
+  color: #ffffff; 
+}
+
+body.theme-5 .card .avatar,
+.card.card-theme-5 .avatar {
+  background: rgba(88,28,135,0.8);
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 4px rgba(196,181,253,0.3), 0 10px 26px rgba(147,51,234,0.4);
+}
+
+/* 頂部欄 */
+body.theme-5 .edit-top-header,
+body.theme-5 .edit-header-top {
+  background: rgba(88, 28, 135, 0.95) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+body.theme-5 .edit-title {
+  color: #ffffff;
+}
+
+/* 底部導航欄 */
+body.theme-5 .bottom-nav {
+  background: rgba(88, 28, 135, 0.95);
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+body.theme-5 .nav-item {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+body.theme-5 .nav-item:hover,
+body.theme-5 .nav-item.active {
+  background: rgba(167, 139, 250, 0.2);
+  color: #ffffff;
+}
+
+/* 設定頁面 */
+body.theme-5 .settings-page {
+  color: #ffffff;
+}
+
+body.theme-5 .settings-item {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+body.theme-5 .settings-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+body.theme-5 .settings-item-title {
+  color: #ffffff;
+}
+
+body.theme-5 .settings-item-subtitle {
+  color: #f3e8ff;
+}
+
+/* 通訊錄頁面 */
+body.theme-5 .directory-page {
+  background: transparent;
+  color: #ffffff;
+}
+
+body.theme-5 .directory-header {
+  background: rgba(88, 28, 135, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+body.theme-5 .directory-search {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+body.theme-5 .directory-search::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+body.theme-5 .directory-card {
+  background: rgba(88, 28, 135, 0.85);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+body.theme-5 .directory-card:hover {
+  background: rgba(88, 28, 135, 0.95);
+  border-color: #a78bfa;
+}
+
+/* 管理頁面 */
+body.theme-5 .admin-page-container {
+  background: transparent;
+  color: #ffffff;
+}
+
+body.theme-5 .admin-header {
+  background: rgba(88, 28, 135, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+body.theme-5 .admin-table {
+  background: rgba(88, 28, 135, 0.85);
+}
+
+body.theme-5 .admin-table th {
+  background: rgba(167, 139, 250, 0.2);
+  color: #ffffff;
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+body.theme-5 .admin-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+body.theme-5 .admin-table tr:hover {
+  background: rgba(167, 139, 250, 0.15);
+}
+
+/* 按鈕 */
+body.theme-5 .btn-primary {
+  background: #a78bfa;
+  color: #581c87;
+}
+
+body.theme-5 .btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+body.theme-5 .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 輸入框 */
+body.theme-5 input,
+body.theme-5 textarea,
+body.theme-5 select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+body.theme-5 input::placeholder,
+body.theme-5 textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+body.theme-5 input:focus,
+body.theme-5 textarea:focus,
+body.theme-5 select:focus {
+  border-color: #a78bfa;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* 模態框 */
+body.theme-5 .modal,
+body.theme-5 .contact-type-modal,
+body.theme-5 .link-input-modal,
+body.theme-5 .address-edit-modal {
+  background: rgba(88, 28, 135, 0.98);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+body.theme-5 .modal-title {
+  color: #ffffff;
+}
+

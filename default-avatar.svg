@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Avatar">
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="25%" r="85%">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+  <circle cx="256" cy="210" r="92" fill="rgba(255,255,255,0.92)"/>
+  <path d="M92 462c28-88 92-136 164-136s136 48 164 136" fill="rgba(255,255,255,0.92)"/>
+  <text x="256" y="490" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans-serif" font-size="26" fill="rgba(255,255,255,0.85)">
+    UVACO
+  </text>
+</svg>
+

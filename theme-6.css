@@ -1,0 +1,89 @@
+/* ===== 主題 6：深黑底 + 國民黨藍（KMT Blue） ===== */
+
+/* KMT Blue（近似）：#0033A0 */
+body.theme-6 {
+  --uvaco-green: #0033A0;
+  --uvaco-green-rgb: 0, 51, 160;
+  background: #000000;
+  color: #ffffff;
+}
+
+/* 背景泡泡 */
+body.theme-6 .bg-blob.blob1 {
+  background: rgba(0, 51, 160, 0.40);
+}
+body.theme-6 .bg-blob.blob2 {
+  background: rgba(96, 165, 250, 0.22);
+}
+
+/* 名片卡片（支援 body.theme-6 和 .card.card-theme-6） */
+body.theme-6 .card,
+.card.card-theme-6 {
+  --uvaco-green: #1faf53;
+  --uvaco-green-rgb: 31, 175, 83;
+  background: rgba(10, 10, 12, 0.90) !important;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 34px rgba(0,0,0,0.60);
+  border: 1px solid rgba(0, 51, 160, 0.22);
+}
+
+body.theme-6 .card .name,
+.card.card-theme-6 .name { color: #ffffff !important; }
+
+body.theme-6 .card .tagline,
+.card.card-theme-6 .tagline { color: rgba(255,255,255,0.82) !important; }
+
+body.theme-6 .card .divider,
+.card.card-theme-6 .divider { background: rgba(255,255,255,0.10) !important; }
+
+body.theme-6 .card .section-label,
+.card.card-theme-6 .section-label { color: rgba(255,255,255,0.72) !important; }
+
+body.theme-6 .card .btn-primary,
+.card.card-theme-6 .btn-primary {
+  background: var(--uvaco-green) !important;
+  color: #ffffff !important;
+}
+
+body.theme-6 .card .btn-secondary,
+.card.card-theme-6 .btn-secondary {
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(0, 51, 160, 0.75) !important;
+  color: #c7d2fe !important;
+}
+
+body.theme-6 .card .hint,
+.card.card-theme-6 .hint {
+  background: rgba(255,255,255,0.06) !important;
+  color: rgba(255,255,255,0.86) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+}
+
+body.theme-6 .card .info-label,
+.card.card-theme-6 .info-label { color: var(--uvaco-green) !important; filter: brightness(1.25); }
+
+body.theme-6 .card .info-value,
+body.theme-6 .card .address-text,
+.card.card-theme-6 .info-value,
+.card.card-theme-6 .address-text { color: #ffffff !important; }
+
+body.theme-6 .card .avatar,
+.card.card-theme-6 .avatar {
+  background: #0a0a0a;
+  border-color: var(--uvaco-green);
+  box-shadow: 0 0 0 4px rgba(0,51,160,0.22), 0 10px 26px rgba(0,0,0,0.55);
+}
+
+/* 頂部欄 / 底部欄 */
+body.theme-6 .edit-top-header,
+body.theme-6 .edit-header-top {
+  background: rgba(0, 0, 0, 0.95) !important;
+  border-bottom-color: rgba(255,255,255,0.10);
+}
+
+body.theme-6 .bottom-nav {
+  background: rgba(0, 0, 0, 0.95);
+  border-top-color: rgba(255,255,255,0.10);
+}
+
+

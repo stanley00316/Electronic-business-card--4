@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UVACO｜電子名片 | E-Business Card</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="theme-dark lang-zh">
+
+<!-- 背景泡泡 -->
+<div class="bg-blob blob1"></div>
+<div class="bg-blob blob2"></div>
+
+<!-- LOGO 區 -->
+<div class="hero">
+  <div class="hero-frame">
+    <img src="uvaco-logo.svg" class="hero-logo" alt="UVACO">
+  </div>
+</div>
+
+<!-- 資料卡 -->
+<div class="card" id="previewCard">
+
+  <!-- 大頭照（放置於卡片右上角） -->
+  <img class="avatar" src="default-avatar.svg" alt="Yuyu Ko 大頭照" loading="lazy">
+
+  <!-- 姓名 -->
+  <div class="name lang-zh">柯宜瀅 ｜ <span class="en">Yuyu Ko</span></div>
+  <div class="name lang-en">Yuyu Ko ｜ <span class="en">Ko</span></div>
+
+  <!-- 標語 -->
+  <div class="tagline lang-zh">健康・事業・未來</div>
+  <div class="tagline lang-zh"><strong>葡眾企業｜專業陪伴</strong></div>
+
+  <div class="tagline lang-en">Health • Business • Future</div>
+  <div class="tagline lang-en"><strong>Puzhong Enterprise | Professional Support</strong></div>
+
+  <div class="divider"></div>
+
+  <!-- 公司資訊區塊 -->
+  <div class="company-info-section" id="companyInfoSection">
+    <div class="section-label lang-zh">公司資訊 COMPANY INFO</div>
+    <div class="section-label lang-en">COMPANY INFO</div>
+    
+    <!-- 統一編號（可選） -->
+    <div class="info-item info-item-tax" id="taxIdItem" style="display: none;">
+      <span class="info-label lang-zh">統一編號：</span>
+      <span class="info-label lang-en">Tax ID:</span>
+      <span class="info-value lang-zh" id="previewTaxIdZh">12345678</span>
+      <span class="info-value lang-en" id="previewTaxIdEn">12345678</span>
+    </div>
+    
+    <!-- 服務據點（可選） -->
+    <div class="info-item info-item-location" id="serviceLocationItem" style="display: none;">
+      <span class="info-label lang-zh">服務據點：</span>
+      <span class="info-label lang-en">Service Location:</span>
+      <span class="info-value lang-zh" id="previewServiceLocationZh">
+        <span class="address-text">台北市信義區信義路五段7號</span>
+        <span class="address-map-link" onclick="openMap('serviceLocation', event)">📍 地圖</span>
+      </span>
+      <span class="info-value lang-en" id="previewServiceLocationEn">
+        <span class="address-text">No. 7, Section 5, Xinyi Road, Xinyi District, Taipei</span>
+        <span class="address-map-link" onclick="openMap('serviceLocation', event)">📍 Map</span>
+      </span>
+    </div>
+    
+    <!-- 通訊住址（可選） -->
+    <div class="info-item info-item-location" id="mailingAddressItem" style="display: none;">
+      <span class="info-label lang-zh">通訊住址：</span>
+      <span class="info-label lang-en">Mailing Address:</span>
+      <span class="info-value lang-zh" id="previewMailingAddressZh">
+        <span class="address-text">台北市信義區信義路五段7號</span>
+        <span class="address-map-link" onclick="openMap('mailingAddress', event)">📍 地圖</span>
+      </span>
+      <span class="info-value lang-en" id="previewMailingAddressEn">
+        <span class="address-text">No. 7, Section 5, Xinyi Road, Xinyi District, Taipei</span>
+        <span class="address-map-link" onclick="openMap('mailingAddress', event)">📍 Map</span>
+      </span>
+    </div>
+    
+    <!-- 公司住址（可選） -->
+    <div class="info-item info-item-location" id="companyAddressItem" style="display: none;">
+      <span class="info-label lang-zh">公司住址：</span>
+      <span class="info-label lang-en">Company Address:</span>
+      <span class="info-value lang-zh" id="previewCompanyAddressZh">
+        <span class="address-text">台北市信義區信義路五段7號</span>
+        <span class="address-map-link" onclick="openMap('companyAddress', event)">📍 地圖</span>
+      </span>
+      <span class="info-value lang-en" id="previewCompanyAddressEn">
+        <span class="address-text">No. 7, Section 5, Xinyi Road, Xinyi District, Taipei</span>
+        <span class="address-map-link" onclick="openMap('companyAddress', event)">📍 Map</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 標題：聯絡方式 -->
+  <div class="section-label lang-zh">聯絡方式 CONTACT</div>
+  <div class="section-label lang-en">CONTACT</div>
+
+  <!-- 按鈕群組 -->
+  <div class="btn-group">
+
+    <!-- Call -->
+    <a class="btn btn-primary lang-zh" href="tel:0905519002">
+      <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電
+    </a>
+    <a class="btn btn-primary lang-en" href="tel:0905519002">
+      <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now
+    </a>
+
+    <!-- LINE -->
+    <a class="btn btn-secondary lang-zh" href="https://line.me/R/ti/p/2sSjJ_o6OT" target="_blank">
+      <img src="line-logo.svg" alt="LINE" class="btn-icon-line"> 加入 LINE
+    </a>
+    <a class="btn btn-secondary lang-en" href="https://line.me/R/ti/p/2sSjJ_o6OT" target="_blank">
+      <img src="line-logo.svg" alt="LINE" class="btn-icon-line"> Add LINE
+    </a>    
+
+    <!-- Email -->
+    <a class="btn btn-secondary lang-zh" href="mailto:ccccwoho@gmail.com">
+      <img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email
+    </a>
+    <a class="btn btn-secondary lang-en" href="mailto:ccccwoho@gmail.com">
+      <img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email
+    </a>
+
+    <!-- Facebook -->
+    <a class="btn btn-secondary lang-zh" href="https://www.facebook.com/share/17nfDH1ZQR/?mibextid=wwXIfr" target="_blank">
+      <img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook"> Facebook
+    </a>
+    <a class="btn btn-secondary lang-en" href="https://www.facebook.com/share/17nfDH1ZQR/?mibextid=wwXIfr" target="_blank">
+      <img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook"> Facebook
+    </a>
+
+    <!-- VCF -->
+    <a class="btn btn-secondary lang-zh" href="yuyu-ko.vcf" download="YuyuKo.vcf">
+      <img src="file-icon.svg" alt="VCF" class="btn-icon-file"> 儲存到通訊錄（VCF）
+    </a>
+    <a class="btn btn-secondary lang-en" href="yuyu-ko.vcf" download="YuyuKo.vcf">
+      <img src="file-icon.svg" alt="VCF" class="btn-icon-file"> Save Contact (VCF)
+    </a>
+
+  </div>
+
+  <!-- 提示文字 -->
+  <div class="hint lang-zh">
+    若您透過 <strong>NFC 名片</strong> 或分享連結開啟此頁，我會盡快回覆您。
+  </div>
+  <div class="hint lang-en">
+    If you opened this page via <strong>NFC card</strong> or shared link, I will respond as soon as possible.
+  </div>
+
+</div>
+
+<!-- 底部導航欄 -->
+<nav class="bottom-nav">
+  <a href="directory.html" class="nav-item">
+    <span class="nav-icon">📋</span>
+    <span class="nav-label lang-zh">通訊錄</span>
+    <span class="nav-label lang-en">Directory</span>
+  </a>
+  <a href="settings.html" class="nav-item">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label lang-zh">設定</span>
+    <span class="nav-label lang-en">Settings</span>
+  </a>
+</nav>
+
+<script src="common.js"></script>
+<script>
+// 初始化頁面：假設擁有者（柯宜瀅）的主題是 1 (深色品牌綠)
+// 您個人的主題會從 localStorage 讀取並套用到 body
+document.addEventListener('DOMContentLoaded', function() {
+  initViewerPage(1); 
+});
+
+// 開啟地圖
+function openMap(addressType, event) {
+  event.stopPropagation();
+  event.preventDefault();
+  
+  const typeCapitalized = addressType.charAt(0).toUpperCase() + addressType.slice(1);
+  const zhEl = document.getElementById(`preview${typeCapitalized}Zh`);
+  const enEl = document.getElementById(`preview${typeCapitalized}En`);
+  
+  const address = zhEl?.querySelector('.address-text')?.textContent || enEl?.querySelector('.address-text')?.textContent || '';
+  
+  if (address && address !== '（未設定）' && address !== '（Not Set）') {
+    const encodedAddress = encodeURIComponent(address);
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    window.open(mapUrl, '_blank');
+  }
+}
+</script>
+
+</body>
+</html>

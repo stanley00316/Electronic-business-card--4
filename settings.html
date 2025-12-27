@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>設定 | Settings - UVACO</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+body {
+  padding-bottom: 0;
+}
+.settings-page {
+  width: 100%;
+  max-width: 600px; /* 加大寬度以容納橫向佈局 */
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 20px;
+  padding-top: 80px;
+  padding-bottom: 100px; /* 為底部導航欄留出空間 */
+}
+
+/* 語言和主題設定項目橫向排列 */
+.settings-theme-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px !important;
+}
+
+.settings-theme-item .settings-item-content {
+  flex: 0 0 auto;
+}
+
+.settings-theme-item .settings-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.settings-theme-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.settings-theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+.settings-theme-btn-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+</style>
+</head>
+
+<body class="theme-dark lang-zh">
+
+<!-- 背景泡泡 -->
+<div class="bg-blob blob1"></div>
+<div class="bg-blob blob2"></div>
+
+<!-- 設定頁面內容 -->
+<div class="settings-page">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <h2 class="settings-title lang-zh">設定</h2>
+      <h2 class="settings-title lang-en">Settings</h2>
+      <a href="yuyuko.html" class="settings-close">✕</a>
+    </div>
+    
+    <div class="settings-menu">
+      <!-- 開通通訊錄平台功能 -->
+      <a href="activate-platform.html" class="settings-item">
+        <div class="settings-item-icon">🚀</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">開通通訊錄平台功能</div>
+          <div class="settings-item-title lang-en">Activate Platform</div>
+          <div class="settings-item-subtitle lang-zh">開通並使用平台通訊錄</div>
+          <div class="settings-item-subtitle lang-en">Activate and use platform directory</div>
+        </div>
+        <div class="settings-item-arrow">→</div>
+      </a>
+      
+      <!-- 平台目錄 -->
+      <a href="directory.html" class="settings-item">
+        <div class="settings-item-icon">🔍</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">平台目錄</div>
+          <div class="settings-item-title lang-en">Platform Directory</div>
+          <div class="settings-item-subtitle lang-zh">平台通訊錄搜尋</div>
+          <div class="settings-item-subtitle lang-en">Platform address book search</div>
+        </div>
+        <div class="settings-item-arrow">→</div>
+      </a>
+      
+      <!-- 編輯名片 -->
+      <a href="edit.html" class="settings-item">
+        <div class="settings-item-icon">✏️</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">編輯名片</div>
+          <div class="settings-item-title lang-en">Edit Business Card</div>
+          <div class="settings-item-subtitle lang-zh">編輯名片內容</div>
+          <div class="settings-item-subtitle lang-en">Edit business card content</div>
+        </div>
+        <div class="settings-item-arrow">→</div>
+      </a>
+      
+      <!-- 管理後台 -->
+      <a href="admin.html" class="settings-item">
+        <div class="settings-item-icon">⚙️</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">管理後台</div>
+          <div class="settings-item-title lang-en">Management Backend</div>
+          <div class="settings-item-subtitle lang-zh">企業管理後台</div>
+          <div class="settings-item-subtitle lang-en">Enterprise management backend</div>
+        </div>
+        <div class="settings-item-arrow">→</div>
+      </a>
+      
+      <!-- 匯入聯絡人 -->
+      <!-- 匯入聯絡人：已整合到「平台通訊錄 → 新增好友」中 -->
+      
+      <!-- 語言設定 -->
+      <div class="settings-item settings-theme-item">
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">語言設定</div>
+          <div class="settings-item-title lang-en">Language</div>
+        </div>
+        <div class="settings-theme-buttons">
+          <button class="settings-theme-btn" id="langZhBtn" onclick="setLang('zh')">
+            <span class="settings-theme-btn-text lang-zh">中文</span>
+            <span class="settings-theme-btn-text lang-en">Chinese</span>
+          </button>
+          <button class="settings-theme-btn" id="langEnBtn" onclick="setLang('en')">
+            <span class="settings-theme-btn-text lang-zh">英文</span>
+            <span class="settings-theme-btn-text lang-en">English</span>
+          </button>
+        </div>
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+<!-- 底部導航欄 -->
+<nav class="bottom-nav">
+  <a href="directory.html" class="nav-item">
+    <span class="nav-icon">📋</span>
+    <span class="nav-label lang-zh">通訊錄</span>
+    <span class="nav-label lang-en">Directory</span>
+  </a>
+  <a href="settings.html" class="nav-item">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label lang-zh">設定</span>
+    <span class="nav-label lang-en">Settings</span>
+  </a>
+</nav>
+
+<script src="common.js"></script>
+<script>
+// 處理設定選項點擊
+function handleSettingsClick(action) {
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  
+  const messages = {
+    'edit': { zh: '編輯名片功能開發中', en: 'Edit card feature coming soon' },
+    'admin': { zh: '管理後台功能開發中', en: 'Admin backend feature coming soon' },
+    'import': { zh: '匯入聯絡人已整合到平台通訊錄的「新增好友」中', en: 'Import contacts is now inside Platform Directory → Add Friend' }
+  };
+  
+  const msg = messages[action] ? messages[action][currentLang] : (currentLang === 'zh' ? '功能開發中' : 'Feature coming soon');
+  alert(msg);
+}
+
+// 更新設定頁面的語言按鈕狀態
+function updateSettingsLangButtons() {
+  const zhBtn = document.getElementById('langZhBtn');
+  const enBtn = document.getElementById('langEnBtn');
+  
+  if (zhBtn && enBtn) {
+    const zhElements = document.querySelectorAll('.lang-zh');
+    const isZh = zhElements.length > 0 && zhElements[0].style.display !== 'none';
+    
+    zhBtn.classList.remove('active');
+    enBtn.classList.remove('active');
+    
+    if (isZh) {
+      zhBtn.classList.add('active');
+    } else {
+      enBtn.classList.add('active');
+    }
+  }
+}
+
+
+// 覆寫 setLang 函數以更新設定頁面的語言按鈕
+// 確保在 common.js 載入後執行
+(function() {
+  function setupSetLangOverride() {
+    if (typeof window.setLang === 'function') {
+      const originalSetLang = window.setLang;
+      window.setLang = function(lang) {
+        // 先調用原始函數（它會更新 body class 和所有元素）
+        originalSetLang(lang);
+        
+        // 延遲一下確保 DOM 已更新
+        setTimeout(function() {
+          updateSettingsLangButtons();
+          
+          // 再次確保所有元素都正確顯示/隱藏（雙重保險）
+          // 特別針對 settings-panel 內的元素
+          const allZhElements = document.querySelectorAll('.lang-zh');
+          const allEnElements = document.querySelectorAll('.lang-en');
+          const isZh = lang === 'zh';
+          
+          allZhElements.forEach(el => {
+            el.style.display = isZh ? 'block' : 'none';
+          });
+          allEnElements.forEach(el => {
+            el.style.display = isZh ? 'none' : 'block';
+          });
+          
+          // 確保 settings-panel 和 settings-menu 容器可見
+          const settingsPanel = document.querySelector('.settings-panel');
+          const settingsMenu = document.querySelector('.settings-menu');
+          if (settingsPanel) {
+            settingsPanel.style.display = 'block';
+          }
+          if (settingsMenu) {
+            settingsMenu.style.display = 'flex';
+          }
+        }, 50);
+      };
+      return true;
+    }
+    return false;
+  }
+  
+  // 嘗試立即設置
+  if (!setupSetLangOverride()) {
+    // 如果失敗，等待 DOM 載入
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(setupSetLangOverride, 100);
+      });
+    } else {
+      setTimeout(setupSetLangOverride, 100);
+    }
+  }
+})();
+
+
+// 頁面載入時更新按鈕狀態並確保語言正確顯示
+function initSettingsPage() {
+  // 確保語言切換正確
+  const savedLang = localStorage.getItem('lang') || 'zh';
+  if (typeof setLang === 'function') {
+    // 重新應用語言設定，確保所有元素正確顯示
+    setLang(savedLang);
+  }
+  
+  setTimeout(function() {
+    updateSettingsLangButtons();
+  }, 100);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSettingsPage);
+} else {
+  initSettingsPage();
+}
+</script>
+
+</body>
+</html>
+

@@ -1,0 +1,88 @@
+/* ===== 主題 9：白底 + 民眾黨青綠（TPP Teal） ===== */
+
+/* TPP Teal（預設近似）：#00B7A9 */
+body.theme-9 {
+  --uvaco-green: #00B7A9;
+  --uvaco-green-rgb: 0, 183, 169;
+  background: #ffffff;
+  color: #111827;
+}
+
+/* 背景泡泡 */
+body.theme-9 .bg-blob.blob1 {
+  background: rgba(0, 183, 169, 0.16);
+}
+body.theme-9 .bg-blob.blob2 {
+  background: rgba(45, 212, 191, 0.12);
+}
+
+/* 名片卡片（支援 body.theme-9 和 .card.card-theme-9） */
+body.theme-9 .card,
+.card.card-theme-9 {
+  --uvaco-green: #00B7A9;
+  --uvaco-green-rgb: 0, 183, 169;
+  background: #ffffff !important;
+  box-shadow: 0 12px 30px rgba(15,23,42,0.12);
+  border: 1px solid rgba(15,23,42,0.08);
+}
+
+body.theme-9 .card .name,
+.card.card-theme-9 .name { color: #111827 !important; }
+
+body.theme-9 .card .tagline,
+.card.card-theme-9 .tagline { color: #4b5563 !important; }
+
+body.theme-9 .card .divider,
+.card.card-theme-9 .divider { background: rgba(15,23,42,0.08) !important; }
+
+body.theme-9 .card .section-label,
+.card.card-theme-9 .section-label { color: #6b7280 !important; }
+
+body.theme-9 .card .btn-primary,
+.card.card-theme-9 .btn-primary {
+  background: var(--uvaco-green) !important;
+  color: #ffffff !important;
+}
+
+body.theme-9 .card .btn-secondary,
+.card.card-theme-9 .btn-secondary {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 183, 169, 0.55) !important;
+  color: var(--uvaco-green) !important;
+}
+
+body.theme-9 .card .hint,
+.card.card-theme-9 .hint {
+  background: rgba(15,23,42,0.03) !important;
+  color: #4b5563 !important;
+  border: 1px solid rgba(15,23,42,0.06) !important;
+}
+
+body.theme-9 .card .info-label,
+.card.card-theme-9 .info-label { color: var(--uvaco-green) !important; }
+
+body.theme-9 .card .info-value,
+body.theme-9 .card .address-text,
+.card.card-theme-9 .info-value,
+.card.card-theme-9 .address-text { color: #111827 !important; }
+
+body.theme-9 .card .avatar,
+.card.card-theme-9 .avatar {
+  background: #ffffff;
+  border-color: var(--uvaco-green);
+  box-shadow: 0 0 0 4px rgba(0,183,169,0.10), 0 10px 24px rgba(15,23,42,0.18);
+}
+
+/* 頂部欄 / 底部欄 */
+body.theme-9 .edit-top-header,
+body.theme-9 .edit-header-top {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-bottom-color: rgba(15,23,42,0.12);
+}
+
+body.theme-9 .bottom-nav {
+  background: rgba(255, 255, 255, 0.95);
+  border-top-color: rgba(15,23,42,0.12);
+}
+
+

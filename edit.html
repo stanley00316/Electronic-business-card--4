@@ -1,0 +1,3180 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>編輯名片 | Edit Business Card - UVACO</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- 主題 CSS 檔案 -->
+  <link rel="stylesheet" href="theme-1.css">
+  <link rel="stylesheet" href="theme-2.css">
+  <link rel="stylesheet" href="theme-3.css">
+  <link rel="stylesheet" href="theme-4.css">
+  <link rel="stylesheet" href="theme-5.css">
+  <link rel="stylesheet" href="theme-6.css">
+  <link rel="stylesheet" href="theme-7.css">
+  <link rel="stylesheet" href="theme-8.css">
+  <link rel="stylesheet" href="theme-9.css">
+  <style>
+.edit-page-wrapper {
+  padding-bottom: 100px;
+}
+
+/* =========================
+   主題 UI 色彩系統（編輯頁專用）
+   - 目的：主題選擇器/彈窗/頂部欄 等介面字色與背景能隨主題完整變換
+   - 以 body.card-theme-* 為準（由 JS 套用）
+   ========================= */
+
+/* 預設（深色 / 主題1） */
+body {
+  --ui-header-bg: rgba(22, 22, 24, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.10);
+  --ui-surface-bg: rgba(22, 22, 24, 0.98);
+  --ui-surface-border: rgba(255, 255, 255, 0.10);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(255, 255, 255, 0.75);
+  --ui-field-bg: rgba(255, 255, 255, 0.08);
+  --ui-field-border: rgba(255, 255, 255, 0.14);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.10);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.18);
+  --ui-overlay: rgba(0, 0, 0, 0.70);
+
+  /* accent（主色）與其對比文字 */
+  --ui-accent: #1faf53; /* 預設綠（主題1） */
+  --ui-accent-rgb: 31, 175, 83;
+  --ui-accent-contrast: #0b1220; /* 深色字（用在淺色 accent 背景） */
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.12);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.20);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.70);
+
+  /* 關鍵：把舊系統的品牌綠在 edit.html 內改為「跟主題 accent 走」 */
+  --uvaco-green: var(--ui-accent);
+}
+
+/* 淺色模式基礎備援（避免主題類別未及時載入時出現白字在淺背景） */
+body.theme-light {
+  --ui-text: #111827;
+  --ui-header-bg: #f3f4f6;
+  --ui-surface-bg: rgba(255, 255, 255, 0.98);
+  --ui-header-border: rgba(15, 23, 42, 0.12);
+}
+
+/* 主題2（淺色） */
+body.card-theme-2 {
+  --ui-header-bg: rgba(255, 255, 255, 0.95);
+  --ui-header-border: rgba(15, 23, 42, 0.12);
+  --ui-surface-bg: rgba(255, 255, 255, 0.98);
+  --ui-surface-border: rgba(15, 23, 42, 0.12);
+  --ui-text: #111827;
+  --ui-muted: rgba(17, 24, 39, 0.70);
+  --ui-field-bg: rgba(15, 23, 42, 0.04);
+  --ui-field-border: rgba(15, 23, 42, 0.12);
+  --ui-field-text: #111827;
+  --ui-btn-muted-bg: rgba(15, 23, 42, 0.08);
+  --ui-btn-muted-text: #111827;
+  --ui-btn-muted-bg-hover: rgba(15, 23, 42, 0.14);
+  --ui-overlay: rgba(0, 0, 0, 0.55);
+
+  --ui-accent: #1faf53;
+  --ui-accent-rgb: 31, 175, 83;
+  --ui-accent-contrast: #0b1220;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.10);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.65);
+}
+
+/* 主題3（藍） */
+body.card-theme-3 {
+  --ui-header-bg: rgba(30, 58, 138, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.18);
+  --ui-surface-bg: rgba(30, 58, 138, 0.98);
+  --ui-surface-border: rgba(96, 165, 250, 0.35);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(224, 231, 255, 0.85);
+  --ui-field-bg: rgba(255, 255, 255, 0.10);
+  --ui-field-border: rgba(255, 255, 255, 0.20);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.12);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.20);
+  --ui-overlay: rgba(0, 0, 0, 0.65);
+
+  /* 藍主題：使用淺藍作 accent，確保在深藍背景對比清楚 */
+  --ui-accent: #60a5fa;
+  --ui-accent-rgb: 96, 165, 250;
+  --ui-accent-contrast: #1e3a8a;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.18);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.28);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.65);
+}
+
+/* 主題4（金） */
+body.card-theme-4 {
+  --ui-header-bg: rgba(180, 83, 9, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.20);
+  --ui-surface-bg: rgba(180, 83, 9, 0.98);
+  --ui-surface-border: rgba(251, 191, 36, 0.35);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(254, 243, 199, 0.92);
+  --ui-field-bg: rgba(255, 255, 255, 0.12);
+  --ui-field-border: rgba(255, 255, 255, 0.22);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.14);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.22);
+  --ui-overlay: rgba(0,  0,  0, 0.65);
+
+  /* 金主題：用金色作 accent，文字用深咖提升可讀性 */
+  --ui-accent: #fbbf24;
+  --ui-accent-rgb: 251, 191, 36;
+  --ui-accent-contrast: #78350f;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.18);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.28);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.70);
+}
+
+/* 主題5（紫） */
+body.card-theme-5 {
+  --ui-header-bg: rgba(88, 28, 135, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.20);
+  --ui-surface-bg: rgba(88, 28, 135, 0.98);
+  --ui-surface-border: rgba(196, 181, 253, 0.35);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(243, 232, 255, 0.92);
+  --ui-field-bg: rgba(255, 255, 255, 0.12);
+  --ui-field-border: rgba(255, 255, 255, 0.22);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.14);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.22);
+  --ui-overlay: rgba(0, 0, 0, 0.65);
+
+  /* 紫主題：用淡紫作 accent，深紫做對比文字 */
+  --ui-accent: #a78bfa;
+  --ui-accent-rgb: 167, 139, 250;
+  --ui-accent-contrast: #581c87;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.18);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.28);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.70);
+}
+
+/* 主題6（深黑 + 國民黨藍） */
+body.card-theme-6 {
+  --ui-header-bg: rgba(0, 0, 0, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.10);
+  --ui-surface-bg: rgba(0, 0, 0, 0.98);
+  --ui-surface-border: rgba(255, 255, 255, 0.12);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(255, 255, 255, 0.80);
+  --ui-field-bg: rgba(255, 255, 255, 0.10);
+  --ui-field-border: rgba(255, 255, 255, 0.20);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.12);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.20);
+  --ui-overlay: rgba(0, 0, 0, 0.72);
+
+  /* KMT Blue */
+  --ui-accent: #0033A0;
+  --ui-accent-rgb: 0, 51, 160;
+  --ui-accent-contrast: #ffffff;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.26);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.72);
+}
+
+/* 主題7（白底 + 國民黨藍） */
+body.card-theme-7 {
+  --ui-header-bg: rgba(255, 255, 255, 0.95);
+  --ui-header-border: rgba(15, 23, 42, 0.12);
+  --ui-surface-bg: rgba(255, 255, 255, 0.98);
+  --ui-surface-border: rgba(15, 23, 42, 0.12);
+  --ui-text: #111827;
+  --ui-muted: rgba(17, 24, 39, 0.70);
+  --ui-field-bg: rgba(15, 23, 42, 0.04);
+  --ui-field-border: rgba(15, 23, 42, 0.12);
+  --ui-field-text: #111827;
+  --ui-btn-muted-bg: rgba(15, 23, 42, 0.08);
+  --ui-btn-muted-text: #111827;
+  --ui-btn-muted-bg-hover: rgba(15, 23, 42, 0.14);
+  --ui-overlay: rgba(0, 0, 0, 0.55);
+
+  /* KMT Blue */
+  --ui-accent: #0033A0;
+  --ui-accent-rgb: 0, 51, 160;
+  --ui-accent-contrast: #ffffff;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.10);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.60);
+}
+
+/* 主題8（深黑 + 民眾黨青綠） */
+body.card-theme-8 {
+  --ui-header-bg: rgba(0, 0, 0, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.10);
+  --ui-surface-bg: rgba(0, 0, 0, 0.98);
+  --ui-surface-border: rgba(255, 255, 255, 0.12);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(255, 255, 255, 0.80);
+  --ui-field-bg: rgba(255, 255, 255, 0.10);
+  --ui-field-border: rgba(255, 255, 255, 0.20);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.12);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.20);
+  --ui-overlay: rgba(0, 0, 0, 0.72);
+
+  /* TPP Teal */
+  --ui-accent: #00B7A9;
+  --ui-accent-rgb: 0, 183, 169;
+  --ui-accent-contrast: #001b18;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.26);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.72);
+}
+
+/* 主題9（白底 + 民眾黨青綠） */
+body.card-theme-9 {
+  --ui-header-bg: rgba(255, 255, 255, 0.95);
+  --ui-header-border: rgba(15, 23, 42, 0.12);
+  --ui-surface-bg: rgba(255, 255, 255, 0.98);
+  --ui-surface-border: rgba(15, 23, 42, 0.12);
+  --ui-text: #111827;
+  --ui-muted: rgba(17, 24, 39, 0.70);
+  --ui-field-bg: rgba(15, 23, 42, 0.04);
+  --ui-field-border: rgba(15, 23, 42, 0.12);
+  --ui-field-text: #111827;
+  --ui-btn-muted-bg: rgba(15, 23, 42, 0.08);
+  --ui-btn-muted-text: #111827;
+  --ui-btn-muted-bg-hover: rgba(15, 23, 42, 0.14);
+  --ui-overlay: rgba(0, 0, 0, 0.55);
+
+  /* TPP Teal */
+  --ui-accent: #00B7A9;
+  --ui-accent-rgb: 0, 183, 169;
+  --ui-accent-contrast: #001b18;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.10);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.60);
+}
+
+/* ===== 主題介面：共用文字/按鈕顏色（跟主題走） ===== */
+
+/* 頂部返回箭頭（原本 inline 綁品牌綠，這裡強制跟主題 accent 走） */
+.edit-top-header a {
+  color: var(--ui-accent) !important;
+}
+
+/* 標題：改為跟隨主題（在深色主題用白字，淺色主題用深字） */
+.edit-header-top .edit-title {
+  color: var(--ui-text) !important;
+}
+
+/* 主題按鈕 */
+.edit-theme-btn {
+  border-color: var(--ui-accent) !important;
+  color: var(--ui-accent) !important;
+  background: var(--ui-accent-soft-bg) !important;
+}
+.edit-theme-btn:hover {
+  background: var(--ui-accent-soft-bg-hover) !important;
+  border-color: var(--ui-accent) !important;
+  color: var(--ui-accent) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 0 0 3px rgba(255,255,255,0.06);
+}
+
+/* 儲存按鈕：使用主題 accent 背景，確保文字對比 */
+.edit-save-btn {
+  background: var(--ui-accent) !important;
+  color: var(--ui-accent-contrast) !important;
+}
+.edit-save-btn:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+/* 主題/連結輸入等彈窗標題：用主題 accent（更符合不同主題） */
+.theme-selector-title,
+.link-input-title,
+.contact-type-title,
+.company-info-type-title,
+.address-edit-title {
+  color: var(--ui-accent) !important;
+}
+
+/* ===== 卡片預覽區（內容文字/強調色） ===== */
+
+/* 卡片內的英文名 `.en` 與 strong：不再固定品牌綠，改跟主題 accent */
+#previewCard .name .en,
+#previewCard .tagline strong {
+  color: var(--ui-accent) !important;
+}
+
+/* 公司資訊 label 也跟主題 accent（避免藍/金/紫還是綠） */
+#previewCard .info-label,
+#previewCard .address-map-link {
+  color: var(--ui-accent) !important;
+}
+
+/* +新增 按鈕：跟主題 accent */
+.edit-add-btn {
+  background: var(--ui-accent-soft-bg) !important;
+  color: var(--ui-accent) !important;
+  border: 1px solid var(--ui-accent-border) !important;
+}
+.edit-add-btn:hover {
+  background: var(--ui-accent-soft-bg-hover) !important;
+  border-color: var(--ui-accent) !important;
+}
+
+/* 固定頂部導航欄 */
+.edit-top-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  z-index: 1000 !important;
+  background: var(--ui-header-bg) !important;
+  border-bottom: 1px solid var(--ui-header-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  box-sizing: border-box;
+}
+
+body.theme-light .edit-top-header {
+  background: #f3f4f6 !important;
+  border-bottom-color: rgba(15, 23, 42, 0.1);
+}
+
+.edit-header-top {
+  position: fixed !important;
+  top: 44px !important; /* edit-top-header 的高度 */
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  z-index: 999 !important;
+  background: var(--ui-header-bg) !important;
+  border-bottom: 1px solid var(--ui-header-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  margin-bottom: 0;
+  box-sizing: border-box;
+}
+
+body.theme-light .edit-header-top {
+  border-bottom-color: rgba(15, 23, 42, 0.1);
+  background: #f3f4f6 !important;
+}
+
+.edit-page-wrapper {
+  padding-top: 120px; /* 為兩個固定頂部欄留出空間 (44px + 60px + 16px) */
+}
+
+/* 主題選擇按鈕 */
+.edit-theme-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 2px solid var(--uvaco-green);
+  border-radius: 8px;
+  color: var(--uvaco-green);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+  background: rgba(var(--ui-accent-rgb), 0.12);
+  min-width: auto;
+  height: auto;
+}
+
+body.theme-dark .edit-theme-btn {
+  background: rgba(var(--ui-accent-rgb), 0.12);
+  color: var(--uvaco-green);
+  border-color: var(--uvaco-green);
+}
+
+body.theme-light .edit-theme-btn {
+  background: rgba(var(--ui-accent-rgb), 0.12);
+  color: var(--uvaco-green);
+  border-color: var(--uvaco-green);
+}
+
+.edit-theme-btn:hover {
+  background: rgba(var(--ui-accent-rgb), 0.20) !important;
+  border-color: var(--uvaco-green) !important;
+  color: var(--uvaco-green) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(var(--ui-accent-rgb), 0.35);
+}
+
+body.theme-light .edit-theme-btn:hover {
+  background: rgba(var(--ui-accent-rgb), 0.20) !important;
+}
+
+/* 主題選擇器模態框 */
+.theme-selector-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--ui-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 5000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.theme-selector-overlay.show {
+  display: flex;
+}
+
+.theme-selector-modal {
+  width: 90%;
+  max-width: 800px;
+  max-height: 85vh;
+  border-radius: 24px;
+  padding: 32px;
+  animation: slideUp 0.3s ease;
+  position: relative;
+  overflow-y: auto;
+}
+
+/* 使用主題變數，讓 1~5 都有一致且可讀的 UI 配色 */
+.theme-selector-modal {
+  background: var(--ui-surface-bg);
+  border: 1px solid var(--ui-surface-border);
+  color: var(--ui-text);
+}
+
+.theme-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.theme-selector-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--uvaco-green);
+  margin: 0;
+}
+
+.theme-selector-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ui-btn-muted-bg);
+  border: none;
+  color: var(--ui-btn-muted-text);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+body.theme-light .theme-selector-close {
+  background: rgba(15, 23, 42, 0.1);
+  color: #111827;
+}
+
+.theme-selector-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  transform: rotate(90deg);
+}
+
+.theme-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.theme-card-preview {
+  cursor: pointer;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s;
+  border: 3px solid transparent;
+  position: relative;
+}
+
+.theme-card-preview:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+}
+
+.theme-card-preview.active {
+  border-color: var(--uvaco-green);
+  box-shadow: 0 0 0 4px rgba(var(--ui-accent-rgb), 0.30);
+}
+
+.theme-card-preview.active::after {
+  content: '✓';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  background: var(--uvaco-green);
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(var(--ui-accent-rgb), 0.38);
+}
+
+.theme-preview-wrapper {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+}
+
+.theme-preview-top-bar {
+  height: 32px;
+  border-radius: 8px;
+  opacity: 0.9;
+}
+
+.theme-preview-card {
+  flex: 1;
+  border-radius: 12px;
+  opacity: 0.85;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 8px;
+}
+
+.theme-preview-text {
+  height: 12px;
+  border-radius: 4px;
+  opacity: 0.6;
+}
+
+.theme-preview-text.long {
+  width: 80%;
+}
+
+.theme-preview-text.short {
+  width: 50%;
+}
+
+.theme-preview-button {
+  height: 36px;
+  border-radius: 8px;
+  opacity: 0.9;
+  margin-top: auto;
+}
+
+.theme-card-name {
+  text-align: center;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.theme-card-name { color: var(--ui-text); }
+
+/* 主題 1：深色 */
+.theme-card-preview[data-theme="1"] .theme-preview-wrapper {
+  background: #050608;
+}
+.theme-card-preview[data-theme="1"] .theme-preview-top-bar {
+  background: rgba(22, 22, 24, 0.95);
+}
+.theme-card-preview[data-theme="1"] .theme-preview-card {
+  background: rgba(22,22,24,0.85);
+}
+.theme-card-preview[data-theme="1"] .theme-preview-text {
+  background: rgba(255,255,255,0.3);
+}
+.theme-card-preview[data-theme="1"] .theme-preview-button {
+  background: var(--uvaco-green);
+}
+
+/* 主題 2：淺色 */
+.theme-card-preview[data-theme="2"] .theme-preview-wrapper {
+  background: #f3f4f6;
+}
+.theme-card-preview[data-theme="2"] .theme-preview-top-bar {
+  background: rgba(255, 255, 255, 0.95);
+}
+.theme-card-preview[data-theme="2"] .theme-preview-card {
+  background: #ffffff;
+}
+.theme-card-preview[data-theme="2"] .theme-preview-text {
+  background: rgba(0,0,0,0.15);
+}
+.theme-card-preview[data-theme="2"] .theme-preview-button {
+  background: var(--uvaco-green);
+}
+
+/* 主題 3：藍色 */
+.theme-card-preview[data-theme="3"] .theme-preview-wrapper {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+}
+.theme-card-preview[data-theme="3"] .theme-preview-top-bar {
+  background: rgba(30, 58, 138, 0.95);
+}
+.theme-card-preview[data-theme="3"] .theme-preview-card {
+  background: rgba(30,58,138,0.85);
+}
+.theme-card-preview[data-theme="3"] .theme-preview-text {
+  background: rgba(255,255,255,0.3);
+}
+.theme-card-preview[data-theme="3"] .theme-preview-button {
+  background: #60a5fa;
+}
+
+/* 主題 4：金色 */
+.theme-card-preview[data-theme="4"] .theme-preview-wrapper {
+  background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #f59e0b 100%);
+}
+.theme-card-preview[data-theme="4"] .theme-preview-top-bar {
+  background: rgba(180, 83, 9, 0.95);
+}
+.theme-card-preview[data-theme="4"] .theme-preview-card {
+  background: rgba(180,83,9,0.85);
+}
+.theme-card-preview[data-theme="4"] .theme-preview-text {
+  background: rgba(255,255,255,0.3);
+}
+.theme-card-preview[data-theme="4"] .theme-preview-button {
+  background: #fbbf24;
+}
+
+/* 主題 5：紫色 */
+.theme-card-preview[data-theme="5"] .theme-preview-wrapper {
+  background: linear-gradient(135deg, #581c87 0%, #7c3aed 50%, #9333ea 100%);
+}
+.theme-card-preview[data-theme="5"] .theme-preview-top-bar {
+  background: rgba(88, 28, 135, 0.95);
+}
+.theme-card-preview[data-theme="5"] .theme-preview-card {
+  background: rgba(88,28,135,0.85);
+}
+.theme-card-preview[data-theme="5"] .theme-preview-text {
+  background: rgba(255,255,255,0.3);
+}
+.theme-card-preview[data-theme="5"] .theme-preview-button {
+  background: #a78bfa;
+}
+
+/* 主題 6：深黑 + 國民黨藍 */
+.theme-card-preview[data-theme="6"] .theme-preview-wrapper {
+  background: #000000;
+}
+.theme-card-preview[data-theme="6"] .theme-preview-top-bar {
+  background: rgba(0, 0, 0, 0.95);
+}
+.theme-card-preview[data-theme="6"] .theme-preview-card {
+  background: rgba(10,10,12,0.90);
+}
+.theme-card-preview[data-theme="6"] .theme-preview-text {
+  background: rgba(255,255,255,0.30);
+}
+.theme-card-preview[data-theme="6"] .theme-preview-button {
+  background: #0033A0;
+}
+
+/* 主題 7：白底 + 國民黨藍 */
+.theme-card-preview[data-theme="7"] .theme-preview-wrapper {
+  background: #ffffff;
+}
+.theme-card-preview[data-theme="7"] .theme-preview-top-bar {
+  background: rgba(255, 255, 255, 0.95);
+}
+.theme-card-preview[data-theme="7"] .theme-preview-card {
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,0.08);
+}
+.theme-card-preview[data-theme="7"] .theme-preview-text {
+  background: rgba(15,23,42,0.14);
+}
+.theme-card-preview[data-theme="7"] .theme-preview-button {
+  background: #0033A0;
+}
+
+/* 主題 8：深黑 + 民眾黨青綠 */
+.theme-card-preview[data-theme="8"] .theme-preview-wrapper {
+  background: #000000;
+}
+.theme-card-preview[data-theme="8"] .theme-preview-top-bar {
+  background: rgba(0, 0, 0, 0.95);
+}
+.theme-card-preview[data-theme="8"] .theme-preview-card {
+  background: rgba(10,10,12,0.90);
+}
+.theme-card-preview[data-theme="8"] .theme-preview-text {
+  background: rgba(255,255,255,0.30);
+}
+.theme-card-preview[data-theme="8"] .theme-preview-button {
+  background: #00B7A9;
+}
+
+/* 主題 9：白底 + 民眾黨青綠 */
+.theme-card-preview[data-theme="9"] .theme-preview-wrapper {
+  background: #ffffff;
+}
+.theme-card-preview[data-theme="9"] .theme-preview-top-bar {
+  background: rgba(255, 255, 255, 0.95);
+}
+.theme-card-preview[data-theme="9"] .theme-preview-card {
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,0.08);
+}
+.theme-card-preview[data-theme="9"] .theme-preview-text {
+  background: rgba(15,23,42,0.14);
+}
+.theme-card-preview[data-theme="9"] .theme-preview-button {
+  background: #00B7A9;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 可編輯元素樣式 */
+.edit-clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* 只有非絕對定位的元素才設置 relative */
+.edit-clickable:not(.avatar):not([style*="position: absolute"]) {
+  position: relative;
+}
+
+.edit-clickable:hover {
+  opacity: 0.8;
+  outline: 2px dashed var(--uvaco-green);
+  outline-offset: 4px;
+}
+
+/* 確保頭像保持絕對定位 */
+.avatar.edit-clickable {
+  position: absolute !important;
+  top: 14px !important;
+  right: 16px !important;
+  width: 104px !important;
+  height: 104px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+}
+
+.edit-clickable[contenteditable="true"] {
+  outline: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.edit-clickable[contenteditable="true"]:focus {
+  outline: 2px solid var(--uvaco-green);
+  outline-offset: 2px;
+  background: rgba(var(--ui-accent-rgb), 0.12);
+}
+
+/* 標語容器和刪除按鈕 */
+.slogans-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slogan-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slogan-delete-btn {
+  display: none;
+  padding: 4px 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.slogan-item:hover .slogan-delete-btn {
+  display: block;
+}
+
+.slogan-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* 預覽區域居中 - 加大寬度以支持橫向排列 */
+.edit-preview-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* 卡片也加大寬度 */
+.edit-preview-section .card {
+  max-width: 1200px;
+  width: 100%;
+  padding: 26px 150px 26px 22px; /* 右側留空給頭像 */
+}
+
+/* 按鈕群組垂直排列 */
+.edit-preview-section .btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 聯絡方式按鈕垂直排列 */
+.edit-preview-section .contact-btn-wrapper {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+/* 按鈕寬度自適應 */
+.edit-preview-section .btn {
+  width: 100%;
+  white-space: nowrap;
+  justify-content: flex-start;
+  padding-left: 16px;
+}
+
+/* 新增按鈕垂直排列 */
+.edit-preview-section .edit-add-btn {
+  width: 100% !important;
+  margin-top: 8px !important;
+}
+
+/* 標語容器橫向排列 */
+.edit-preview-section .slogans-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.edit-preview-section .slogan-item {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 200px;
+  max-width: 350px;
+}
+
+/* 標題和標語區域橫向佈局 */
+.edit-preview-section .name,
+.edit-preview-section .tagline,
+.edit-preview-section .section-label {
+  display: inline-block;
+  margin-right: 16px;
+}
+
+/* 提示文字橫向排列 */
+.edit-preview-section .hint {
+  max-width: 600px;
+  display: inline-block;
+}
+
+/* 聯絡方式按鈕包裝器 */
+.contact-btn-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.contact-delete-btn {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  z-index: 10;
+  transition: all 0.2s;
+}
+
+.contact-btn-wrapper:hover .contact-delete-btn {
+  display: block;
+}
+
+.contact-delete-btn:hover {
+  background: rgba(239, 68, 68, 1);
+}
+
+/* 連結輸入模態框樣式 */
+.link-input-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: var(--ui-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 4000 !important;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+  animation: fadeIn 0.3s ease;
+}
+
+.link-input-overlay.show {
+  display: flex !important;
+}
+
+.link-input-modal {
+  width: 90%;
+  max-width: 400px;
+  border-radius: 20px;
+  padding: 24px;
+  animation: slideUp 0.3s ease;
+  position: relative;
+  margin: auto;
+}
+
+.link-input-modal {
+  background: var(--ui-surface-bg);
+  border: 1px solid var(--ui-surface-border);
+  color: var(--ui-text);
+}
+
+.link-input-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--uvaco-green);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.link-input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ui-field-border);
+  background: var(--ui-field-bg);
+  color: var(--ui-field-text);
+  font-size: 16px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+body.theme-light .link-input-field {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(15, 23, 42, 0.03);
+  color: #111827;
+}
+
+.link-input-field:focus {
+  outline: none;
+  border-color: var(--uvaco-green);
+  background: rgba(var(--ui-accent-rgb), 0.12);
+}
+
+.link-input-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.link-input-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.link-input-cancel {
+  background: var(--ui-btn-muted-bg);
+  color: var(--ui-btn-muted-text);
+}
+
+body.theme-light .link-input-cancel {
+  background: rgba(15, 23, 42, 0.1);
+  color: #111827;
+}
+
+.link-input-cancel:hover {
+  background: var(--ui-btn-muted-bg-hover);
+}
+
+body.theme-light .link-input-cancel:hover {
+  background: rgba(15, 23, 42, 0.2);
+}
+
+.link-input-submit {
+  background: var(--uvaco-green);
+  color: #ffffff;
+}
+
+.link-input-submit:hover {
+  background: #1fa05a;
+  transform: translateY(-1px);
+}
+
+/* 自訂類型（其他）模態框 */
+.custom-type-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: var(--ui-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 4500 !important;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.custom-type-overlay.show {
+  display: flex !important;
+}
+
+.custom-type-modal {
+  width: 92%;
+  max-width: 420px;
+  border-radius: 20px;
+  padding: 24px;
+  background: var(--ui-surface-bg);
+  border: 1px solid var(--ui-surface-border);
+  color: var(--ui-text);
+}
+
+.custom-type-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 16px 0;
+  color: var(--ui-accent);
+}
+
+.custom-type-label {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--ui-muted);
+}
+
+.custom-type-field {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--ui-field-border);
+  background: var(--ui-field-bg);
+  color: var(--ui-field-text);
+  font-size: 15px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+
+.custom-type-field:focus {
+  outline: none;
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 3px rgba(var(--ui-accent-rgb), 0.18);
+}
+
+.custom-type-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.custom-type-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.custom-type-cancel {
+  background: var(--ui-btn-muted-bg);
+  color: var(--ui-btn-muted-text);
+}
+
+.custom-type-cancel:hover {
+  background: var(--ui-btn-muted-bg-hover);
+}
+
+.custom-type-confirm {
+  background: var(--ui-accent);
+  color: var(--ui-accent-contrast);
+}
+
+.custom-type-confirm:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+/* ===== 模態框共用滾動與配色優化 ===== */
+.contact-type-modal,
+.link-input-modal,
+.custom-type-modal,
+.company-info-type-modal,
+.address-edit-modal {
+  max-height: 85vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch; /* iOS 滾動優化 */
+}
+
+/* 捲軸美化 */
+.contact-type-modal::-webkit-scrollbar,
+.link-input-modal::-webkit-scrollbar,
+.custom-type-modal::-webkit-scrollbar,
+.company-info-type-modal::-webkit-scrollbar,
+.address-edit-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.contact-type-modal::-webkit-scrollbar-thumb,
+.link-input-modal::-webkit-scrollbar-thumb,
+.custom-type-modal::-webkit-scrollbar-thumb,
+.company-info-type-modal::-webkit-scrollbar-thumb,
+.address-edit-modal::-webkit-scrollbar-thumb {
+  background: var(--ui-accent);
+  border-radius: 10px;
+}
+
+.contact-type-modal::-webkit-scrollbar-track,
+.link-input-modal::-webkit-scrollbar-track,
+.custom-type-modal::-webkit-scrollbar-track,
+.company-info-type-modal::-webkit-scrollbar-track,
+.address-edit-modal::-webkit-scrollbar-track {
+  background: var(--ui-btn-muted-bg);
+}
+
+/* 聯絡方式類型選擇彈窗專屬樣式 */
+.contact-type-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: var(--ui-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 3500 !important; /* 確保在其他 UI 之下，但在背景之上 */
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+  animation: fadeIn 0.3s ease;
+}
+
+.contact-type-overlay.show {
+  display: flex !important;
+}
+
+.contact-type-modal {
+  width: 92%;
+  max-width: 500px;
+  border-radius: 24px;
+  padding: 32px;
+  background: var(--ui-surface-bg);
+  border: 1px solid var(--ui-surface-border);
+  color: var(--ui-text);
+  animation: slideUp 0.3s ease;
+  position: relative;
+}
+
+.contact-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 480px) {
+  .contact-type-grid {
+    grid-template-columns: repeat(2, 1fr); /* 手機端改為 2 欄位，點擊區域更大 */
+    gap: 12px;
+  }
+  .contact-type-modal {
+    padding: 24px 16px;
+  }
+}
+
+.contact-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 8px;
+  background: var(--ui-btn-muted-bg);
+  border: 1px solid var(--ui-surface-border);
+  border-radius: 16px;
+  color: var(--ui-text);
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 10px;
+}
+
+.contact-type-btn:hover {
+  background: var(--ui-btn-muted-bg-hover);
+  border-color: var(--ui-accent);
+  transform: translateY(-2px);
+}
+
+.contact-type-icon {
+  font-size: 24px;
+}
+
+.contact-type-icon-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.contact-type-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* 公司資訊類型彈窗專屬樣式 */
+.company-info-type-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: var(--ui-overlay);
+  backdrop-filter: blur(8px);
+  z-index: 3600 !important;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.company-info-type-overlay.show {
+  display: flex !important;
+}
+
+.company-info-type-modal {
+  width: 92%;
+  max-width: 450px;
+  border-radius: 24px;
+  padding: 32px;
+  background: var(--ui-surface-bg);
+  border: 1px solid var(--ui-surface-border);
+  color: var(--ui-text);
+  animation: slideUp 0.3s ease;
+}
+
+.company-info-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.company-info-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background: var(--ui-btn-muted-bg);
+  border: 1px solid var(--ui-surface-border);
+  border-radius: 16px;
+  color: var(--ui-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.company-info-type-btn:hover {
+  background: var(--ui-btn-muted-bg-hover);
+  border-color: var(--ui-accent);
+  transform: translateY(-2px);
+}
+
+.company-info-type-icon {
+  font-size: 28px;
+}
+
+.company-info-type-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 地址編輯彈窗專屬樣式 */
+.address-edit-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: var(--ui-overlay);
+  backdrop-filter: blur(8px);
+  z-index: 3700 !important;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.address-edit-overlay.show {
+  display: flex !important;
+}
+
+.address-edit-modal {
+  width: 92%;
+  max-width: 500px;
+  border-radius: 24px;
+  padding: 32px;
+  background: var(--ui-surface-bg);
+  border: 1px solid var(--ui-surface-border);
+  color: var(--ui-text);
+}
+
+.address-edit-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ui-field-border);
+  background: var(--ui-field-bg);
+  color: var(--ui-field-text);
+  font-size: 15px;
+  resize: vertical;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.address-edit-textarea:focus {
+  outline: none;
+  border-color: var(--ui-accent);
+}
+
+.address-edit-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--ui-muted);
+}
+
+.address-edit-btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.address-edit-submit {
+  background: var(--ui-accent);
+  color: var(--ui-accent-contrast);
+}
+
+.address-edit-cancel {
+  background: var(--ui-btn-muted-bg);
+  color: var(--ui-btn-muted-text);
+}
+
+.address-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+</style>
+</head>
+
+<body class="lang-zh">
+
+<!-- 背景泡泡 -->
+<div class="bg-blob blob1"></div>
+<div class="bg-blob blob2"></div>
+
+<!-- 頂部：返回按鈕 -->
+<div class="edit-top-header">
+  <a href="yuyuko.html" style="font-size: 20px; color: var(--uvaco-green); text-decoration: none;">←</a>
+</div>
+
+<div class="edit-page-wrapper">
+  <div class="edit-page-container">
+    <!-- 頂部：標題和保存按鈕 -->
+    <div class="edit-header-top">
+      <h1 class="edit-title lang-zh">編輯名片</h1>
+      <h1 class="edit-title lang-en">Edit Business Card</h1>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button class="edit-theme-btn" onclick="showThemeSelector()" title="選擇主題">
+          <span style="font-size: 18px;">🎨</span>
+          <span class="lang-zh">主題</span>
+          <span class="lang-en">Theme</span>
+        </button>
+        <button class="edit-save-btn" onclick="saveCard()">
+          <span class="lang-zh">儲存</span>
+          <span class="lang-en">Save</span>
+        </button>
+      </div>
+    </div>
+    
+    
+    <!-- 名片預覽（可直接編輯） -->
+    <div class="edit-preview-section">
+      <div class="hero">
+        <div class="hero-frame edit-clickable" onclick="editLogo()" title="點擊編輯 LOGO">
+          <img src="uvaco-logo.svg" class="hero-logo" alt="UVACO" id="previewLogo">
+        </div>
+      </div>
+
+      <div class="card" id="previewCard" style="position: relative; padding-right: 150px;">
+        <img class="avatar edit-clickable" id="previewAvatar" src="default-avatar.svg" alt="Avatar" loading="lazy" onclick="editAvatar()" title="點擊編輯頭像">
+        
+        <div class="name lang-zh edit-clickable" id="previewNameZh" contenteditable="true" onblur="updateNameFromPreview()" onclick="focusEdit(this)">柯宜瀅 ｜ <span class="en">Yuyu Ko</span></div>
+        <div class="name lang-en edit-clickable" id="previewNameEn" contenteditable="true" onblur="updateNameFromPreview()" onclick="focusEdit(this)">Yuyu Ko ｜ <span class="en">Ko</span></div>
+        
+        <div class="tagline lang-zh edit-clickable" id="previewTitleZh" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)">業務經理</div>
+        <div class="tagline lang-en edit-clickable" id="previewTitleEn" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)">Sales Manager</div>
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start;">
+          <div id="previewSlogansZh" class="slogans-container">
+            <div class="slogan-item">
+              <div class="tagline lang-zh edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)">健康・事業・未來</div>
+              <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="刪除標語">✕</button>
+            </div>
+            <div class="slogan-item">
+              <div class="tagline lang-zh edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)"><strong>葡眾企業｜專業陪伴</strong></div>
+              <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="刪除標語">✕</button>
+            </div>
+          </div>
+          <button class="edit-add-btn lang-zh" onclick="addSloganToPreview('zh')">+ 新增中文標語</button>
+          <button class="edit-add-btn lang-en" onclick="addSloganToPreview('zh')">+ Add Chinese Slogan</button>
+          
+          <div id="previewSlogansEn" class="slogans-container">
+            <div class="slogan-item">
+              <div class="tagline lang-en edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)">Health • Business • Future</div>
+              <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="Delete slogan">✕</button>
+            </div>
+            <div class="slogan-item">
+              <div class="tagline lang-en edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)"><strong>Puzhong Enterprise | Professional Support</strong></div>
+              <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="Delete slogan">✕</button>
+            </div>
+          </div>
+          <button class="edit-add-btn lang-zh" onclick="addSloganToPreview('en')">+ 新增英文標語</button>
+          <button class="edit-add-btn lang-en" onclick="addSloganToPreview('en')">+ Add English Slogan</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- 公司資訊區塊 -->
+        <div class="company-info-section" id="companyInfoSection">
+          <div class="section-label lang-zh">公司資訊 COMPANY INFO</div>
+          <div class="section-label lang-en">COMPANY INFO</div>
+          
+          <!-- 統一編號（可選） -->
+          <div class="info-item info-item-tax" id="taxIdItem" style="display: none;">
+            <span class="info-label lang-zh">統一編號：</span>
+            <span class="info-label lang-en">Tax ID:</span>
+            <span class="info-value lang-zh edit-clickable" id="previewTaxIdZh" contenteditable="true" onclick="editTaxId(event)">12345678</span>
+            <span class="info-value lang-en edit-clickable" id="previewTaxIdEn" contenteditable="true" onclick="editTaxId(event)">12345678</span>
+            <button class="info-delete-btn" onclick="deleteCompanyInfo('taxId')" title="刪除">×</button>
+          </div>
+          
+          <!-- 服務據點（可選） -->
+          <div class="info-item info-item-location" id="serviceLocationItem" style="display: none;">
+            <span class="info-label lang-zh">服務據點：</span>
+            <span class="info-label lang-en">Service Location:</span>
+            <span class="info-value lang-zh edit-clickable" id="previewServiceLocationZh" onclick="editAddress('serviceLocation', event)">
+              <span class="address-text">台北市信義區信義路五段7號</span>
+              <span class="address-map-link" onclick="openMap('serviceLocation', event)">📍 地圖</span>
+            </span>
+            <span class="info-value lang-en edit-clickable" id="previewServiceLocationEn" onclick="editAddress('serviceLocation', event)">
+              <span class="address-text">No. 7, Section 5, Xinyi Road, Xinyi District, Taipei</span>
+              <span class="address-map-link" onclick="openMap('serviceLocation', event)">📍 Map</span>
+            </span>
+            <button class="info-delete-btn" onclick="deleteCompanyInfo('serviceLocation')" title="刪除">×</button>
+          </div>
+          
+          <!-- 通訊住址（可選） -->
+          <div class="info-item info-item-location" id="mailingAddressItem" style="display: none;">
+            <span class="info-label lang-zh">通訊住址：</span>
+            <span class="info-label lang-en">Mailing Address:</span>
+            <span class="info-value lang-zh edit-clickable" id="previewMailingAddressZh" onclick="editAddress('mailingAddress', event)">
+              <span class="address-text">台北市信義區信義路五段7號</span>
+              <span class="address-map-link" onclick="openMap('mailingAddress', event)">📍 地圖</span>
+            </span>
+            <span class="info-value lang-en edit-clickable" id="previewMailingAddressEn" onclick="editAddress('mailingAddress', event)">
+              <span class="address-text">No. 7, Section 5, Xinyi Road, Xinyi District, Taipei</span>
+              <span class="address-map-link" onclick="openMap('mailingAddress', event)">📍 Map</span>
+            </span>
+            <button class="info-delete-btn" onclick="deleteCompanyInfo('mailingAddress')" title="刪除">×</button>
+          </div>
+          
+          <!-- 公司住址（可選） -->
+          <div class="info-item info-item-location" id="companyAddressItem" style="display: none;">
+            <span class="info-label lang-zh">公司住址：</span>
+            <span class="info-label lang-en">Company Address:</span>
+            <span class="info-value lang-zh edit-clickable" id="previewCompanyAddressZh" onclick="editAddress('companyAddress', event)">
+              <span class="address-text">台北市信義區信義路五段7號</span>
+              <span class="address-map-link" onclick="openMap('companyAddress', event)">📍 地圖</span>
+            </span>
+            <span class="info-value lang-en edit-clickable" id="previewCompanyAddressEn" onclick="editAddress('companyAddress', event)">
+              <span class="address-text">No. 7, Section 5, Xinyi Road, Xinyi District, Taipei</span>
+              <span class="address-map-link" onclick="openMap('companyAddress', event)">📍 Map</span>
+            </span>
+            <button class="info-delete-btn" onclick="deleteCompanyInfo('companyAddress')" title="刪除">×</button>
+          </div>
+          
+          <!-- 新增公司資訊按鈕 -->
+          <button class="edit-add-btn lang-zh" onclick="showCompanyInfoTypeModal(event)">+ 新增公司資訊</button>
+          <button class="edit-add-btn lang-en" onclick="showCompanyInfoTypeModal(event)">+ Add Company Info</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="section-label lang-zh">聯絡方式 CONTACT</div>
+        <div class="section-label lang-en">CONTACT</div>
+
+        <div class="btn-group" id="previewContacts" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+          <div class="contact-btn-wrapper">
+            <a class="btn btn-primary lang-zh edit-clickable" href="tel:0905519002" onclick="editContact(event, 'call', 'tel:0905519002')">
+              <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電
+            </a>
+            <a class="btn btn-primary lang-en edit-clickable" href="tel:0905519002" onclick="editContact(event, 'call', 'tel:0905519002')">
+              <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now
+            </a>
+            <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="刪除">✕</button>
+          </div>
+          <div class="contact-btn-wrapper">
+            <a class="btn btn-secondary lang-zh edit-clickable" href="https://line.me/R/ti/p/2sSjJ_o6OT" target="_blank" onclick="editContact(event, 'line', 'https://line.me/R/ti/p/2sSjJ_o6OT')">
+              <img src="line-logo.svg" alt="LINE" class="btn-icon-line"> 加入 LINE
+            </a>
+            <a class="btn btn-secondary lang-en edit-clickable" href="https://line.me/R/ti/p/2sSjJ_o6OT" target="_blank" onclick="editContact(event, 'line', 'https://line.me/R/ti/p/2sSjJ_o6OT')">
+              <img src="line-logo.svg" alt="LINE" class="btn-icon-line"> Add LINE
+            </a>
+            <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="Delete">✕</button>
+          </div>
+          <div class="contact-btn-wrapper">
+            <a class="btn btn-secondary lang-zh edit-clickable" href="mailto:ccccwoho@gmail.com" onclick="editContact(event, 'email', 'mailto:ccccwoho@gmail.com')">
+              <img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email
+            </a>
+            <a class="btn btn-secondary lang-en edit-clickable" href="mailto:ccccwoho@gmail.com" onclick="editContact(event, 'email', 'mailto:ccccwoho@gmail.com')">
+              <img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email
+            </a>
+            <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="刪除">✕</button>
+          </div>
+          <div class="contact-btn-wrapper">
+            <a class="btn btn-secondary lang-zh edit-clickable" href="yuyu-ko.vcf" download="YuyuKo.vcf" onclick="editContact(event, 'vcf', 'yuyu-ko.vcf')">
+              <img src="file-icon.svg" alt="VCF" class="btn-icon-file"> 儲存到通訊錄（VCF）
+            </a>
+            <a class="btn btn-secondary lang-en edit-clickable" href="yuyu-ko.vcf" download="YuyuKo.vcf" onclick="editContact(event, 'vcf', 'yuyu-ko.vcf')">
+              <img src="file-icon.svg" alt="VCF" class="btn-icon-file"> Save Contact (VCF)
+            </a>
+            <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="Delete">✕</button>
+          </div>
+          </div>
+          <button class="edit-add-btn lang-zh" onclick="addContact(event)">+ 新增聯絡方式</button>
+          <button class="edit-add-btn lang-en" onclick="addContact(event)">+ Add Contact Method</button>
+        </div>
+
+        <div class="hint lang-zh">
+          若您透過 <strong>NFC 名片</strong> 或分享連結開啟此頁，我會盡快回覆您。
+        </div>
+        <div class="hint lang-en">
+          If you opened this page via <strong>NFC card</strong> or shared link, I will respond as soon as possible.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 聯絡方式類型選擇彈出視窗 -->
+<div class="contact-type-overlay" id="contactTypeOverlay" onclick="closeContactTypeModal(event)">
+  <div class="contact-type-modal" onclick="event.stopPropagation()">
+    <h2 class="contact-type-title lang-zh">選擇聯絡方式類型</h2>
+    <h2 class="contact-type-title lang-en">Select Contact Method Type</h2>
+    
+    <div class="contact-type-grid">
+      <button class="contact-type-btn" onclick="selectContactType('company-phone', '公司電話', 'Company Phone')">
+        <span class="contact-type-icon"><img src="phone-icon.svg" alt="Phone" class="contact-type-icon-img"></span>
+        <span class="contact-type-label lang-zh">公司電話</span>
+        <span class="contact-type-label lang-en">Company Phone</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('personal-phone', '個人電話', 'Personal Phone')">
+        <span class="contact-type-icon"><img src="mobile-icon.svg" alt="Mobile" class="contact-type-icon-img"></span>
+        <span class="contact-type-label lang-zh">個人電話</span>
+        <span class="contact-type-label lang-en">Personal Phone</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('email', 'Email', 'Email')">
+        <span class="contact-type-icon"><img src="email-icon.svg" alt="Email" class="contact-type-icon-img"></span>
+        <span class="contact-type-label">Email</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('website', '網站', 'Website')">
+        <span class="contact-type-icon"><img src="website-icon.svg" alt="Website" class="contact-type-icon-img"></span>
+        <span class="contact-type-label lang-zh">網站</span>
+        <span class="contact-type-label lang-en">Website</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('line', 'LINE', 'LINE')">
+        <span class="contact-type-icon"><img src="line-logo.svg" alt="LINE" class="contact-type-icon-img"></span>
+        <span class="contact-type-label">LINE</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('official-line', '官方LINE', 'Official LINE')">
+        <span class="contact-type-icon"><img src="line-logo.svg" alt="LINE" class="contact-type-icon-img"></span>
+        <span class="contact-type-label lang-zh">官方LINE</span>
+        <span class="contact-type-label lang-en">Official LINE</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('facebook', 'Facebook', 'Facebook')">
+        <span class="contact-type-icon"><img src="facebook-logo.svg" alt="Facebook" class="contact-type-icon-img"></span>
+        <span class="contact-type-label">Facebook</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('instagram', 'Instagram', 'Instagram')">
+        <span class="contact-type-icon"><img src="instagram-logo.svg" alt="Instagram" class="contact-type-icon-img"></span>
+        <span class="contact-type-label">Instagram</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('linkedin', 'LinkedIn', 'LinkedIn')">
+        <span class="contact-type-icon"><img src="linkedin-logo.svg" alt="LinkedIn" class="contact-type-icon-img"></span>
+        <span class="contact-type-label">LinkedIn</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('twitter', 'X (Twitter)', 'X (Twitter)')">
+        <span class="contact-type-icon"><img src="twitter-logo.svg" alt="X" class="contact-type-icon-img"></span>
+        <span class="contact-type-label lang-zh">X (Twitter)</span>
+        <span class="contact-type-label lang-en">X (Twitter)</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('youtube', 'YouTube', 'YouTube')">
+        <span class="contact-type-icon"><img src="youtube-logo.svg" alt="YouTube" class="contact-type-icon-img"></span>
+        <span class="contact-type-label">YouTube</span>
+      </button>
+      
+      <button class="contact-type-btn" onclick="selectContactType('wechat', '微信', 'WeChat')">
+        <span class="contact-type-icon"><img src="wechat-logo.svg" alt="WeChat" class="contact-type-icon-img"></span>
+        <span class="contact-type-label lang-zh">微信</span>
+        <span class="contact-type-label lang-en">WeChat</span>
+      </button>
+      
+      <button class="contact-type-btn contact-type-btn-whatsapp" onclick="selectContactType('whatsapp', 'WhatsApp', 'WhatsApp')">
+        <span class="contact-type-icon"><img src="whatsapp-logo.svg" alt="WhatsApp" class="contact-type-icon-img"></span>
+        <span class="contact-type-label">WhatsApp</span>
+      </button>
+      
+      <button class="contact-type-other" onclick="selectContactType('other', '其他', 'Other')">
+        <span class="contact-type-other-icon">+</span>
+        <span class="contact-type-other-label lang-zh">其他 (自訂類型)</span>
+        <span class="contact-type-other-label lang-en">Other (Custom Type)</span>
+      </button>
+    </div>
+    
+    <div class="contact-type-actions">
+      <button class="contact-type-cancel lang-zh" onclick="closeContactTypeModal(event)">取消</button>
+      <button class="contact-type-cancel lang-en" onclick="closeContactTypeModal(event)">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- 連結輸入模態框 -->
+<div class="link-input-overlay" id="linkInputOverlay" onclick="closeLinkInputModal(event)">
+  <div class="link-input-modal" onclick="event.stopPropagation()">
+    <h2 class="link-input-title lang-zh">輸入連結</h2>
+    <h2 class="link-input-title lang-en">Enter Link</h2>
+    <input type="text" class="link-input-field" id="linkInputField" placeholder="" autofocus onkeydown="if(event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); submitLinkInput(event); return false; }">
+    <div class="link-input-actions">
+      <button class="link-input-btn link-input-cancel lang-zh" onclick="closeLinkInputModal(event)">取消</button>
+      <button class="link-input-btn link-input-cancel lang-en" onclick="closeLinkInputModal(event)">Cancel</button>
+      <button class="link-input-btn link-input-submit lang-zh" onclick="submitLinkInput(event)">確定</button>
+      <button class="link-input-btn link-input-submit lang-en" onclick="submitLinkInput(event)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- 自訂「其他」類型模態框 -->
+<div class="custom-type-overlay" id="customTypeOverlay" onclick="closeCustomTypeModal(event)">
+  <div class="custom-type-modal" onclick="event.stopPropagation()">
+    <h2 class="custom-type-title lang-zh">自訂類型</h2>
+    <h2 class="custom-type-title lang-en">Custom Type</h2>
+
+    <div class="custom-type-label lang-zh">中文名稱</div>
+    <div class="custom-type-label lang-en">Chinese Name</div>
+    <input class="custom-type-field" id="customTypeZh" type="text" placeholder="例如：Telegram、Google Meet、名片連結…">
+
+    <div class="custom-type-label lang-zh">英文名稱</div>
+    <div class="custom-type-label lang-en">English Name</div>
+    <input class="custom-type-field" id="customTypeEn" type="text" placeholder="e.g. Telegram, Google Meet, Card Link...">
+
+    <div class="custom-type-actions">
+      <button class="custom-type-btn custom-type-cancel lang-zh" onclick="closeCustomTypeModal(event)">取消</button>
+      <button class="custom-type-btn custom-type-cancel lang-en" onclick="closeCustomTypeModal(event)">Cancel</button>
+      <button class="custom-type-btn custom-type-confirm lang-zh" onclick="submitCustomType(event)">確定</button>
+      <button class="custom-type-btn custom-type-confirm lang-en" onclick="submitCustomType(event)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- 公司資訊類型選擇彈出視窗 -->
+<div class="company-info-type-overlay" id="companyInfoTypeOverlay" onclick="closeCompanyInfoTypeModal(event)">
+  <div class="company-info-type-modal" onclick="event.stopPropagation()">
+    <h2 class="company-info-type-title lang-zh">選擇公司資訊類型</h2>
+    <h2 class="company-info-type-title lang-en">Select Company Info Type</h2>
+    
+    <div class="company-info-type-grid">
+      <button class="company-info-type-btn" onclick="selectCompanyInfoType('taxId')">
+        <span class="company-info-type-icon">🔢</span>
+        <span class="company-info-type-label lang-zh">統一編號</span>
+        <span class="company-info-type-label lang-en">Tax ID</span>
+      </button>
+      
+      <button class="company-info-type-btn" onclick="selectCompanyInfoType('serviceLocation')">
+        <span class="company-info-type-icon">📍</span>
+        <span class="company-info-type-label lang-zh">服務據點</span>
+        <span class="company-info-type-label lang-en">Service Location</span>
+      </button>
+      
+      <button class="company-info-type-btn" onclick="selectCompanyInfoType('mailingAddress')">
+        <span class="company-info-type-icon">📮</span>
+        <span class="company-info-type-label lang-zh">通訊住址</span>
+        <span class="company-info-type-label lang-en">Mailing Address</span>
+      </button>
+      
+      <button class="company-info-type-btn" onclick="selectCompanyInfoType('companyAddress')">
+        <span class="company-info-type-icon">🏢</span>
+        <span class="company-info-type-label lang-zh">公司住址</span>
+        <span class="company-info-type-label lang-en">Company Address</span>
+      </button>
+    </div>
+    
+    <div class="company-info-type-actions">
+      <button class="company-info-type-cancel lang-zh" onclick="closeCompanyInfoTypeModal(event)">取消</button>
+      <button class="company-info-type-cancel lang-en" onclick="closeCompanyInfoTypeModal(event)">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- 地址編輯彈出視窗 -->
+<div class="address-edit-overlay" id="addressEditOverlay" onclick="closeAddressEditModal(event)">
+  <div class="address-edit-modal" onclick="event.stopPropagation()">
+    <h2 class="address-edit-title lang-zh" id="addressEditTitleZh">編輯地址</h2>
+    <h2 class="address-edit-title lang-en" id="addressEditTitleEn">Edit Address</h2>
+    
+    <div class="address-edit-form">
+      <div class="address-edit-group">
+        <label class="address-edit-label lang-zh">中文地址</label>
+        <label class="address-edit-label lang-en">Chinese Address</label>
+        <textarea class="address-edit-textarea" id="addressEditZh" rows="3" placeholder="請輸入中文地址"></textarea>
+      </div>
+      
+      <div class="address-edit-group">
+        <label class="address-edit-label lang-zh">英文地址</label>
+        <label class="address-edit-label lang-en">English Address</label>
+        <textarea class="address-edit-textarea" id="addressEditEn" rows="3" placeholder="Enter English address"></textarea>
+      </div>
+      
+      <div class="address-edit-map-section">
+        <button class="address-edit-map-btn lang-zh" onclick="generateMapLink()">
+          <span class="map-icon">📍</span>
+          <span>開啟地圖</span>
+        </button>
+        <button class="address-edit-map-btn lang-en" onclick="generateMapLink()">
+          <span class="map-icon">📍</span>
+          <span>Open Map</span>
+        </button>
+        <a class="address-edit-map-link" id="addressMapLink" href="#" target="_blank" style="display: none;">
+          <span class="lang-zh">在 Google Maps 中查看</span>
+          <span class="lang-en">View on Google Maps</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="address-edit-actions">
+      <button class="address-edit-btn address-edit-cancel lang-zh" onclick="closeAddressEditModal(event)">取消</button>
+      <button class="address-edit-btn address-edit-cancel lang-en" onclick="closeAddressEditModal(event)">Cancel</button>
+      <button class="address-edit-btn address-edit-submit lang-zh" onclick="submitAddressEdit(event)">確定</button>
+      <button class="address-edit-btn address-edit-submit lang-en" onclick="submitAddressEdit(event)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- 主題選擇器模態框 -->
+<div class="theme-selector-overlay" id="themeSelectorOverlay" onclick="closeThemeSelector(event)">
+  <div class="theme-selector-modal" onclick="event.stopPropagation()">
+    <div class="theme-selector-header">
+      <h2 class="theme-selector-title lang-zh">選擇名片主題</h2>
+      <h2 class="theme-selector-title lang-en">Select Card Theme</h2>
+      <button class="theme-selector-close" onclick="closeThemeSelector(event)" title="關閉">×</button>
+    </div>
+    
+    <div class="theme-selector-grid">
+      <!-- Theme 1: Dark -->
+      <div class="theme-card-preview" data-theme="1" onclick="selectCardTheme(1)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">深色主題</div>
+        <div class="theme-card-name lang-en">Dark Theme</div>
+      </div>
+      
+      <!-- Theme 2: Light -->
+      <div class="theme-card-preview" data-theme="2" onclick="selectCardTheme(2)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">淺色主題</div>
+        <div class="theme-card-name lang-en">Light Theme</div>
+      </div>
+      
+      <!-- Theme 3: Blue -->
+      <div class="theme-card-preview" data-theme="3" onclick="selectCardTheme(3)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">藍色主題</div>
+        <div class="theme-card-name lang-en">Blue Theme</div>
+      </div>
+      
+      <!-- Theme 4: Gold -->
+      <div class="theme-card-preview" data-theme="4" onclick="selectCardTheme(4)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">金色主題</div>
+        <div class="theme-card-name lang-en">Gold Theme</div>
+      </div>
+      
+      <!-- Theme 5: Purple -->
+      <div class="theme-card-preview" data-theme="5" onclick="selectCardTheme(5)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">紫色主題</div>
+        <div class="theme-card-name lang-en">Purple Theme</div>
+      </div>
+
+      <!-- Theme 6: Deep Black + KMT Blue -->
+      <div class="theme-card-preview" data-theme="6" onclick="selectCardTheme(6)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">深黑藍（國民黨藍）</div>
+        <div class="theme-card-name lang-en">Deep Black + KMT Blue</div>
+      </div>
+
+      <!-- Theme 7: White + KMT Blue -->
+      <div class="theme-card-preview" data-theme="7" onclick="selectCardTheme(7)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">白底藍（國民黨藍）</div>
+        <div class="theme-card-name lang-en">White + KMT Blue</div>
+      </div>
+
+      <!-- Theme 8: Deep Black + TPP Teal -->
+      <div class="theme-card-preview" data-theme="8" onclick="selectCardTheme(8)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">深黑青綠（民眾黨色）</div>
+        <div class="theme-card-name lang-en">Deep Black + TPP Teal</div>
+      </div>
+
+      <!-- Theme 9: White + TPP Teal -->
+      <div class="theme-card-preview" data-theme="9" onclick="selectCardTheme(9)">
+        <div class="theme-preview-wrapper">
+          <div class="theme-preview-top-bar"></div>
+          <div class="theme-preview-card">
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-text short"></div>
+            <div class="theme-preview-text long"></div>
+            <div class="theme-preview-button"></div>
+          </div>
+        </div>
+        <div class="theme-card-name lang-zh">白底青綠（民眾黨色）</div>
+        <div class="theme-card-name lang-en">White + TPP Teal</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 底部導航欄 -->
+<nav class="bottom-nav">
+  <a href="directory.html" class="nav-item">
+    <span class="nav-icon">📋</span>
+    <span class="nav-label lang-zh">通訊錄</span>
+    <span class="nav-label lang-en">Directory</span>
+  </a>
+  <a href="settings.html" class="nav-item">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label lang-zh">設定</span>
+    <span class="nav-label lang-en">Settings</span>
+  </a>
+</nav>
+
+<script src="common.js"></script>
+<script>
+// 聚焦編輯
+function focusEdit(element) {
+  element.focus();
+  // 選中所有文字
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+// 從預覽更新姓名
+function updateNameFromPreview() {
+  const nameZhEl = document.getElementById('previewNameZh');
+  const nameEnEl = document.getElementById('previewNameEn');
+  const nameZhText = nameZhEl.textContent.trim();
+  const nameEnText = nameEnEl.textContent.trim();
+  
+  // 解析姓名（格式：中文名 ｜ 英文名）
+  const zhMatch = nameZhText.match(/^(.+?)\s*｜\s*(.+)$/);
+  const enMatch = nameEnText.match(/^(.+?)\s*｜\s*(.+)$/);
+  
+  if (zhMatch) {
+    nameZhEl.innerHTML = zhMatch[1] + ' ｜ <span class="en">' + zhMatch[2] + '</span>';
+  }
+  if (enMatch) {
+    nameEnEl.innerHTML = enMatch[1] + ' ｜ <span class="en">' + enMatch[1].split(' ')[0] + '</span>';
+  }
+}
+
+// 從預覽更新職務
+function updateTitleFromPreview() {
+  const titleZhEl = document.getElementById('previewTitleZh');
+  const titleEnEl = document.getElementById('previewTitleEn');
+  // 職務已經直接編輯，不需要額外處理
+}
+
+// 更新標語預覽
+function updateSlogansPreview() {
+  const zhSlogans = Array.from(document.querySelectorAll('#slogansZhList .edit-slogan-input')).map(input => input.value);
+  const enSlogans = Array.from(document.querySelectorAll('#slogansEnList .edit-slogan-input')).map(input => input.value);
+  
+  const zhContainer = document.getElementById('previewSlogansZh');
+  const enContainer = document.getElementById('previewSlogansEn');
+  
+  zhContainer.innerHTML = zhSlogans.map(slogan => `<div class="tagline lang-zh">${slogan}</div>`).join('');
+  enContainer.innerHTML = enSlogans.map(slogan => `<div class="tagline lang-en">${slogan}</div>`).join('');
+}
+
+// 編輯 LOGO
+function editLogo() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = function(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('previewLogo').src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  input.click();
+}
+
+// 編輯頭像
+function editAvatar() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = function(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('previewAvatar').src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  input.click();
+}
+
+// 編輯聯絡方式
+function editContact(event, type, currentLink) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  
+  // 設置編輯模式
+  window.isEditingContact = true;
+  window.editingContactInfo = {
+    type: type,
+    currentLink: currentLink
+  };
+  
+  // 顯示連結輸入模態框，預填當前連結
+  showLinkInputModal(currentLink, currentLang);
+}
+
+// 刪除聯絡方式按鈕
+function deleteContactButton(btn) {
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  const confirmMsg = currentLang === 'zh' ? '確定要刪除此聯絡方式嗎？' : 'Are you sure you want to delete this contact method?';
+  
+  if (confirm(confirmMsg)) {
+    // 找到對應的中文或英文按鈕並刪除
+    const currentLink = btn.href;
+    const allButtons = document.querySelectorAll(`#previewContacts a[href="${currentLink}"]`);
+    allButtons.forEach(b => b.remove());
+  }
+}
+
+// 新增標語到預覽
+function addSloganToPreview(lang) {
+  const containerId = lang === 'zh' ? 'previewSlogansZh' : 'previewSlogansEn';
+  const container = document.getElementById(containerId);
+  const sloganItem = document.createElement('div');
+  sloganItem.className = 'slogan-item';
+  
+  const tagline = document.createElement('div');
+  tagline.className = `tagline lang-${lang} edit-clickable`;
+  tagline.contentEditable = 'true';
+  tagline.textContent = lang === 'zh' ? '新標語' : 'New Slogan';
+  tagline.onblur = function() { updateSlogansPreview(); };
+  tagline.onclick = function() { focusEdit(this); };
+  
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'slogan-delete-btn';
+  deleteBtn.textContent = '✕';
+  deleteBtn.title = lang === 'zh' ? '刪除標語' : 'Delete slogan';
+  deleteBtn.onclick = function(event) {
+    event.stopPropagation();
+    deleteSloganFromPreview(this);
+  };
+  
+  sloganItem.appendChild(tagline);
+  sloganItem.appendChild(deleteBtn);
+  container.appendChild(sloganItem);
+  
+  tagline.focus();
+  focusEdit(tagline);
+}
+
+// 從預覽刪除標語
+function deleteSloganFromPreview(btn) {
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  const confirmMsg = currentLang === 'zh' ? '確定要刪除此標語嗎？' : 'Are you sure you want to delete this slogan?';
+  
+  if (confirm(confirmMsg)) {
+    btn.closest('.slogan-item').remove();
+  }
+}
+
+// 顯示聯絡方式類型選擇彈出視窗
+function addContact(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const overlay = document.getElementById('contactTypeOverlay');
+  if (overlay) {
+    overlay.classList.add('show');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    console.log('Contact type overlay shown');
+  } else {
+    console.error('contactTypeOverlay element not found');
+  }
+}
+
+// 關閉聯絡方式類型選擇彈出視窗
+function closeContactTypeModal(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  
+  const overlay = document.getElementById('contactTypeOverlay');
+  if (!overlay) return;
+  
+  // 如果點擊的是取消按鈕，直接關閉
+  if (event && event.target && event.target.classList.contains('contact-type-cancel')) {
+    overlay.classList.remove('show');
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+    return;
+  }
+  
+  // 如果點擊的是 overlay 背景（不是 modal 內部），則關閉
+  if (event && event.target && event.target.id === 'contactTypeOverlay') {
+    overlay.classList.remove('show');
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+// 獲取聯絡方式圖示
+function getContactIcon(type) {
+  const icons = {
+    'company-phone': '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone">',
+    'personal-phone': '<img src="mobile-icon.svg" alt="Mobile" class="btn-icon-mobile">',
+    'email': '<img src="email-icon.svg" alt="Email" class="btn-icon-email">',
+    'website': '<img src="website-icon.svg" alt="Website" class="btn-icon-website">',
+    'line': '<img src="line-logo.svg" alt="LINE" class="btn-icon-line">',
+    'official-line': '<img src="line-logo.svg" alt="LINE" class="btn-icon-line">',
+    'facebook': '<img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook">',
+    'instagram': '<img src="instagram-logo.svg" alt="Instagram" class="btn-icon-instagram">',
+    'linkedin': '<img src="linkedin-logo.svg" alt="LinkedIn" class="btn-icon-linkedin">',
+    'twitter': '<img src="twitter-logo.svg" alt="X" class="btn-icon-twitter">',
+    'youtube': '<img src="youtube-logo.svg" alt="YouTube" class="btn-icon-youtube">',
+    'wechat': '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat">',
+    'whatsapp': '<img src="whatsapp-logo.svg" alt="WhatsApp" class="btn-icon-whatsapp">',
+    'call': '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone">',
+    'vcf': '<img src="file-icon.svg" alt="VCF" class="btn-icon-file">',
+    'other': '➕'
+  };
+  return icons[type] || '📋';
+}
+
+// 選擇聯絡方式類型
+function selectContactType(type, labelZh, labelEn) {
+  // 關閉類型選擇彈出視窗
+  const typeOverlay = document.getElementById('contactTypeOverlay');
+  if (typeOverlay) {
+    typeOverlay.classList.remove('show');
+    typeOverlay.style.display = 'none';
+  }
+  
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  
+  // 其他：允許自訂「種類名稱」
+  if (type === 'other') {
+    window.pendingCustomType = {
+      type: 'other',
+      labelZh: labelZh || '其他',
+      labelEn: labelEn || 'Other'
+    };
+    showCustomTypeModal();
+    return;
+  }
+
+  // 根據類型設定預設連結格式和標籤
+  let defaultLink = '';
+  let buttonTextZh = '';
+  let buttonTextEn = '';
+  
+  switch(type) {
+    case 'company-phone':
+      defaultLink = 'tel:';
+      buttonTextZh = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 公司電話';
+      buttonTextEn = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Company Phone';
+      break;
+    case 'personal-phone':
+      defaultLink = 'tel:';
+      buttonTextZh = '<img src="mobile-icon.svg" alt="Mobile" class="btn-icon-mobile"> 個人電話';
+      buttonTextEn = '<img src="mobile-icon.svg" alt="Mobile" class="btn-icon-mobile"> Personal Phone';
+      break;
+    case 'call':
+      defaultLink = 'tel:0905519002';
+      buttonTextZh = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電';
+      buttonTextEn = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now';
+      break;
+    case 'email':
+      defaultLink = 'mailto:';
+      buttonTextZh = '<img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email';
+      buttonTextEn = '<img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email';
+      break;
+    case 'website':
+      defaultLink = 'https://';
+      buttonTextZh = '<img src="website-icon.svg" alt="Website" class="btn-icon-website"> 網站';
+      buttonTextEn = '<img src="website-icon.svg" alt="Website" class="btn-icon-website"> Website';
+      break;
+    case 'line':
+    case 'official-line':
+      defaultLink = 'https://line.me/R/ti/p/';
+      buttonTextZh = '<img src="line-logo.svg" alt="LINE" class="btn-icon-line"> 加入 LINE';
+      buttonTextEn = '<img src="line-logo.svg" alt="LINE" class="btn-icon-line"> Add LINE';
+      break;
+    case 'facebook':
+      defaultLink = 'https://www.facebook.com/';
+      buttonTextZh = '<img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook"> Facebook';
+      buttonTextEn = '<img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook"> Facebook';
+      break;
+    case 'instagram':
+      defaultLink = 'https://www.instagram.com/';
+      buttonTextZh = '<img src="instagram-logo.svg" alt="Instagram" class="btn-icon-instagram"> Instagram';
+      buttonTextEn = '<img src="instagram-logo.svg" alt="Instagram" class="btn-icon-instagram"> Instagram';
+      break;
+    case 'linkedin':
+      defaultLink = 'https://www.linkedin.com/in/';
+      buttonTextZh = '<img src="linkedin-logo.svg" alt="LinkedIn" class="btn-icon-linkedin"> LinkedIn';
+      buttonTextEn = '<img src="linkedin-logo.svg" alt="LinkedIn" class="btn-icon-linkedin"> LinkedIn';
+      break;
+    case 'twitter':
+      defaultLink = 'https://twitter.com/';
+      buttonTextZh = '<img src="twitter-logo.svg" alt="X" class="btn-icon-twitter"> X (Twitter)';
+      buttonTextEn = '<img src="twitter-logo.svg" alt="X" class="btn-icon-twitter"> X (Twitter)';
+      break;
+    case 'youtube':
+      defaultLink = 'https://www.youtube.com/';
+      buttonTextZh = '<img src="youtube-logo.svg" alt="YouTube" class="btn-icon-youtube"> YouTube';
+      buttonTextEn = '<img src="youtube-logo.svg" alt="YouTube" class="btn-icon-youtube"> YouTube';
+      break;
+    case 'wechat':
+      defaultLink = 'weixin://';
+      buttonTextZh = '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat"> 微信';
+      buttonTextEn = '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat"> WeChat';
+      break;
+    case 'whatsapp':
+      defaultLink = 'https://wa.me/';
+      buttonTextZh = '<img src="whatsapp-logo.svg" alt="WhatsApp" class="btn-icon-whatsapp"> WhatsApp';
+      buttonTextEn = '<img src="whatsapp-logo.svg" alt="WhatsApp" class="btn-icon-whatsapp"> WhatsApp';
+      break;
+    case 'vcf':
+      defaultLink = 'yuyu-ko.vcf';
+      buttonTextZh = '<img src="file-icon.svg" alt="VCF" class="btn-icon-file"> 儲存到通訊錄（VCF）';
+      buttonTextEn = '<img src="file-icon.svg" alt="VCF" class="btn-icon-file"> Save Contact (VCF)';
+      break;
+    default:
+      defaultLink = '';
+      buttonTextZh = '🔗 ' + labelZh;
+      buttonTextEn = '🔗 ' + labelEn;
+  }
+  
+  // 保存當前選擇的類型信息，用於後續處理
+  window.currentContactType = {
+    type: type,
+    labelZh: labelZh,
+    labelEn: labelEn,
+    defaultLink: defaultLink,
+    buttonTextZh: buttonTextZh,
+    buttonTextEn: buttonTextEn
+  };
+  
+  // 立即顯示連結輸入模態框（不關閉 body overflow，因為模態框會保持）
+  setTimeout(() => {
+    showLinkInputModal(defaultLink, currentLang);
+  }, 100);
+}
+
+// ===== 自訂「其他」類型 =====
+function showCustomTypeModal() {
+  const overlay = document.getElementById('customTypeOverlay');
+  if (!overlay) return;
+
+  // 清空 / 預填
+  const zh = document.getElementById('customTypeZh');
+  const en = document.getElementById('customTypeEn');
+  if (zh) zh.value = '';
+  if (en) en.value = '';
+
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => {
+    if (zh) zh.focus();
+  }, 50);
+}
+
+function closeCustomTypeModal(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const overlay = document.getElementById('customTypeOverlay');
+  if (overlay) {
+    overlay.classList.remove('show');
+  }
+  document.body.style.overflow = '';
+  window.pendingCustomType = null;
+}
+
+function submitCustomType(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const zhEl = document.getElementById('customTypeZh');
+  const enEl = document.getElementById('customTypeEn');
+  const zhName = (zhEl?.value || '').trim();
+  const enName = (enEl?.value || '').trim();
+
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+
+  if (!zhName && !enName) {
+    alert(currentLang === 'zh' ? '請至少輸入一個名稱' : 'Please enter at least one name');
+    return;
+  }
+
+  // 若只填一種語言，另一種自動用同一個名稱
+  const finalZh = zhName || enName;
+  const finalEn = enName || zhName;
+
+  // 用主題 accent 的 icon + 自訂文字
+  const icon = getContactIcon('other');
+  const buttonTextZh = `${icon} ${finalZh}`;
+  const buttonTextEn = `${icon} ${finalEn}`;
+
+  // 設定為新增模式，下一步輸入連結
+  window.currentContactType = {
+    type: 'other',
+    labelZh: finalZh,
+    labelEn: finalEn,
+    defaultLink: '',
+    buttonTextZh,
+    buttonTextEn
+  };
+
+  closeCustomTypeModal();
+
+  // 進入連結輸入流程
+  showLinkInputModal('', currentLang);
+}
+
+// 顯示連結輸入模態框
+function showLinkInputModal(defaultLink, currentLang) {
+  const overlay = document.getElementById('linkInputOverlay');
+  const inputField = document.getElementById('linkInputField');
+  
+  if (overlay && inputField) {
+    inputField.value = defaultLink || '';
+    inputField.placeholder = currentLang === 'zh' ? '請輸入連結' : 'Please enter link';
+    // 重置提交標記（包括全局標記）
+    inputField.dataset.submitted = 'false';
+    window.isSubmittingLink = false;
+    overlay.classList.add('show');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    // 聚焦輸入框
+    setTimeout(() => {
+      inputField.focus();
+      inputField.select();
+    }, 100);
+  }
+}
+
+// 關閉連結輸入模態框
+function closeLinkInputModal(event) {
+  if (event && event.target && event.target.closest('.link-input-modal') && !event.target.classList.contains('link-input-cancel')) {
+    return;
+  }
+  
+  const overlay = document.getElementById('linkInputOverlay');
+  if (overlay) {
+    overlay.classList.remove('show');
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+  
+  // 清除保存的類型信息和提交標記
+  window.currentContactType = null;
+  window.isSubmittingLink = false;
+  window.isEditingContact = false;
+  window.editingContactInfo = null;
+  const inputField = document.getElementById('linkInputField');
+  if (inputField) {
+    inputField.dataset.submitted = 'false';
+  }
+}
+
+// 提交連結輸入
+function submitLinkInput(event) {
+  // 防止重複提交 - 立即檢查全局標記
+  if (window.isSubmittingLink) {
+    console.log('Already submitting, ignoring duplicate call');
+    return;
+  }
+  
+  // 防止重複提交
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  
+  const inputField = document.getElementById('linkInputField');
+  
+  // 檢查是否已經提交過（防止重複提交）
+  if (inputField.dataset.submitted === 'true') {
+    console.log('Already submitted, ignoring duplicate call');
+    return;
+  }
+  
+  // 立即設置全局標記和本地標記，防止重複提交
+  window.isSubmittingLink = true;
+  inputField.dataset.submitted = 'true';
+  
+  let newLink = inputField.value.trim();
+  
+  // 如果輸入為空，提示用戶並重置標記
+  if (newLink === '') {
+    const zhElements = document.querySelectorAll('.lang-zh');
+    const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+    alert(currentLang === 'zh' ? '連結不能為空' : 'Link cannot be empty');
+    // 重置標記，允許用戶重新輸入
+    window.isSubmittingLink = false;
+    inputField.dataset.submitted = 'false';
+    return;
+  }
+  
+  // 判斷是編輯模式還是新增模式
+  if (window.isEditingContact && window.editingContactInfo) {
+    // 編輯模式：更新現有按鈕
+    updateContactButtons(window.editingContactInfo.type, window.editingContactInfo.currentLink, newLink);
+  } else if (window.currentContactType) {
+    // 新增模式：添加新按鈕
+    const contactType = window.currentContactType;
+    addContactButtonToPreview(contactType.type, newLink, contactType.buttonTextZh, contactType.buttonTextEn);
+  } else {
+    console.error('Contact type or editing info not found');
+    window.isSubmittingLink = false;
+    inputField.dataset.submitted = 'false';
+    return;
+  }
+  
+  // 關閉輸入模態框
+  closeLinkInputModal();
+  
+  // 重置全局標記
+  window.isSubmittingLink = false;
+}
+
+// 更新現有的聯絡方式按鈕
+function updateContactButtons(type, currentLink, newLink) {
+  // 更新所有相關的按鈕連結（中文和英文）
+  const buttons = document.querySelectorAll(`#previewContacts a[href="${currentLink}"]`);
+  buttons.forEach(btn => {
+    btn.href = newLink;
+    // 更新 onclick 事件中的連結參數
+    btn.onclick = function(e) {
+      editContact(e, type, newLink);
+    };
+  });
+  console.log('Contact buttons updated');
+}
+
+// ===== 公司資訊相關功能 =====
+
+// 顯示公司資訊類型選擇彈窗
+function showCompanyInfoTypeModal(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  const overlay = document.getElementById('companyInfoTypeOverlay');
+  if (overlay) {
+    overlay.classList.add('show');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+// 關閉公司資訊類型選擇彈窗
+function closeCompanyInfoTypeModal(event) {
+  if (event && event.target && event.target.closest('.company-info-type-modal') && !event.target.classList.contains('company-info-type-cancel')) {
+    return;
+  }
+  
+  const overlay = document.getElementById('companyInfoTypeOverlay');
+  if (overlay) {
+    overlay.classList.remove('show');
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+// 選擇公司資訊類型
+function selectCompanyInfoType(type) {
+  closeCompanyInfoTypeModal();
+  
+  if (type === 'taxId') {
+    // 統一編號：直接顯示輸入框
+    showTaxIdInput();
+  } else {
+    // 地址類型：顯示地址編輯彈窗
+    showAddressEditModal(type);
+  }
+}
+
+// 顯示統一編號輸入
+function showTaxIdInput() {
+  const item = document.getElementById('taxIdItem');
+  if (item) {
+    item.style.display = 'flex';
+    const zhInput = document.getElementById('previewTaxIdZh');
+    const enInput = document.getElementById('previewTaxIdEn');
+    if (zhInput) {
+      setTimeout(() => {
+        zhInput.focus();
+        const range = document.createRange();
+        range.selectNodeContents(zhInput);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }, 100);
+    }
+  }
+}
+
+// 顯示地址編輯彈窗
+function showAddressEditModal(addressType) {
+  window.currentAddressType = addressType;
+  
+  // 設定標題
+  const titleMap = {
+    'serviceLocation': { zh: '編輯服務據點', en: 'Edit Service Location' },
+    'mailingAddress': { zh: '編輯通訊住址', en: 'Edit Mailing Address' },
+    'companyAddress': { zh: '編輯公司住址', en: 'Edit Company Address' }
+  };
+  
+  const titles = titleMap[addressType];
+  document.getElementById('addressEditTitleZh').textContent = titles.zh;
+  document.getElementById('addressEditTitleEn').textContent = titles.en;
+  
+  // 載入現有地址（如果有的話）
+  const zhEl = document.getElementById(`preview${addressType.charAt(0).toUpperCase() + addressType.slice(1)}Zh`);
+  const enEl = document.getElementById(`preview${addressType.charAt(0).toUpperCase() + addressType.slice(1)}En`);
+  
+  const zhText = zhEl ? (zhEl.querySelector('.address-text')?.textContent || '').trim() : '';
+  const enText = enEl ? (enEl.querySelector('.address-text')?.textContent || '').trim() : '';
+  
+  document.getElementById('addressEditZh').value = zhText;
+  document.getElementById('addressEditEn').value = enText;
+  
+  // 隱藏地圖連結
+  const mapLink = document.getElementById('addressMapLink');
+  if (mapLink) {
+    mapLink.style.display = 'none';
+  }
+  
+  // 顯示彈窗
+  const overlay = document.getElementById('addressEditOverlay');
+  if (overlay) {
+    overlay.classList.add('show');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+      document.getElementById('addressEditZh').focus();
+    }, 100);
+  }
+}
+
+// 關閉地址編輯彈窗
+function closeAddressEditModal(event) {
+  if (event && event.target && event.target.closest('.address-edit-modal') && !event.target.classList.contains('address-edit-cancel') && !event.target.classList.contains('address-edit-submit')) {
+    return;
+  }
+  
+  const overlay = document.getElementById('addressEditOverlay');
+  if (overlay) {
+    overlay.classList.remove('show');
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+  
+  window.currentAddressType = null;
+}
+
+// 提交地址編輯
+function submitAddressEdit(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  const addressType = window.currentAddressType;
+  if (!addressType) return;
+  
+  const zhAddress = document.getElementById('addressEditZh').value.trim();
+  const enAddress = document.getElementById('addressEditEn').value.trim();
+  
+  if (!zhAddress && !enAddress) {
+    const zhElements = document.querySelectorAll('.lang-zh');
+    const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+    alert(currentLang === 'zh' ? '請至少輸入一個地址' : 'Please enter at least one address');
+    return;
+  }
+  
+  // 更新預覽區域
+  updateAddressPreview(addressType, zhAddress, enAddress);
+  
+  // 顯示對應的項目
+  const itemId = addressType + 'Item';
+  const item = document.getElementById(itemId);
+  if (item) {
+    item.style.display = 'flex';
+  }
+  
+  closeAddressEditModal();
+}
+
+// ===== 卡片主題選擇功能 =====
+
+// 顯示主題選擇器模態框
+function showThemeSelector() {
+  const overlay = document.getElementById('themeSelectorOverlay');
+  if (overlay) {
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    // 高亮當前選中的主題
+    const savedTheme = localStorage.getItem('cardTheme');
+    if (savedTheme) {
+      updateThemePreviewActive(parseInt(savedTheme));
+    }
+  }
+}
+
+// 關閉主題選擇器模態框
+function closeThemeSelector(event) {
+  if (event && event.target && !event.target.classList.contains('theme-selector-overlay') && !event.target.classList.contains('theme-selector-close')) {
+    return;
+  }
+  
+  const overlay = document.getElementById('themeSelectorOverlay');
+  if (overlay) {
+    overlay.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+}
+
+// 更新主題預覽的 active 狀態
+function updateThemePreviewActive(themeNumber) {
+  const previews = document.querySelectorAll('.theme-card-preview');
+  previews.forEach(preview => {
+    preview.classList.remove('active');
+  });
+  const selectedPreview = document.querySelector('.theme-card-preview[data-theme="' + themeNumber + '"]');
+  if (selectedPreview) {
+    selectedPreview.classList.add('active');
+  }
+}
+
+// 選擇卡片主題（編輯頁面 - 只更新卡片，不更新 body）
+function selectCardTheme(themeNumber) {
+  console.log('Selecting card theme:', themeNumber);
+  
+  // 在編輯頁：卡片主題需要「完整預覽」整體版面
+  // - 使用 styles.css 內建的 body.card-theme-*（整頁背景/頂部欄/底部欄）
+  // - 同時保留 theme-dark/theme-light（讓 edit.html 既有的模態框/按鈕樣式規則生效）
+  // - 移除 common.js 的 body.theme-1~5（避免兩套主題互相覆蓋造成「切不完整」）
+  function applyCardThemeToBody(n) {
+    // 清掉 common.js 全域主題類別（theme-1~7），避免跟 card-theme-* 打架
+    document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
+
+    // 清掉舊的卡片主題（整頁）
+    document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+
+    // 套用新的卡片主題（整頁）
+    if (n >= 1 && n <= 9) {
+      document.body.classList.add('card-theme-' + n);
+    }
+
+    // 對應 light/dark（edit.html 內大量依賴 theme-dark/theme-light）
+    document.body.classList.remove('theme-dark', 'theme-light');
+    if (n === 2 || n === 7 || n === 9) {
+      document.body.classList.add('theme-light');
+    } else {
+      document.body.classList.add('theme-dark');
+    }
+  }
+
+  // 直接操作 DOM 更新卡片主題
+  const card = document.getElementById('previewCard');
+  if (card) {
+    // 移除所有舊的主題類別
+    card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+    
+    // 添加新的主題類別
+    if (themeNumber >= 1 && themeNumber <= 9) {
+      card.classList.add('card-theme-' + themeNumber);
+      console.log('Applied theme class: card-theme-' + themeNumber);
+      console.log('Card classes:', card.className);
+    }
+  } else {
+    console.error('Card element not found!');
+  }
+  
+  // 同步整頁預覽主題（背景/頂部欄/底部欄/泡泡/模態框明暗）
+  applyCardThemeToBody(themeNumber);
+
+  // 儲存到 localStorage
+  localStorage.setItem('cardTheme', themeNumber);
+  // 同步全域主題（yuyuko.html / 其他頁面由 common.js 讀取 localStorage.theme）
+  // 這樣從 edit.html 跳回名片頁時，整體主題會一致更新
+  localStorage.setItem('theme', String(themeNumber));
+  
+  // 更新預覽的 active 狀態
+  updateThemePreviewActive(themeNumber);
+  
+  // 延遲關閉模態框，讓用戶看到選中的效果
+  setTimeout(function() {
+    closeThemeSelector({ target: document.getElementById('themeSelectorOverlay') });
+  }, 500);
+}
+
+// 初始化卡片主題（在編輯頁面只讀取，不自動應用）
+function initCardTheme() {
+  console.log('Initializing card theme...');
+  
+  // 從 localStorage 讀取
+  const savedTheme = localStorage.getItem('cardTheme');
+  if (savedTheme) {
+    const themeNumber = parseInt(savedTheme);
+    console.log('Saved theme:', themeNumber);
+    
+    if (themeNumber >= 1 && themeNumber <= 9) {
+      // 同步全域主題，確保返回 yuyuko.html 等頁面能立刻套用
+      localStorage.setItem('theme', String(themeNumber));
+
+      const card = document.getElementById('previewCard');
+      if (card) {
+        // 移除所有舊的主題類別
+        card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+        // 添加保存的主題
+        card.classList.add('card-theme-' + themeNumber);
+        console.log('Applied saved theme: card-theme-' + themeNumber);
+        console.log('Card classes:', card.className);
+      } else {
+        console.error('Card element not found during init!');
+      }
+
+      // 初始化時也要同步整頁預覽主題
+      //（注意：common.js 會先套用 body.theme-1~5；這裡以 cardTheme 為準覆蓋成 body.card-theme-*）
+      document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
+      document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+      document.body.classList.add('card-theme-' + themeNumber);
+      document.body.classList.remove('theme-dark', 'theme-light');
+      document.body.classList.add((themeNumber === 2 || themeNumber === 7 || themeNumber === 9) ? 'theme-light' : 'theme-dark');
+      
+      // 延遲更新 active 狀態，確保 modal DOM 已載入
+      setTimeout(function() {
+        updateThemePreviewActive(themeNumber);
+      }, 200);
+    }
+  } else {
+    console.log('No saved theme found, using default');
+
+    // 沒有保存主題時，仍確保有一個可預期的明暗 class（避免模態框顏色錯亂）
+    if (!document.body.classList.contains('theme-dark') && !document.body.classList.contains('theme-light')) {
+      document.body.classList.add('theme-dark');
+    }
+  }
+}
+
+// 頁面載入時初始化
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initCardTheme, 100);
+  });
+} else {
+  setTimeout(initCardTheme, 100);
+}
+
+// 更新地址預覽
+function updateAddressPreview(addressType, zhAddress, enAddress) {
+  const typeCapitalized = addressType.charAt(0).toUpperCase() + addressType.slice(1);
+  const zhEl = document.getElementById(`preview${typeCapitalized}Zh`);
+  const enEl = document.getElementById(`preview${typeCapitalized}En`);
+  
+  if (zhEl) {
+    const textEl = zhEl.querySelector('.address-text');
+    if (textEl) {
+      textEl.textContent = zhAddress || '（未設定）';
+    }
+  }
+  
+  if (enEl) {
+    const textEl = enEl.querySelector('.address-text');
+    if (textEl) {
+      textEl.textContent = enAddress || '（Not Set）';
+    }
+  }
+  
+  // 更新地圖連結
+  updateMapLink(addressType, zhAddress || enAddress);
+}
+
+// 生成地圖連結
+function generateMapLink() {
+  const addressType = window.currentAddressType;
+  const zhAddress = document.getElementById('addressEditZh').value.trim();
+  const enAddress = document.getElementById('addressEditEn').value.trim();
+  
+  const address = zhAddress || enAddress;
+  if (!address) {
+    const zhElements = document.querySelectorAll('.lang-zh');
+    const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+    alert(currentLang === 'zh' ? '請先輸入地址' : 'Please enter address first');
+    return;
+  }
+  
+  // 生成 Google Maps 連結
+  const encodedAddress = encodeURIComponent(address);
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+  
+  const mapLink = document.getElementById('addressMapLink');
+  if (mapLink) {
+    mapLink.href = mapUrl;
+    mapLink.style.display = 'inline-block';
+  }
+  
+  // 在新視窗開啟地圖
+  window.open(mapUrl, '_blank');
+}
+
+// 更新地圖連結
+function updateMapLink(addressType, address) {
+  if (!address || address === '（未設定）' || address === '（Not Set）') return;
+  
+  const encodedAddress = encodeURIComponent(address);
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+  
+  const typeCapitalized = addressType.charAt(0).toUpperCase() + addressType.slice(1);
+  const zhEl = document.getElementById(`preview${typeCapitalized}Zh`);
+  const enEl = document.getElementById(`preview${typeCapitalized}En`);
+  
+  [zhEl, enEl].forEach(el => {
+    if (el) {
+      const mapLink = el.querySelector('.address-map-link');
+      if (mapLink) {
+        mapLink.onclick = function(e) {
+          e.stopPropagation();
+          window.open(mapUrl, '_blank');
+        };
+      }
+    }
+  });
+}
+
+// 開啟地圖
+function openMap(addressType, event) {
+  event.stopPropagation();
+  event.preventDefault();
+  
+  const typeCapitalized = addressType.charAt(0).toUpperCase() + addressType.slice(1);
+  const zhEl = document.getElementById(`preview${typeCapitalized}Zh`);
+  const enEl = document.getElementById(`preview${typeCapitalized}En`);
+  
+  const address = zhEl?.querySelector('.address-text')?.textContent || enEl?.querySelector('.address-text')?.textContent || '';
+  
+  if (address && address !== '（未設定）' && address !== '（Not Set）') {
+    const encodedAddress = encodeURIComponent(address);
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    window.open(mapUrl, '_blank');
+  }
+}
+
+// 編輯地址（點擊地址項目時）
+function editAddress(addressType, event) {
+  event.preventDefault();
+  event.stopPropagation();
+  showAddressEditModal(addressType);
+}
+
+// 編輯統一編號
+function editTaxId(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const zhInput = document.getElementById('previewTaxIdZh');
+  if (zhInput) {
+    setTimeout(() => {
+      zhInput.focus();
+      const range = document.createRange();
+      range.selectNodeContents(zhInput);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }, 100);
+  }
+}
+
+// 刪除公司資訊項目
+function deleteCompanyInfo(type) {
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  
+  const confirmMsg = currentLang === 'zh' ? '確定要刪除此項目嗎？' : 'Are you sure you want to delete this item?';
+  if (!confirm(confirmMsg)) return;
+  
+  const itemId = type + 'Item';
+  const item = document.getElementById(itemId);
+  if (item) {
+    item.style.display = 'none';
+    
+    // 清除內容
+    if (type === 'taxId') {
+      document.getElementById('previewTaxIdZh').textContent = '';
+      document.getElementById('previewTaxIdEn').textContent = '';
+    } else {
+      const typeCapitalized = type.charAt(0).toUpperCase() + type.slice(1);
+      const zhEl = document.getElementById(`preview${typeCapitalized}Zh`);
+      const enEl = document.getElementById(`preview${typeCapitalized}En`);
+      if (zhEl) {
+        const textEl = zhEl.querySelector('.address-text');
+        if (textEl) textEl.textContent = '';
+      }
+      if (enEl) {
+        const textEl = enEl.querySelector('.address-text');
+        if (textEl) textEl.textContent = '';
+      }
+    }
+  }
+}
+
+// 添加聯絡方式按鈕到預覽區域
+function addContactButtonToPreview(type, newLink, buttonTextZh, buttonTextEn) {
+  // 防止重複添加 - 檢查是否已經存在相同的連結
+  const contactsGroup = document.getElementById('previewContacts');
+  if (contactsGroup) {
+    const existingButtons = contactsGroup.querySelectorAll(`a[href="${newLink}"]`);
+    if (existingButtons.length > 0) {
+      console.log('Contact with this link already exists, skipping duplicate');
+      return;
+    }
+  }
+  
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  
+  if (!contactsGroup) {
+    console.error('previewContacts element not found');
+    alert(currentLang === 'zh' ? '找不到聯絡方式容器' : 'Contact container not found');
+    return;
+  }
+  
+  // 創建中文按鈕
+  const btnZh = document.createElement('a');
+  btnZh.className = 'btn btn-secondary lang-zh edit-clickable';
+  btnZh.href = newLink;
+  if (type === 'website' || type === 'line' || type === 'official-line' || type === 'facebook' || type === 'instagram' || type === 'linkedin' || type === 'twitter' || type === 'youtube' || type === 'whatsapp') {
+    btnZh.target = '_blank';
+  }
+  if (type === 'vcf') {
+    btnZh.download = 'Contact.vcf';
+  }
+  btnZh.innerHTML = buttonTextZh;
+  btnZh.onclick = function(event) {
+    editContact(event, type, newLink);
+  };
+  
+  // 創建英文按鈕
+  const btnEn = document.createElement('a');
+  btnEn.className = 'btn btn-secondary lang-en edit-clickable';
+  btnEn.href = newLink;
+  if (type === 'website' || type === 'line' || type === 'official-line' || type === 'facebook' || type === 'instagram' || type === 'linkedin' || type === 'twitter' || type === 'youtube' || type === 'whatsapp') {
+    btnEn.target = '_blank';
+  }
+  if (type === 'vcf') {
+    btnEn.download = 'Contact.vcf';
+  }
+  btnEn.innerHTML = buttonTextEn;
+  btnEn.onclick = function(event) {
+    editContact(event, type, newLink);
+  };
+  
+  // 創建包裝器
+  const wrapper = document.createElement('div');
+  wrapper.className = 'contact-btn-wrapper';
+  
+  wrapper.appendChild(btnZh);
+  wrapper.appendChild(btnEn);
+  
+  // 創建刪除按鈕
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'contact-delete-btn';
+  deleteBtn.textContent = '✕';
+  deleteBtn.title = currentLang === 'zh' ? '刪除' : 'Delete';
+  deleteBtn.onclick = function(event) {
+    event.stopPropagation();
+    deleteContactButton(btnZh);
+  };
+  wrapper.appendChild(deleteBtn);
+  
+  // 添加到聯絡方式容器
+  contactsGroup.appendChild(wrapper);
+  console.log('Contact button added to previewContacts');
+}
+
+// 切換聯絡方式項目展開/收合
+function toggleContactItem(btn) {
+  const item = btn.closest('.edit-contact-item');
+  const content = item.querySelector('.edit-contact-content');
+  const arrow = btn.querySelector('.edit-contact-toggle-arrow');
+  
+  content.classList.toggle('show');
+  arrow.classList.toggle('expanded');
+}
+
+// 切換可見性設定展開/收合
+function toggleVisibility(btn) {
+  const content = btn.nextElementSibling;
+  const arrow = btn.querySelector('.edit-contact-visibility-arrow');
+  
+  content.classList.toggle('show');
+  arrow.classList.toggle('expanded');
+}
+
+
+// 移動聯絡方式
+function moveContact(item, direction) {
+  if (typeof item === 'object' && item.nodeName) {
+    // 如果傳入的是 DOM 元素
+  } else {
+    // 如果傳入的是按鈕
+    item = item.closest('.edit-contact-item');
+  }
+  const list = item.parentElement;
+  if (direction === 'up' && item.previousElementSibling) {
+    list.insertBefore(item, item.previousElementSibling);
+  } else if (direction === 'down' && item.nextElementSibling) {
+    list.insertBefore(item.nextElementSibling, item);
+  }
+}
+
+// 刪除聯絡方式按鈕（從預覽區域）
+function deleteContactButton(contactBtn) {
+  if (event) event.stopPropagation();
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  const confirmMsg = currentLang === 'zh' ? '確定要刪除此聯絡方式嗎？' : 'Are you sure you want to delete this contact method?';
+  
+  if (confirm(confirmMsg)) {
+    // 找到對應的包裝器並刪除（包含中文和英文按鈕）
+    const wrapper = contactBtn.closest('.contact-btn-wrapper');
+    if (wrapper) {
+      wrapper.remove();
+    }
+  }
+}
+
+// 儲存名片
+function saveCard() {
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  const msg = currentLang === 'zh' ? '名片已儲存！' : 'Business card saved!';
+  alert(msg);
+  // 記錄「已完成首次建立」：用於 GitHub Pages 首次開啟自動導向流程
+  try {
+    localStorage.setItem('UVACO_ONBOARDED', '1');
+  } catch (e) {}
+
+  // onboarding 模式：儲存後導回指定頁（預設回通訊錄）
+  try {
+    const params = new URLSearchParams(window.location.search || '');
+    if (params.get('mode') === 'onboarding') {
+      const next = params.get('next') || 'directory.html';
+      // 僅允許站內 html，避免不小心被帶到外部
+      const safe = /^[a-z0-9_\\-\\/]+\\.html$/i.test(next) ? next : 'directory.html';
+      window.location.href = safe;
+      return;
+    }
+  } catch (e) {}
+  // 這裡可以連接實際的儲存 API
+  // window.location.href = 'yuyuko.html';
+}
+
+
+</script>
+
+</body>
+</html>
+
