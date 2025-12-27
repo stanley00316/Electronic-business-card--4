@@ -15,6 +15,9 @@
   <link rel="stylesheet" href="theme-7.css">
   <link rel="stylesheet" href="theme-8.css">
   <link rel="stylesheet" href="theme-9.css">
+  <!-- Supabase JS（CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud.js"></script>
   <style>
 .edit-page-wrapper {
   padding-bottom: 100px;
@@ -2011,6 +2014,17 @@ body.theme-light .link-input-cancel:hover {
 
 <script src="common.js"></script>
 <script>
+// 雲端版：需要登入才可編輯（未設定 Supabase 則略過）
+(async function () {
+  try {
+    if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
+      const here = 'edit.html' + (window.location.search || '');
+      const r = await UVACO_CLOUD.requireAuth(here);
+      if (!r.ok) return;
+    }
+  } catch (e) {}
+})();
+
 // 聚焦編輯
 function focusEdit(element) {
   element.focus();
@@ -3146,30 +3160,111 @@ function deleteContactButton(contactBtn) {
   }
 }
 
-// 儲存名片
-function saveCard() {
+// 儲存名片（雲端：Supabase）
+async function saveCard() {
   const zhElements = document.querySelectorAll('.lang-zh');
   const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
-  const msg = currentLang === 'zh' ? '名片已儲存！' : 'Business card saved!';
-  alert(msg);
-  // 記錄「已完成首次建立」：用於 GitHub Pages 首次開啟自動導向流程
-  try {
-    localStorage.setItem('UVACO_ONBOARDED', '1');
-  } catch (e) {}
 
-  // onboarding 模式：儲存後導回指定頁（預設回通訊錄）
+  function textOf(id) {
+    const el = document.getElementById(id);
+    return String(el?.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  // 基本欄位：符合你要匯出的欄位（name/phone/email/company/title/theme/created_at/updated_at）
+  const name = textOf('previewNameZh') || textOf('previewNameEn') || '';
+  const title = textOf('previewTitleZh') || textOf('previewTitleEn') || '';
+  const theme = (function () {
+    // 優先：body.card-theme-*
+    const cls = Array.from(document.body.classList || []);
+    const hit = cls.find(c => /^card-theme-\d+$/.test(c));
+    if (hit) return parseInt(hit.replace('card-theme-', ''), 10) || 1;
+    // 次選：localStorage cardTheme
+    try { return parseInt(localStorage.getItem('cardTheme') || '1', 10) || 1; } catch (e) { return 1; }
+  })();
+
+  const phone = (function () {
+    const a = document.querySelector('a[href^="tel:"]');
+    return a ? String(a.getAttribute('href') || '').replace(/^tel:/i, '').trim() : '';
+  })();
+
+  const email = (function () {
+    const a = document.querySelector('a[href^="mailto:"]');
+    return a ? String(a.getAttribute('href') || '').replace(/^mailto:/i, '').trim() : '';
+  })();
+
+  const company = (function () {
+    // 盡量從可編輯欄位中抓公司字樣；若沒有就留空（仍可用 profile_json 完整保存）
+    const el = document.querySelector('[data-field="company"], #previewCompany, #companyName');
+    return el ? String(el.textContent || el.value || '').trim() : '';
+  })();
+
+  // 完整資料：先用 profile_json 保存目前預覽區內容（不改 UI 結構）
+  const profile_json = (function () {
+    const card = document.getElementById('previewCard');
+    const logo = document.getElementById('previewLogo');
+    const avatar = document.getElementById('previewAvatar');
+    const contacts = document.getElementById('previewContacts');
+    const companyInfo = document.getElementById('companyInfoSection');
+    return {
+      lang: currentLang,
+      nameZh: textOf('previewNameZh'),
+      nameEn: textOf('previewNameEn'),
+      titleZh: textOf('previewTitleZh'),
+      titleEn: textOf('previewTitleEn'),
+      theme: theme,
+      logoSrc: String(logo?.getAttribute('src') || ''),
+      avatarSrc: String(avatar?.getAttribute('src') || ''),
+      previewCardHtml: card ? card.innerHTML : '',
+      contactsHtml: contacts ? contacts.innerHTML : '',
+      companyInfoHtml: companyInfo ? companyInfo.innerHTML : '',
+      savedAt: new Date().toISOString()
+    };
+  })();
+
+  // 雲端儲存：若未設定 Supabase，仍允許離線儲存提示
+  if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+    alert(currentLang === 'zh' ? '名片已儲存（離線模式）' : 'Saved (offline mode)');
+    try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
+    return;
+  }
+
+  // 需登入
+  const here = 'edit.html' + (window.location.search || '');
+  const auth = await UVACO_CLOUD.requireAuth(here);
+  if (!auth.ok) return;
+
+  // 合規：首次/版本變更需要同意（以 confirm 最小化 UI 變更）
+  const params = new URLSearchParams(window.location.search || '');
+  const consentVersion = 'v1.0';
+  const policyUrl = (UVACO_CLOUD.getBaseUrl ? UVACO_CLOUD.getBaseUrl() : '') + 'privacy.html';
+  const needConfirm = params.get('mode') === 'onboarding';
+  if (needConfirm) {
+    const ok = confirm(
+      currentLang === 'zh'
+        ? '儲存前請先同意隱私權政策（v1.0）。\n按「確定」代表你已閱讀並同意。'
+        : 'Please agree to the Privacy Policy (v1.0) before saving.\nClick OK to continue.'
+    );
+    if (!ok) return;
+  }
+
   try {
-    const params = new URLSearchParams(window.location.search || '');
+    // 寫入同意紀錄（若已同意同版本則會略過）
+    await UVACO_CLOUD.ensureConsent(consentVersion, policyUrl);
+    await UVACO_CLOUD.upsertMyCard({ name, phone, email, company, title, theme, profile_json });
+
+    alert(currentLang === 'zh' ? '名片已儲存！' : 'Business card saved!');
+    try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
+
+    // onboarding 模式：儲存後導回指定頁（預設回通訊錄）
     if (params.get('mode') === 'onboarding') {
       const next = params.get('next') || 'directory.html';
-      // 僅允許站內 html，避免不小心被帶到外部
-      const safe = /^[a-z0-9_\\-\\/]+\\.html$/i.test(next) ? next : 'directory.html';
+      const safe = /^[a-z0-9_\\-\\/]+\\.html(\\?.*)?$/i.test(next) ? next : 'directory.html';
       window.location.href = safe;
       return;
     }
-  } catch (e) {}
-  // 這裡可以連接實際的儲存 API
-  // window.location.href = 'yuyuko.html';
+  } catch (e) {
+    alert(currentLang === 'zh' ? '儲存失敗，請稍後再試。' : 'Save failed. Please try again.');
+  }
 }
 
 

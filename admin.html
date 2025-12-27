@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>管理後台 | Management Backend - UVACO</title>
 <link rel="stylesheet" href="styles.css">
+<!-- Supabase JS（CDN） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloud.js"></script>
 </head>
 
 <body class="theme-dark lang-zh">
@@ -155,6 +158,24 @@
 
 <script src="common.js"></script>
 <script>
+// 雲端版：後台需要登入，且必須是管理者（Email 白名單）
+(async function () {
+  try {
+    if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
+      const here = 'admin.html' + (window.location.search || '');
+      const r = await UVACO_CLOUD.requireAuth(here);
+      if (!r.ok) return;
+
+      const ok = await UVACO_CLOUD.isAdmin();
+      if (!ok) {
+        alert('你沒有後台權限。');
+        window.location.replace('directory.html');
+        return;
+      }
+    }
+  } catch (e) {}
+})();
+
 // 更新搜尋欄 placeholder
 function updateAdminSearchPlaceholder() {
   const zhElements = document.querySelectorAll('.lang-zh');
@@ -286,11 +307,26 @@ function batchExport() {
 }
 
 // 匯出所有名片
-function exportCards() {
+async function exportCards() {
   const zhElements = document.querySelectorAll('.lang-zh');
   const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
-  const msg = currentLang === 'zh' ? '匯出功能開發中' : 'Export feature coming soon';
-  alert(msg);
+
+  if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+    alert(currentLang === 'zh' ? '尚未設定 Supabase，無法匯出。' : 'Supabase not configured.');
+    return;
+  }
+
+  const ok = await UVACO_CLOUD.isAdmin();
+  if (!ok) {
+    alert(currentLang === 'zh' ? '你沒有後台權限。' : 'You do not have admin permission.');
+    return;
+  }
+
+  try {
+    await UVACO_CLOUD.exportCardsCsv();
+  } catch (e) {
+    alert(currentLang === 'zh' ? '匯出失敗，請稍後再試。' : 'Export failed. Please try again.');
+  }
 }
 
 // 編輯名片

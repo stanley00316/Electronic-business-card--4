@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>平台通訊錄 | Platform Directory - UVACO</title>
 <link rel="stylesheet" href="styles.css">
+<!-- Supabase JS（CDN） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloud.js"></script>
 </head>
 
 <body class="theme-dark lang-zh">
@@ -405,6 +408,28 @@
 
 <script src="common.js"></script>
 <script>
+// 雲端版：需要登入才可使用（未設定 Supabase 則略過）
+(async function () {
+  try {
+    if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
+      const here = 'directory.html' + (window.location.search || '');
+      const r = await UVACO_CLOUD.requireAuth(here);
+      if (!r.ok) return;
+
+      // 若已登入但尚未建立名片，提示前往編輯（不強制跳轉，避免「平台目錄」導向錯覺）
+      const my = await UVACO_CLOUD.getMyCard();
+      if (!my.card) {
+        const msg = getCurrentLang && getCurrentLang() === 'en'
+          ? 'You have not created your business card yet. Go to Edit page now?'
+          : '你尚未建立名片，是否前往「編輯名片」？';
+        if (confirm(msg)) {
+          window.location.href = 'edit.html?mode=onboarding&next=directory.html';
+        }
+      }
+    }
+  } catch (e) {}
+})();
+
 function getCurrentLang() {
   const zhElements = document.querySelectorAll('.lang-zh');
   return zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
