@@ -4,13 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>UVACO｜電子名片</title>
-  <meta http-equiv="refresh" content="0; url=directory.html" />
   <link rel="stylesheet" href="styles.css">
   <style>
     body { padding: 40px 20px; }
     .wrap { max-width: 720px; margin: 0 auto; }
     a { color: var(--uvaco-green); }
   </style>
+  <!-- Supabase JS（CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud.js"></script>
 </head>
 <body class="theme-dark lang-zh">
   <div class="wrap">
@@ -22,24 +24,40 @@
   </div>
 
   <script>
-    // 首次進站導向：
-    // - 若尚未完成建立：導到編輯頁 onboarding
-    // - 否則：導到通訊錄
-    // 同時保留 querystring/hash，避免分享連結參數遺失
-    (function () {
-      var qs = window.location.search || '';
-      var hash = window.location.hash || '';
-      var target = 'directory.html';
+    // 首次進站導向（雲端版）：
+    // - 未登入：去 auth.html
+    // - 已登入但尚未建立名片：去 edit.html onboarding
+    // - 已登入且已有名片：去 directory.html
+    (async function () {
       try {
-        var params = new URLSearchParams(qs || '');
-        if (params.get('skipOnboarding') === '1') {
-          target = 'directory.html';
-        } else {
-          var onboarded = localStorage.getItem('UVACO_ONBOARDED') === '1';
-          target = onboarded ? 'directory.html' : 'edit.html?mode=onboarding&next=directory.html';
+        if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+          // 尚未配置 Supabase 時，維持原本行為：先進通訊錄
+          window.location.replace('directory.html');
+          return;
         }
-      } catch (e) {}
-      window.location.replace(target + (target.indexOf('?') >= 0 ? '' : qs) + hash);
+
+        var p = new URLSearchParams(window.location.search || '');
+        if (p.get('skipOnboarding') === '1') {
+          window.location.replace('directory.html');
+          return;
+        }
+
+        var s = await UVACO_CLOUD.getSession();
+        if (!s.session) {
+          window.location.replace('auth.html?next=' + encodeURIComponent('directory.html'));
+          return;
+        }
+
+        var my = await UVACO_CLOUD.getMyCard();
+        if (!my.card) {
+          window.location.replace('edit.html?mode=onboarding&next=directory.html');
+          return;
+        }
+
+        window.location.replace('directory.html');
+      } catch (e) {
+        window.location.replace('directory.html');
+      }
     })();
   </script>
 </body>

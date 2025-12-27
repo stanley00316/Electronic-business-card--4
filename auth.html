@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登入 | Login - UVACO</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { padding-bottom: 0; }
+    .auth-page { width: 100%; max-width: 520px; margin: 0 auto; padding: 20px; padding-top: 90px; }
+    .auth-card { border-radius: 20px; padding: 22px; }
+    body.theme-dark .auth-card { background: rgba(22,22,24,0.85); border: 1px solid rgba(255,255,255,0.08); }
+    body.theme-light .auth-card { background: #fff; border: 1px solid rgba(15,23,42,0.08); }
+    .auth-title { font-size: 22px; font-weight: 800; color: var(--uvaco-green); margin-bottom: 8px; }
+    .auth-desc { font-size: 14px; line-height: 1.7; color: #9ca3af; margin-bottom: 14px; }
+    body.theme-light .auth-desc { color: #6b7280; }
+    .auth-input { width: 100%; padding: 12px 14px; border-radius: 12px; font-size: 15px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #fff; box-sizing: border-box; }
+    body.theme-light .auth-input { background: #fff; border-color: rgba(15,23,42,0.12); color: #111827; }
+    .auth-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; background: var(--uvaco-green); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 12px; }
+    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .auth-note { font-size: 12px; line-height: 1.7; margin-top: 14px; color: #9ca3af; }
+    body.theme-light .auth-note { color: #6b7280; }
+    .auth-status { margin-top: 14px; padding: 12px 14px; border-radius: 12px; display: none; }
+    .auth-status.show { display: block; }
+    .auth-status.ok { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; }
+    .auth-status.err { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; }
+    a { color: var(--uvaco-green); }
+  </style>
+  <!-- Supabase JS（CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud.js"></script>
+</head>
+<body class="theme-dark lang-zh">
+  <!-- 背景泡泡 -->
+  <div class="bg-blob blob1"></div>
+  <div class="bg-blob blob2"></div>
+
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-title">Email 驗證登入</div>
+      <div class="auth-desc">
+        請輸入 Email，我們會寄送一次性登入連結（Magic Link）。<br>
+        點擊信件連結後會自動回到系統並繼續操作。
+      </div>
+
+      <label style="display:block; font-size:13px; font-weight:700; margin-bottom:8px; color: var(--uvaco-green);">Email</label>
+      <input id="emailInput" class="auth-input" type="email" placeholder="name@example.com" autocomplete="email" />
+      <button id="sendBtn" class="auth-btn" onclick="sendLink()">寄送登入連結</button>
+
+      <div id="statusBox" class="auth-status"></div>
+      <div class="auth-note">
+        若未收到信，請檢查垃圾郵件匣。<br>
+        隱私權政策：<a href="privacy.html" target="_blank" rel="noopener">查看</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function setStatus(type, msg) {
+      var box = document.getElementById('statusBox');
+      box.className = 'auth-status show ' + (type === 'ok' ? 'ok' : 'err');
+      box.textContent = msg;
+    }
+
+    function getNext() {
+      try {
+        var p = new URLSearchParams(window.location.search || '');
+        return p.get('next') || 'directory.html';
+      } catch (e) {
+        return 'directory.html';
+      }
+    }
+
+    async function bootstrap() {
+      if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+        setStatus('err', '尚未設定 Supabase（請在 cloud.js 填入 SUPABASE_URL / SUPABASE_ANON_KEY）。');
+        return;
+      }
+
+      // 如果是 magic link 回跳（含 code），先交換 session
+      var exchanged = await UVACO_CLOUD.exchangeCodeForSessionIfNeeded();
+      if (!exchanged.ok) {
+        setStatus('err', '登入驗證失敗，請重試。');
+        return;
+      }
+
+      var s = await UVACO_CLOUD.getSession();
+      if (s.session) {
+        // 已登入：回到 next
+        window.location.replace(getNext());
+      }
+    }
+
+    async function sendLink() {
+      var input = document.getElementById('emailInput');
+      var btn = document.getElementById('sendBtn');
+      var email = String(input.value || '').trim();
+      if (!email) {
+        setStatus('err', '請輸入 Email。');
+        return;
+      }
+      btn.disabled = true;
+      try {
+        await UVACO_CLOUD.signInWithEmailOtp(email, getNext());
+        setStatus('ok', '已寄出登入連結，請至信箱點擊完成登入。');
+      } catch (e) {
+        setStatus('err', '寄送失敗，請稍後再試。');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>
+
