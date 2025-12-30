@@ -2018,9 +2018,28 @@ body.theme-light .link-input-cancel:hover {
 (async function () {
   try {
     if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
+      // 以 edit.html 作為入口：未登入則導向 auth.html；登入後回到此頁
       const here = 'edit.html' + (window.location.search || '');
       const r = await UVACO_CLOUD.requireAuth(here);
       if (!r.ok) return;
+
+      // 若使用者已經有名片：視為已 onboarding（避免清掉 localStorage 後又被當新手）
+      const my = await UVACO_CLOUD.getMyCard();
+      if (my && my.card) {
+        try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
+        return;
+      }
+
+      // 若尚未建立名片，且網址未指定 mode：自動切換為 onboarding
+      // 目的：saveCard() 可走 onboarding 的同意確認與儲存後導回 next
+      const params = new URLSearchParams(window.location.search || '');
+      if (!params.get('mode')) {
+        params.set('mode', 'onboarding');
+        if (!params.get('next')) params.set('next', 'directory.html');
+        const qs = params.toString();
+        const newUrl = 'edit.html' + (qs ? ('?' + qs) : '');
+        window.history.replaceState({}, '', newUrl);
+      }
     }
   } catch (e) {}
 })();

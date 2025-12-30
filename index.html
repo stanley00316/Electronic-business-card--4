@@ -44,7 +44,12 @@
 
         var s = await UVACO_CLOUD.getSession();
         if (!s.session) {
-          window.location.replace('auth.html?next=' + encodeURIComponent('directory.html'));
+          // 回到 index.html 讓它依「是否已有名片」自動導向：
+          // - 無名片：edit.html?mode=onboarding
+          // - 有名片：directory.html
+          // 這樣新使用者登入後不會先落到通訊錄再多一次確認視窗。
+          var next = 'index.html' + (window.location.search || '');
+          window.location.replace('auth.html?next=' + encodeURIComponent(next));
           return;
         }
 
