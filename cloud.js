@@ -5,8 +5,9 @@ window.UVACO_CLOUD = (function () {
   // 你需要把這兩個值改成你 Supabase 專案的設定（Project Settings → API）
   // - SUPABASE_URL: https://xxxx.supabase.co
   // - SUPABASE_ANON_KEY: anon public key
-  const SUPABASE_URL = '';
-  const SUPABASE_ANON_KEY = '';
+  const SUPABASE_URL = 'https://nqxibryjhgftyxttopuo.supabase.co';
+  // Supabase Dashboard → Settings → API Keys → Publishable key
+  const SUPABASE_ANON_KEY = 'sb_publishable_iTgIYinO82u_nwhdzvS8EQ_zDtNKpdH';
 
   function hasConfig() {
     return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
