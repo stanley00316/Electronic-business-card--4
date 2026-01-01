@@ -507,6 +507,9 @@
       // 若已登入但尚未建立名片，提示前往編輯（不強制跳轉，避免「平台目錄」導向錯覺）
       const my = await UVACO_CLOUD.getMyCard();
       renderMyCardPanel(my.card);
+      // 避免「我的名片」在下方全平台清單重複出現（你回報的兩個預覽）
+      window.__uvacoDirectoryState = window.__uvacoDirectoryState || { rows: [], loading: false };
+      window.__uvacoDirectoryState.myUserId = my && my.card ? (my.card.user_id || '') : '';
       if (!my.card) {
         const msg = getCurrentLang && getCurrentLang() === 'en'
           ? 'You have not created your business card yet. Go to Edit page now?'
@@ -598,7 +601,11 @@ async function refreshDirectoryResults() {
   try {
     const q = (document.getElementById('directorySearchInput')?.value || '').trim();
     const { rows } = await UVACO_CLOUD.searchCards({ q, limit: 100 });
-    window.__uvacoDirectoryState.rows = rows || [];
+    const all = rows || [];
+    const myId = String(window.__uvacoDirectoryState.myUserId || '').trim();
+    // 排除自己（我的名片已在上方面板顯示）
+    const filtered = myId ? all.filter(r => String(r?.user_id || '') !== myId) : all;
+    window.__uvacoDirectoryState.rows = filtered;
     renderDirectoryResults(window.__uvacoDirectoryState.rows);
   } catch (e) {
     if (resultsDiv) {

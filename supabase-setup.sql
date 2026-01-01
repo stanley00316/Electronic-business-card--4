@@ -185,3 +185,50 @@ create policy "allowlist_admin_select" on public.admin_allowlist
 for select to authenticated
 using (public.is_admin());
 
+-- ===== Storage：名片圖片（Logo / Avatar）=====
+-- Bucket：card-assets
+-- - 寫入：只能寫到自己的路徑（{auth.uid()}/...）
+-- - 讀取：全平台公開搜尋模式下，登入者可讀取所有人的圖片（authenticated）
+-- 注意：Storage 的 RLS 在 storage.objects 上；此段可重複執行（idempotent）
+
+insert into storage.buckets (id, name, public)
+values ('card-assets', 'card-assets', false)
+on conflict (id) do nothing;
+
+-- RLS on storage.objects（通常已開；保險起見）
+alter table storage.objects enable row level security;
+
+-- 讀取：登入者可讀取 card-assets 的所有物件（給全平台預覽用）
+drop policy if exists "card_assets_read_authenticated" on storage.objects;
+create policy "card_assets_read_authenticated" on storage.objects
+for select to authenticated
+using (bucket_id = 'card-assets');
+
+-- 寫入：只能在自己的資料夾（路徑以 auth.uid() 開頭）
+drop policy if exists "card_assets_write_own" on storage.objects;
+create policy "card_assets_write_own" on storage.objects
+for insert to authenticated
+with check (
+  bucket_id = 'card-assets'
+  and (name like (auth.uid()::text || '/%'))
+);
+
+drop policy if exists "card_assets_update_own" on storage.objects;
+create policy "card_assets_update_own" on storage.objects
+for update to authenticated
+using (
+  bucket_id = 'card-assets'
+  and (name like (auth.uid()::text || '/%'))
+)
+with check (
+  bucket_id = 'card-assets'
+  and (name like (auth.uid()::text || '/%'))
+);
+
+drop policy if exists "card_assets_delete_own" on storage.objects;
+create policy "card_assets_delete_own" on storage.objects
+for delete to authenticated
+using (
+  bucket_id = 'card-assets'
+  and (name like (auth.uid()::text || '/%'))
+);
