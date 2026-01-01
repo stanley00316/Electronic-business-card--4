@@ -2128,43 +2128,60 @@ async function compressImageFile(file, opts) {
       img.onerror = reject;
     });
 
-    const w = img.naturalWidth || img.width || 1;
-    const h = img.naturalHeight || img.height || 1;
-    const scale = Math.min(1, maxDim / Math.max(w, h));
-    const tw = Math.max(1, Math.round(w * scale));
-    const th = Math.max(1, Math.round(h * scale));
+    const w0 = img.naturalWidth || img.width || 1;
+    const h0 = img.naturalHeight || img.height || 1;
+
+    // 自動降品質/縮尺寸直到 <= maxBytes（避免你現在遇到的「處理失敗」）
+    let targetMaxDim = maxDim;
+    let outMime = mime;
+    let blob = null;
+    let tw = 0;
+    let th = 0;
 
     const canvas = document.createElement('canvas');
-    canvas.width = tw;
-    canvas.height = th;
     const ctx = canvas.getContext('2d', { alpha: true });
-    ctx.drawImage(img, 0, 0, tw, th);
 
-    async function toBlob(quality) {
-      return await new Promise((resolve) => {
-        canvas.toBlob((b) => resolve(b), mime, quality);
-      });
+    async function encodeAt(quality) {
+      if (outMime === 'image/jpeg') {
+        return await new Promise((resolve) => canvas.toBlob(resolve, outMime, quality));
+      }
+      return await new Promise((resolve) => canvas.toBlob(resolve, outMime, quality));
     }
 
-    let q = 0.9;
-    let blob = await toBlob(q);
-    // Safari 可能不支援 webp encoding → fallback jpeg
-    let outMime = mime;
-    if (!blob) {
-      outMime = 'image/jpeg';
-      blob = await new Promise((resolve) => canvas.toBlob(resolve, outMime, 0.9));
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const scale = Math.min(1, targetMaxDim / Math.max(w0, h0));
+      tw = Math.max(1, Math.round(w0 * scale));
+      th = Math.max(1, Math.round(h0 * scale));
+      canvas.width = tw;
+      canvas.height = th;
+      ctx.clearRect(0, 0, tw, th);
+      ctx.drawImage(img, 0, 0, tw, th);
+
+      // 先試 webp（若瀏覽器不支援會得到 null），不支援就改 jpeg
+      outMime = mime;
+      let q = 0.9;
+      blob = await encodeAt(q);
+      if (!blob) {
+        outMime = 'image/jpeg';
+        q = 0.9;
+        blob = await encodeAt(q);
+      }
+      if (!blob) throw new Error('TOBLOB_FAIL');
+
+      // 逐步降品質
+      while (blob.size > maxBytes && q > 0.3) {
+        q = Math.max(0.3, q - 0.1);
+        const b2 = await encodeAt(q);
+        if (!b2) break;
+        blob = b2;
+      }
+
+      if (blob && blob.size <= maxBytes) break;
+      // 仍太大：再縮小一次尺寸重試
+      targetMaxDim = Math.max(128, Math.floor(targetMaxDim * 0.8));
     }
+
     if (!blob) throw new Error('TOBLOB_FAIL');
-
-    while (blob.size > maxBytes && q > 0.5 && outMime !== 'image/png') {
-      q = Math.max(0.5, q - 0.1);
-      const b2 = await (outMime === 'image/jpeg'
-        ? new Promise((resolve) => canvas.toBlob(resolve, outMime, q))
-        : toBlob(q));
-      if (!b2) break;
-      blob = b2;
-    }
-
     if (blob.size > maxBytes) throw new Error('TOO_LARGE');
 
     const ext = outMime === 'image/jpeg' ? 'jpg' : (outMime === 'image/png' ? 'png' : 'webp');
@@ -2204,9 +2221,18 @@ async function handleImagePickAndPreview(file, kind) {
       if (el) el.src = url;
     }
   } catch (e) {
+    const code = String(e && e.message ? e.message : '');
     const msg = (currentLang === 'zh')
-      ? '圖片處理失敗：請確認檔案是圖片，且大小/解析度不要太大（建議 512KB～1MB 內）。'
-      : 'Image processing failed. Please use a smaller image (recommended <= 1MB).';
+      ? (code === 'TOO_LARGE'
+          ? '圖片壓縮後仍超過 1MB：請換更小的圖片或先裁切後再上傳。'
+          : code === 'NOT_IMAGE'
+            ? '這不是圖片檔，請改選擇 JPG/PNG/WebP。'
+            : '圖片處理失敗：請改用較小的圖片（1MB 以內），或先裁切/降低解析度再上傳。')
+      : (code === 'TOO_LARGE'
+          ? 'The compressed image is still over 1MB. Please crop or use a smaller image.'
+          : code === 'NOT_IMAGE'
+            ? 'Not an image file. Please choose JPG/PNG/WebP.'
+            : 'Image processing failed. Please use a smaller image (within 1MB) or crop it first.');
     alert(msg);
   }
 }
