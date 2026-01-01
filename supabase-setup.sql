@@ -1,12 +1,3 @@
--- UVACO / 電子名片（GitHub Pages）— Supabase 一次性初始化腳本
--- 使用方式：Supabase Dashboard → SQL Editor → New query → 貼上執行
--- 目標：
--- 1) Email OTP 登入（Auth 在 UI 開啟）
--- 2) 建立 cards / directory_contacts / consents / admin_allowlist
--- 3) 啟用 RLS，使用者只能存取自己的資料
--- 4) 提供 is_admin() RPC 供前端後台判斷
-
--- 需要 extensions（多數專案預設已有）
 create extension if not exists pgcrypto;
 
 -- 管理者白名單

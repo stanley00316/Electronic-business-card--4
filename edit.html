@@ -3189,9 +3189,38 @@ async function saveCard() {
     return String(el?.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
+  function primaryPart(text) {
+    const s = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!s) return '';
+    // 常見格式：中文名 ｜ 英文名、Company | Slogan
+    // 只取「左半邊」作為 cards.name / cards.company 的主要值
+    return s.split(/\s*[｜|]\s*/)[0].trim();
+  }
+
+  function companyFromSlogans(lang) {
+    const sel = lang === 'zh' ? '#previewSlogansZh strong' : '#previewSlogansEn strong';
+    const strong = document.querySelector(sel);
+    return strong ? primaryPart(strong.textContent || '') : '';
+  }
+
   // 基本欄位：符合你要匯出的欄位（name/phone/email/company/title/theme/created_at/updated_at）
-  const name = textOf('previewNameZh') || textOf('previewNameEn') || '';
-  const title = textOf('previewTitleZh') || textOf('previewTitleEn') || '';
+  const nameZhRaw = textOf('previewNameZh');
+  const nameEnRaw = textOf('previewNameEn');
+  const titleZhRaw = textOf('previewTitleZh');
+  const titleEnRaw = textOf('previewTitleEn');
+
+  // name/title：依目前語言只存中文或英文（避免「中英混在同一欄」）
+  const name =
+    (currentLang === 'zh' ? primaryPart(nameZhRaw) : primaryPart(nameEnRaw)) ||
+    primaryPart(nameZhRaw) ||
+    primaryPart(nameEnRaw) ||
+    '';
+
+  const title =
+    (currentLang === 'zh' ? primaryPart(titleZhRaw) : primaryPart(titleEnRaw)) ||
+    primaryPart(titleZhRaw) ||
+    primaryPart(titleEnRaw) ||
+    '';
   const theme = (function () {
     // 優先：body.card-theme-*
     const cls = Array.from(document.body.classList || []);
@@ -3212,9 +3241,15 @@ async function saveCard() {
   })();
 
   const company = (function () {
-    // 盡量從可編輯欄位中抓公司字樣；若沒有就留空（仍可用 profile_json 完整保存）
+    // 優先：從「粗體標語」抓公司名稱（預設樣式：<strong>公司｜標語</strong> / <strong>Company | Slogan</strong>）
+    const fromSlogans = (currentLang === 'zh' ? companyFromSlogans('zh') : companyFromSlogans('en')) ||
+      companyFromSlogans('zh') ||
+      companyFromSlogans('en');
+    if (fromSlogans) return fromSlogans;
+
+    // 次選：其他可編輯欄位（若未來有獨立 company 欄位可直接命中）
     const el = document.querySelector('[data-field="company"], #previewCompany, #companyName');
-    return el ? String(el.textContent || el.value || '').trim() : '';
+    return el ? primaryPart(String(el.textContent || el.value || '').trim()) : '';
   })();
 
   // 完整資料：先用 profile_json 保存目前預覽區內容（不改 UI 結構）
@@ -3226,10 +3261,12 @@ async function saveCard() {
     const companyInfo = document.getElementById('companyInfoSection');
     return {
       lang: currentLang,
-      nameZh: textOf('previewNameZh'),
-      nameEn: textOf('previewNameEn'),
-      titleZh: textOf('previewTitleZh'),
-      titleEn: textOf('previewTitleEn'),
+      nameZh: nameZhRaw,
+      nameEn: nameEnRaw,
+      titleZh: titleZhRaw,
+      titleEn: titleEnRaw,
+      companyZh: companyFromSlogans('zh'),
+      companyEn: companyFromSlogans('en'),
       theme: theme,
       logoSrc: String(logo?.getAttribute('src') || ''),
       avatarSrc: String(avatar?.getAttribute('src') || ''),

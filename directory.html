@@ -8,6 +8,54 @@
 <!-- Supabase JS（CDN） -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cloud.js?v=20251231"></script>
+<style>
+  /* 我的名片（雲端） */
+  .my-card-panel {
+    margin: 14px 0 12px;
+    padding: 14px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(22,22,24,0.75);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+  }
+  body.theme-light .my-card-panel {
+    background: rgba(255,255,255,0.92);
+    border-color: rgba(15,23,42,0.08);
+    box-shadow: 0 10px 24px rgba(15,23,42,0.12);
+  }
+  .my-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: var(--uvaco-green);
+  }
+  .my-card-kv {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 6px 10px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .my-card-k {
+    opacity: 0.75;
+    font-weight: 700;
+  }
+  .my-card-v {
+    opacity: 0.95;
+    word-break: break-word;
+  }
+  .my-card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .my-card-actions a {
+    text-decoration: none;
+  }
+</style>
 </head>
 
 <body class="theme-dark lang-zh">
@@ -130,6 +178,46 @@
           <span class="lang-zh">套用篩選</span>
           <span class="lang-en">Apply Filters</span>
         </button>
+      </div>
+    </div>
+
+    <!-- 我的名片（雲端：登入後顯示） -->
+    <div class="my-card-panel" id="myCardPanel" style="display:none;">
+      <div class="my-card-title">
+        <span>🪪</span>
+        <span class="lang-zh">我的名片</span>
+        <span class="lang-en">My Card</span>
+      </div>
+      <div class="my-card-kv">
+        <div class="my-card-k lang-zh">姓名</div>
+        <div class="my-card-k lang-en">Name</div>
+        <div class="my-card-v">
+          <span class="lang-zh" id="myCardNameZh"></span>
+          <span class="lang-en" id="myCardNameEn"></span>
+        </div>
+
+        <div class="my-card-k lang-zh">職務</div>
+        <div class="my-card-k lang-en">Title</div>
+        <div class="my-card-v">
+          <span class="lang-zh" id="myCardTitleZh"></span>
+          <span class="lang-en" id="myCardTitleEn"></span>
+        </div>
+
+        <div class="my-card-k lang-zh">公司</div>
+        <div class="my-card-k lang-en">Company</div>
+        <div class="my-card-v">
+          <span class="lang-zh" id="myCardCompanyZh"></span>
+          <span class="lang-en" id="myCardCompanyEn"></span>
+        </div>
+
+        <div class="my-card-k">Email</div>
+        <div class="my-card-v" id="myCardEmail"></div>
+      </div>
+      <div class="my-card-actions">
+        <a class="btn btn-secondary lang-zh" href="edit.html">✏️ 編輯名片</a>
+        <a class="btn btn-secondary lang-en" href="edit.html">✏️ Edit Card</a>
+        <a class="btn btn-secondary lang-zh" href="yuyuko.html" target="_blank">👀 預覽</a>
+        <a class="btn btn-secondary lang-en" href="yuyuko.html" target="_blank">👀 Preview</a>
       </div>
     </div>
     
@@ -418,6 +506,7 @@
 
       // 若已登入但尚未建立名片，提示前往編輯（不強制跳轉，避免「平台目錄」導向錯覺）
       const my = await UVACO_CLOUD.getMyCard();
+      renderMyCardPanel(my.card);
       if (!my.card) {
         const msg = getCurrentLang && getCurrentLang() === 'en'
           ? 'You have not created your business card yet. Go to Edit page now?'
@@ -433,6 +522,48 @@
 function getCurrentLang() {
   const zhElements = document.querySelectorAll('.lang-zh');
   return zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+}
+
+function safeText(v) {
+  return String(v ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function renderMyCardPanel(card) {
+  const panel = document.getElementById('myCardPanel');
+  if (!panel) return;
+  if (!card) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  // profile_json：保留雙語資訊；沒有就退回 cards 的欄位
+  let pj = card.profile_json;
+  if (typeof pj === 'string') {
+    try { pj = JSON.parse(pj); } catch (e) { pj = null; }
+  }
+  pj = (pj && typeof pj === 'object') ? pj : {};
+
+  const nameZh = safeText(pj.nameZh) || safeText(card.name);
+  const nameEn = safeText(pj.nameEn) || safeText(card.name);
+  const titleZh = safeText(pj.titleZh) || safeText(card.title);
+  const titleEn = safeText(pj.titleEn) || safeText(card.title);
+  const companyZh = safeText(pj.companyZh) || safeText(card.company);
+  const companyEn = safeText(pj.companyEn) || safeText(card.company);
+  const email = safeText(card.email);
+
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val || '-';
+  };
+  set('myCardNameZh', nameZh);
+  set('myCardNameEn', nameEn);
+  set('myCardTitleZh', titleZh);
+  set('myCardTitleEn', titleEn);
+  set('myCardCompanyZh', companyZh);
+  set('myCardCompanyEn', companyEn);
+  set('myCardEmail', email || '-');
+
+  panel.style.display = 'block';
 }
 
 // ===== 完整索引：類別 / 地區 / 專業領域 / 公司 =====
