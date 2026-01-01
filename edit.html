@@ -3510,26 +3510,47 @@ async function saveCard() {
 
     // 圖片上傳：若有選新圖，先上傳到 Supabase Storage，再把 path 寫入 profile_json
     if (window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
-      if (window.__uvacoPendingAssets.logo) {
-        const up = await UVACO_CLOUD.uploadMyAsset('logo', window.__uvacoPendingAssets.logo.blob, {
-          bucket: 'card-assets',
-          ext: window.__uvacoPendingAssets.logo.ext,
-          contentType: window.__uvacoPendingAssets.logo.contentType
-        });
-        profile_json.logoPath = up.path;
+      try {
+        if (window.__uvacoPendingAssets.logo) {
+          const up = await UVACO_CLOUD.uploadMyAsset('logo', window.__uvacoPendingAssets.logo.blob, {
+            bucket: 'card-assets',
+            ext: window.__uvacoPendingAssets.logo.ext,
+            contentType: window.__uvacoPendingAssets.logo.contentType
+          });
+          profile_json.logoPath = up.path;
+        }
+        if (window.__uvacoPendingAssets.avatar) {
+          const up = await UVACO_CLOUD.uploadMyAsset('avatar', window.__uvacoPendingAssets.avatar.blob, {
+            bucket: 'card-assets',
+            ext: window.__uvacoPendingAssets.avatar.ext,
+            contentType: window.__uvacoPendingAssets.avatar.contentType
+          });
+          profile_json.avatarPath = up.path;
+        }
+        profile_json.assetsUpdatedAt = new Date().toISOString();
+      } catch (e) {
+        // 常見原因：尚未在 Supabase 執行 Storage bucket/RLS 的 SQL（card-assets / storage.objects policies）
+        console.error('Storage upload failed', e);
+        const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
+        alert(currentLang === 'zh'
+          ? `圖片上傳失敗：請確認你已在 Supabase SQL Editor 執行最新版 supabase-setup.sql（包含 card-assets bucket 與 storage.objects 的 policies）。\n${detail}`
+          : `Image upload failed. Please run the latest supabase-setup.sql (card-assets bucket + storage.objects policies) in Supabase.\n${detail}`
+        );
+        return;
       }
-      if (window.__uvacoPendingAssets.avatar) {
-        const up = await UVACO_CLOUD.uploadMyAsset('avatar', window.__uvacoPendingAssets.avatar.blob, {
-          bucket: 'card-assets',
-          ext: window.__uvacoPendingAssets.avatar.ext,
-          contentType: window.__uvacoPendingAssets.avatar.contentType
-        });
-        profile_json.avatarPath = up.path;
-      }
-      profile_json.assetsUpdatedAt = new Date().toISOString();
     }
 
-    await UVACO_CLOUD.upsertMyCard({ name, phone, email, company, title, theme, profile_json });
+    try {
+      await UVACO_CLOUD.upsertMyCard({ name, phone, email, company, title, theme, profile_json });
+    } catch (e) {
+      console.error('Card upsert failed', e);
+      const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
+      alert(currentLang === 'zh'
+        ? `名片寫入資料庫失敗：請稍後再試。\n${detail}`
+        : `Failed to write card to database. Please try again.\n${detail}`
+      );
+      return;
+    }
 
     alert(currentLang === 'zh' ? '名片已儲存！' : 'Business card saved!');
     try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
@@ -3542,7 +3563,12 @@ async function saveCard() {
       return;
     }
   } catch (e) {
-    alert(currentLang === 'zh' ? '儲存失敗，請稍後再試。' : 'Save failed. Please try again.');
+    console.error('saveCard failed', e);
+    const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
+    alert(currentLang === 'zh'
+      ? `儲存失敗，請稍後再試。\n${detail}`
+      : `Save failed. Please try again.\n${detail}`
+    );
   }
 }
 
