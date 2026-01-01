@@ -107,6 +107,13 @@ create policy "cards_own_select" on public.cards
 for select to authenticated
 using (user_id = auth.uid());
 
+-- 平台通訊錄：登入後可搜尋/查看全平台名片（你要求的「全平台公開搜尋」）
+-- 注意：前端仍應只顯示必要欄位；若你之後要「好友制」或「可見欄位更嚴格」，建議改用 view/RPC 控制輸出欄位。
+drop policy if exists "cards_directory_select" on public.cards;
+create policy "cards_directory_select" on public.cards
+for select to authenticated
+using (true);
+
 drop policy if exists "cards_own_upsert" on public.cards;
 create policy "cards_own_upsert" on public.cards
 for insert to authenticated

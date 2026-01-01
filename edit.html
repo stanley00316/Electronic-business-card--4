@@ -1735,6 +1735,10 @@ body.theme-light .link-input-cancel:hover {
     <h2 class="link-input-title lang-zh">輸入連結</h2>
     <h2 class="link-input-title lang-en">Enter Link</h2>
     <input type="text" class="link-input-field" id="linkInputField" placeholder="" autofocus onkeydown="if(event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); submitLinkInput(event); return false; }">
+    <div class="link-input-help" id="linkInputHelp" style="margin-top:10px;font-size:13px;line-height:1.45;opacity:.92;">
+      <div class="lang-zh">範例：<code style="opacity:.9;">https://example.com</code></div>
+      <div class="lang-en">Example: <code style="opacity:.9;">https://example.com</code></div>
+    </div>
     <div class="link-input-actions">
       <button class="link-input-btn link-input-cancel lang-zh" onclick="closeLinkInputModal(event)">取消</button>
       <button class="link-input-btn link-input-cancel lang-en" onclick="closeLinkInputModal(event)">Cancel</button>
@@ -2093,6 +2097,110 @@ function updateSlogansPreview() {
   enContainer.innerHTML = enSlogans.map(slogan => `<div class="tagline lang-en">${slogan}</div>`).join('');
 }
 
+// ===== 圖片處理（壓縮/裁切/上傳 Storage）=====
+// - avatar：最大 512px，目標 <= 1MB
+// - logo：最大 1024px，目標 <= 1MB
+window.__uvacoPendingAssets = window.__uvacoPendingAssets || {
+  avatar: null, // { blob, contentType, ext }
+  logo: null
+};
+
+function revokeObjectUrlSafe(url) {
+  try { if (url && url.startsWith('blob:')) URL.revokeObjectURL(url); } catch (e) {}
+}
+
+async function compressImageFile(file, opts) {
+  const maxDim = Math.max(64, parseInt(opts?.maxDim || 512, 10) || 512);
+  const maxBytes = Math.max(50 * 1024, parseInt(opts?.maxBytes || 1024 * 1024, 10) || 1024 * 1024);
+  const mime = String(opts?.mime || 'image/webp');
+
+  if (!file || !file.type || !file.type.startsWith('image/')) {
+    throw new Error('NOT_IMAGE');
+  }
+
+  const imgUrl = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = imgUrl;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+
+    const w = img.naturalWidth || img.width || 1;
+    const h = img.naturalHeight || img.height || 1;
+    const scale = Math.min(1, maxDim / Math.max(w, h));
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext('2d', { alpha: true });
+    ctx.drawImage(img, 0, 0, tw, th);
+
+    async function toBlob(quality) {
+      return await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), mime, quality);
+      });
+    }
+
+    let q = 0.9;
+    let blob = await toBlob(q);
+    // Safari 可能不支援 webp encoding → fallback jpeg
+    let outMime = mime;
+    if (!blob) {
+      outMime = 'image/jpeg';
+      blob = await new Promise((resolve) => canvas.toBlob(resolve, outMime, 0.9));
+    }
+    if (!blob) throw new Error('TOBLOB_FAIL');
+
+    while (blob.size > maxBytes && q > 0.5 && outMime !== 'image/png') {
+      q = Math.max(0.5, q - 0.1);
+      const b2 = await (outMime === 'image/jpeg'
+        ? new Promise((resolve) => canvas.toBlob(resolve, outMime, q))
+        : toBlob(q));
+      if (!b2) break;
+      blob = b2;
+    }
+
+    if (blob.size > maxBytes) throw new Error('TOO_LARGE');
+
+    const ext = outMime === 'image/jpeg' ? 'jpg' : (outMime === 'image/png' ? 'png' : 'webp');
+    return { blob, contentType: outMime, ext, width: tw, height: th, bytes: blob.size };
+  } finally {
+    revokeObjectUrlSafe(imgUrl);
+  }
+}
+
+async function handleImagePickAndPreview(file, kind) {
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+
+  const rules = (kind === 'avatar')
+    ? { maxDim: 512, maxBytes: 1024 * 1024, mime: 'image/webp' }
+    : { maxDim: 1024, maxBytes: 1024 * 1024, mime: 'image/webp' };
+
+  try {
+    const out = await compressImageFile(file, rules);
+    window.__uvacoPendingAssets[kind] = { blob: out.blob, contentType: out.contentType, ext: out.ext };
+    const url = URL.createObjectURL(out.blob);
+    if (kind === 'avatar') {
+      const el = document.getElementById('previewAvatar');
+      if (el) el.src = url;
+    } else {
+      const el = document.getElementById('previewLogo');
+      if (el) el.src = url;
+    }
+  } catch (e) {
+    const msg = (currentLang === 'zh')
+      ? '圖片處理失敗：請確認檔案是圖片，且大小/解析度不要太大（建議 512KB～1MB 內）。'
+      : 'Image processing failed. Please use a smaller image (recommended <= 1MB).';
+    alert(msg);
+  }
+}
+
 // 編輯 LOGO
 function editLogo() {
   const input = document.createElement('input');
@@ -2101,11 +2209,7 @@ function editLogo() {
   input.onchange = function(event) {
     const file = event.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        document.getElementById('previewLogo').src = e.target.result;
-      };
-      reader.readAsDataURL(file);
+      handleImagePickAndPreview(file, 'logo');
     }
   };
   input.click();
@@ -2119,11 +2223,7 @@ function editAvatar() {
   input.onchange = function(event) {
     const file = event.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        document.getElementById('previewAvatar').src = e.target.result;
-      };
-      reader.readAsDataURL(file);
+      handleImagePickAndPreview(file, 'avatar');
     }
   };
   input.click();
@@ -2470,6 +2570,7 @@ function submitCustomType(event) {
 function showLinkInputModal(defaultLink, currentLang) {
   const overlay = document.getElementById('linkInputOverlay');
   const inputField = document.getElementById('linkInputField');
+  const help = document.getElementById('linkInputHelp');
   
   if (overlay && inputField) {
     inputField.value = defaultLink || '';
@@ -2480,6 +2581,29 @@ function showLinkInputModal(defaultLink, currentLang) {
     overlay.classList.add('show');
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+
+    // 範例/說明（A）
+    if (help) {
+      const t = window.isEditingContact && window.editingContactInfo ? window.editingContactInfo.type : (window.currentContactType ? window.currentContactType.type : '');
+      let zh = '請輸入完整連結（包含 https://）。';
+      let en = 'Please enter a full link (including https://).';
+      if (t === 'line' || t === 'official-line') {
+        zh = 'LINE 建議貼「個人檔案分享連結」。範例：<code>https://line.me/R/ti/p/2sSjJ_o6OT</code><br>不建議只填 ID（容易填錯）。';
+        en = 'For LINE, paste a share link. Example: <code>https://line.me/R/ti/p/2sSjJ_o6OT</code><br>Avoid entering only an ID.';
+      } else if (t === 'email') {
+        zh = 'Email 連結格式：<code>mailto:yourname@example.com</code>';
+        en = 'Email link format: <code>mailto:yourname@example.com</code>';
+      } else if (t === 'company-phone' || t === 'personal-phone' || t === 'call') {
+        zh = '電話連結格式：<code>tel:0905519002</code>';
+        en = 'Phone link format: <code>tel:+886905519002</code>';
+      } else if (t === 'website') {
+        zh = '網站範例：<code>https://example.com</code>';
+        en = 'Website example: <code>https://example.com</code>';
+      }
+      help.querySelector('.lang-zh').innerHTML = zh;
+      help.querySelector('.lang-en').innerHTML = en;
+    }
+
     // 聚焦輸入框
     setTimeout(() => {
       inputField.focus();
@@ -2539,11 +2663,50 @@ function submitLinkInput(event) {
   inputField.dataset.submitted = 'true';
   
   let newLink = inputField.value.trim();
+
+  // 防呆/驗證（B）：依類型檢查基本格式，避免客人填錯
+  const t = window.isEditingContact && window.editingContactInfo ? window.editingContactInfo.type : (window.currentContactType ? window.currentContactType.type : '');
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+
+  function fail(msgZh, msgEn) {
+    alert(currentLang === 'zh' ? msgZh : msgEn);
+    window.isSubmittingLink = false;
+    inputField.dataset.submitted = 'false';
+    return true;
+  }
+
+  if (t === 'line' || t === 'official-line') {
+    // 允許貼完整 line.me 連結；若只貼 @id/純 ID，直接提示改用分享連結
+    const v = newLink.trim();
+    if (!/^https?:\\/\\//i.test(v) || !/line\\.me\\//i.test(v)) {
+      if (fail(
+        'LINE 請貼「分享連結」，例如：https://line.me/R/ti/p/2sSjJ_o6OT\\n（請到 LINE 個人檔案 → 分享 → 複製連結）',
+        'Please paste a LINE share link, e.g. https://line.me/R/ti/p/2sSjJ_o6OT'
+      )) return;
+    }
+  }
+
+  if (t === 'email') {
+    if (!/^mailto:/i.test(newLink)) {
+      if (fail('Email 連結需以 mailto: 開頭，例如 mailto:yourname@example.com', 'Email link must start with mailto:, e.g. mailto:yourname@example.com')) return;
+    }
+  }
+
+  if (t === 'company-phone' || t === 'personal-phone' || t === 'call') {
+    if (!/^tel:/i.test(newLink)) {
+      if (fail('電話連結需以 tel: 開頭，例如 tel:0905519002', 'Phone link must start with tel:, e.g. tel:+886905519002')) return;
+    }
+  }
+
+  if (t === 'website') {
+    if (!/^https?:\\/\\//i.test(newLink)) {
+      if (fail('網站連結需以 https:// 開頭，例如 https://example.com', 'Website link must start with https://, e.g. https://example.com')) return;
+    }
+  }
   
   // 如果輸入為空，提示用戶並重置標記
   if (newLink === '') {
-    const zhElements = document.querySelectorAll('.lang-zh');
-    const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
     alert(currentLang === 'zh' ? '連結不能為空' : 'Link cannot be empty');
     // 重置標記，允許用戶重新輸入
     window.isSubmittingLink = false;
@@ -3268,6 +3431,8 @@ async function saveCard() {
       companyZh: companyFromSlogans('zh'),
       companyEn: companyFromSlogans('en'),
       theme: theme,
+      // 圖片：改用 Storage path（避免把 base64 存進 DB）
+      // 若尚未上傳（離線/尚未儲存），仍可能是 blob: 或 data:，僅作為暫存預覽用
       logoSrc: String(logo?.getAttribute('src') || ''),
       avatarSrc: String(avatar?.getAttribute('src') || ''),
       previewCardHtml: card ? card.innerHTML : '',
@@ -3306,6 +3471,28 @@ async function saveCard() {
   try {
     // 寫入同意紀錄（若已同意同版本則會略過）
     await UVACO_CLOUD.ensureConsent(consentVersion, policyUrl);
+
+    // 圖片上傳：若有選新圖，先上傳到 Supabase Storage，再把 path 寫入 profile_json
+    if (window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
+      if (window.__uvacoPendingAssets.logo) {
+        const up = await UVACO_CLOUD.uploadMyAsset('logo', window.__uvacoPendingAssets.logo.blob, {
+          bucket: 'card-assets',
+          ext: window.__uvacoPendingAssets.logo.ext,
+          contentType: window.__uvacoPendingAssets.logo.contentType
+        });
+        profile_json.logoPath = up.path;
+      }
+      if (window.__uvacoPendingAssets.avatar) {
+        const up = await UVACO_CLOUD.uploadMyAsset('avatar', window.__uvacoPendingAssets.avatar.blob, {
+          bucket: 'card-assets',
+          ext: window.__uvacoPendingAssets.avatar.ext,
+          contentType: window.__uvacoPendingAssets.avatar.contentType
+        });
+        profile_json.avatarPath = up.path;
+      }
+      profile_json.assetsUpdatedAt = new Date().toISOString();
+    }
+
     await UVACO_CLOUD.upsertMyCard({ name, phone, email, company, title, theme, profile_json });
 
     alert(currentLang === 'zh' ? '名片已儲存！' : 'Business card saved!');

@@ -189,11 +189,21 @@ document.addEventListener('DOMContentLoaded', function () {
       if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
         // 若是 magic link 回跳，先交換 session
         await UVACO_CLOUD.exchangeCodeForSessionIfNeeded();
+        const params = new URLSearchParams(window.location.search || '');
+        const uid = params.get('uid');
+
+        // 若要預覽他人：必須登入（全平台公開搜尋模式）
+        if (uid) {
+          const here = 'yuyuko.html' + (window.location.search || '');
+          const r = await UVACO_CLOUD.requireAuth(here);
+          if (!r.ok) return;
+        }
+
         const s = await UVACO_CLOUD.getSession();
         if (s && s.session) {
-          const my = await UVACO_CLOUD.getMyCard();
-          if (my && my.card) {
-            const card = my.card;
+          const res = uid ? await UVACO_CLOUD.getCardByUserId(uid) : await UVACO_CLOUD.getMyCard();
+          if (res && res.card) {
+            const card = res.card;
             ownerTheme = parseInt(card.theme || 1, 10) || 1;
 
             let pj = card.profile_json;
@@ -230,9 +240,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // 更新 logo / avatar
             const logo = document.getElementById('viewerLogo');
-            if (logo && pj.logoSrc) logo.setAttribute('src', String(pj.logoSrc));
             const avatar = document.getElementById('viewerAvatar');
-            if (avatar && pj.avatarSrc) avatar.setAttribute('src', String(pj.avatarSrc));
+            if (logo) {
+              if (pj.logoPath) {
+                const u = await UVACO_CLOUD.getSignedAssetUrl(String(pj.logoPath), { bucket: 'card-assets', expiresIn: 3600 });
+                if (u && u.url) logo.setAttribute('src', u.url);
+              } else if (pj.logoSrc) {
+                logo.setAttribute('src', String(pj.logoSrc));
+              }
+            }
+            if (avatar) {
+              if (pj.avatarPath) {
+                const u = await UVACO_CLOUD.getSignedAssetUrl(String(pj.avatarPath), { bucket: 'card-assets', expiresIn: 3600 });
+                if (u && u.url) avatar.setAttribute('src', u.url);
+              } else if (pj.avatarSrc) {
+                avatar.setAttribute('src', String(pj.avatarSrc));
+              }
+            }
 
             // 更新 phone/email 連結
             const phone = safeText(card.phone);
