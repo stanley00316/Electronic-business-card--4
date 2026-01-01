@@ -2178,6 +2178,16 @@ async function handleImagePickAndPreview(file, kind) {
   const zhElements = document.querySelectorAll('.lang-zh');
   const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
 
+  // 限制：原始檔案大小必須 <= 1MB（你要求）
+  const maxInputBytes = 1024 * 1024;
+  if (file && typeof file.size === 'number' && file.size > maxInputBytes) {
+    const msg = (currentLang === 'zh')
+      ? '圖片檔案過大：請上傳 1MB 以內的圖片。'
+      : 'Image file is too large. Please upload an image within 1MB.';
+    alert(msg);
+    return;
+  }
+
   const rules = (kind === 'avatar')
     ? { maxDim: 512, maxBytes: 1024 * 1024, mime: 'image/webp' }
     : { maxDim: 1024, maxBytes: 1024 * 1024, mime: 'image/webp' };
