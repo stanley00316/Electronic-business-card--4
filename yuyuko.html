@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>UVACO｜電子名片 | E-Business Card</title>
 <link rel="stylesheet" href="styles.css">
+<!-- Supabase JS（CDN） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloud.js?v=20251231"></script>
 </head>
 
 <body class="theme-dark lang-zh">
@@ -16,7 +19,7 @@
 <!-- LOGO 區 -->
 <div class="hero">
   <div class="hero-frame">
-    <img src="uvaco-logo.svg" class="hero-logo" alt="UVACO">
+    <img src="uvaco-logo.svg" class="hero-logo" alt="UVACO" id="viewerLogo">
   </div>
 </div>
 
@@ -24,18 +27,22 @@
 <div class="card" id="previewCard">
 
   <!-- 大頭照（放置於卡片右上角） -->
-  <img class="avatar" src="default-avatar.svg" alt="Yuyu Ko 大頭照" loading="lazy">
+  <img class="avatar" src="default-avatar.svg" alt="Avatar" loading="lazy" id="viewerAvatar">
 
   <!-- 姓名 -->
-  <div class="name lang-zh">柯宜瀅 ｜ <span class="en">Yuyu Ko</span></div>
-  <div class="name lang-en">Yuyu Ko ｜ <span class="en">Ko</span></div>
+  <div class="name lang-zh" id="viewerNameZh">柯宜瀅 ｜ <span class="en">Yuyu Ko</span></div>
+  <div class="name lang-en" id="viewerNameEn">Yuyu Ko ｜ <span class="en">Ko</span></div>
+
+  <!-- 職務 -->
+  <div class="tagline lang-zh" id="viewerTitleZh">業務經理</div>
+  <div class="tagline lang-en" id="viewerTitleEn">Sales Manager</div>
 
   <!-- 標語 -->
   <div class="tagline lang-zh">健康・事業・未來</div>
-  <div class="tagline lang-zh"><strong>葡眾企業｜專業陪伴</strong></div>
+  <div class="tagline lang-zh"><strong id="viewerCompanyStrongZh">葡眾企業｜專業陪伴</strong></div>
 
   <div class="tagline lang-en">Health • Business • Future</div>
-  <div class="tagline lang-en"><strong>Puzhong Enterprise | Professional Support</strong></div>
+  <div class="tagline lang-en"><strong id="viewerCompanyStrongEn">Puzhong Enterprise | Professional Support</strong></div>
 
   <div class="divider"></div>
 
@@ -105,10 +112,10 @@
   <div class="btn-group">
 
     <!-- Call -->
-    <a class="btn btn-primary lang-zh" href="tel:0905519002">
+    <a class="btn btn-primary lang-zh" href="tel:0905519002" id="viewerPhoneZh">
       <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電
     </a>
-    <a class="btn btn-primary lang-en" href="tel:0905519002">
+    <a class="btn btn-primary lang-en" href="tel:0905519002" id="viewerPhoneEn">
       <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now
     </a>
 
@@ -121,10 +128,10 @@
     </a>    
 
     <!-- Email -->
-    <a class="btn btn-secondary lang-zh" href="mailto:ccccwoho@gmail.com">
+    <a class="btn btn-secondary lang-zh" href="mailto:ccccwoho@gmail.com" id="viewerEmailZh">
       <img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email
     </a>
-    <a class="btn btn-secondary lang-en" href="mailto:ccccwoho@gmail.com">
+    <a class="btn btn-secondary lang-en" href="mailto:ccccwoho@gmail.com" id="viewerEmailEn">
       <img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email
     </a>
 
@@ -172,10 +179,86 @@
 
 <script src="common.js"></script>
 <script>
-// 初始化頁面：假設擁有者（柯宜瀅）的主題是 1 (深色品牌綠)
-// 您個人的主題會從 localStorage 讀取並套用到 body
-document.addEventListener('DOMContentLoaded', function() {
-  initViewerPage(1); 
+// 初始化頁面：
+// - 若已登入且有雲端名片：顯示自己的名片資料（從 Supabase 讀取）
+// - 否則：顯示本頁預設範例
+document.addEventListener('DOMContentLoaded', function () {
+  (async function () {
+    let ownerTheme = 1;
+    try {
+      if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
+        // 若是 magic link 回跳，先交換 session
+        await UVACO_CLOUD.exchangeCodeForSessionIfNeeded();
+        const s = await UVACO_CLOUD.getSession();
+        if (s && s.session) {
+          const my = await UVACO_CLOUD.getMyCard();
+          if (my && my.card) {
+            const card = my.card;
+            ownerTheme = parseInt(card.theme || 1, 10) || 1;
+
+            let pj = card.profile_json;
+            if (typeof pj === 'string') {
+              try { pj = JSON.parse(pj); } catch (e) { pj = null; }
+            }
+            pj = (pj && typeof pj === 'object') ? pj : {};
+
+            const safeText = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+
+            // 主要欄位：雙語優先用 profile_json，沒有再 fallback 到 cards 欄位
+            const nameZh = safeText(pj.nameZh) || safeText(card.name);
+            const nameEn = safeText(pj.nameEn) || safeText(card.name);
+            const titleZh = safeText(pj.titleZh) || safeText(card.title);
+            const titleEn = safeText(pj.titleEn) || safeText(card.title);
+            const companyZh = safeText(pj.companyZh) || safeText(card.company);
+            const companyEn = safeText(pj.companyEn) || safeText(card.company);
+
+            const setText = (id, val) => {
+              const el = document.getElementById(id);
+              if (el) el.textContent = val || el.textContent;
+            };
+
+            // 更新名稱/職務/公司
+            // 注意：name 可能包含「｜」分隔，這裡保留原字串以符合你的顯示習慣
+            const nameZhEl = document.getElementById('viewerNameZh');
+            const nameEnEl = document.getElementById('viewerNameEn');
+            if (nameZhEl && nameZh) nameZhEl.innerHTML = nameZh;
+            if (nameEnEl && nameEn) nameEnEl.innerHTML = nameEn;
+            setText('viewerTitleZh', titleZh);
+            setText('viewerTitleEn', titleEn);
+            setText('viewerCompanyStrongZh', companyZh);
+            setText('viewerCompanyStrongEn', companyEn);
+
+            // 更新 logo / avatar
+            const logo = document.getElementById('viewerLogo');
+            if (logo && pj.logoSrc) logo.setAttribute('src', String(pj.logoSrc));
+            const avatar = document.getElementById('viewerAvatar');
+            if (avatar && pj.avatarSrc) avatar.setAttribute('src', String(pj.avatarSrc));
+
+            // 更新 phone/email 連結
+            const phone = safeText(card.phone);
+            if (phone) {
+              const aZh = document.getElementById('viewerPhoneZh');
+              const aEn = document.getElementById('viewerPhoneEn');
+              if (aZh) aZh.setAttribute('href', 'tel:' + phone);
+              if (aEn) aEn.setAttribute('href', 'tel:' + phone);
+            }
+            const email = safeText(card.email);
+            if (email) {
+              const mZh = document.getElementById('viewerEmailZh');
+              const mEn = document.getElementById('viewerEmailEn');
+              if (mZh) mZh.setAttribute('href', 'mailto:' + email);
+              if (mEn) mEn.setAttribute('href', 'mailto:' + email);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // ignore → fallback to sample
+    } finally {
+      // card 主題使用 ownerTheme；背景使用觀看者主題（localStorage）
+      initViewerPage(ownerTheme);
+    }
+  })();
 });
 
 // 開啟地圖
