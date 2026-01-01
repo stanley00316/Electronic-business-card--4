@@ -515,6 +515,9 @@
           window.location.href = 'edit.html?mode=onboarding&next=directory.html';
         }
       }
+
+      // 全平台名片搜尋（登入後可搜尋所有已建立名片的人）
+      await refreshDirectoryResults();
     }
   } catch (e) {}
 })();
@@ -564,6 +567,96 @@ function renderMyCardPanel(card) {
   set('myCardEmail', email || '-');
 
   panel.style.display = 'block';
+}
+
+// ===== 平台通訊錄：全平台公開搜尋（登入者）=====
+window.__uvacoDirectoryState = window.__uvacoDirectoryState || {
+  rows: [],
+  loading: false
+};
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+async function refreshDirectoryResults() {
+  if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) return;
+  if (window.__uvacoDirectoryState.loading) return;
+  window.__uvacoDirectoryState.loading = true;
+
+  const resultsDiv = document.getElementById('directoryResults');
+  if (resultsDiv) {
+    resultsDiv.innerHTML = `
+      <div class="directory-empty-icon">⏳</div>
+      <div class="directory-empty-text lang-zh">載入平台名片中…</div>
+      <div class="directory-empty-text lang-en">Loading directory…</div>
+    `;
+  }
+
+  try {
+    const q = (document.getElementById('directorySearchInput')?.value || '').trim();
+    const { rows } = await UVACO_CLOUD.searchCards({ q, limit: 100 });
+    window.__uvacoDirectoryState.rows = rows || [];
+    renderDirectoryResults(window.__uvacoDirectoryState.rows);
+  } catch (e) {
+    if (resultsDiv) {
+      resultsDiv.innerHTML = `
+        <div class="directory-empty-icon">⚠️</div>
+        <div class="directory-empty-text lang-zh">載入失敗，請稍後重試</div>
+        <div class="directory-empty-text lang-en">Failed to load. Please try again.</div>
+      `;
+    }
+  } finally {
+    window.__uvacoDirectoryState.loading = false;
+    // 更新語言顯示（沿用現有邏輯）
+    const zhElements = document.querySelectorAll('.lang-zh');
+    const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+    document.querySelectorAll('#directoryResults .lang-zh').forEach(el => {
+      el.style.display = currentLang === 'zh' ? 'block' : 'none';
+    });
+    document.querySelectorAll('#directoryResults .lang-en').forEach(el => {
+      el.style.display = currentLang === 'en' ? 'block' : 'none';
+    });
+  }
+}
+
+function renderDirectoryResults(rows) {
+  const resultsDiv = document.getElementById('directoryResults');
+  const list = Array.isArray(rows) ? rows : [];
+  updateDirectoryResults(list.length);
+
+  if (!resultsDiv) return;
+  if (list.length === 0) {
+    // 保留原空狀態
+    updateDirectoryResults(0);
+    return;
+  }
+
+  const itemsHtml = list.map(r => {
+    const name = escapeHtml(r?.name || '');
+    const company = escapeHtml(r?.company || '');
+    const title = escapeHtml(r?.title || '');
+    const uid = encodeURIComponent(r?.user_id || '');
+    const previewUrl = `yuyuko.html?v=1e3c412&uid=${uid}`;
+    return `
+      <div class="directory-card-item" style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,22,24,0.65);margin:10px 0;">
+        <div style="min-width:0;">
+          <div style="font-weight:800;color:#e5e7eb;line-height:1.3;word-break:break-word;">${name || '-'}</div>
+          <div style="opacity:.9;color:#cbd5e1;font-size:13px;line-height:1.3;margin-top:2px;word-break:break-word;">
+            ${company ? company : ''}${(company && title) ? '｜' : ''}${title ? title : ''}
+          </div>
+        </div>
+        <div style="flex:0 0 auto;display:flex;gap:8px;">
+          <a class="btn btn-secondary lang-zh" href="${previewUrl}" target="_blank" rel="noopener noreferrer">👀 預覽</a>
+          <a class="btn btn-secondary lang-en" href="${previewUrl}" target="_blank" rel="noopener noreferrer">👀 Preview</a>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  resultsDiv.innerHTML = itemsHtml;
 }
 
 // ===== 完整索引：類別 / 地區 / 專業領域 / 公司 =====
@@ -1361,18 +1454,9 @@ function handleDirectorySearch(event) {
 
 // 執行搜尋
 function searchDirectory() {
-  const searchTerm = document.getElementById('directorySearchInput').value.toLowerCase();
-  const category = document.getElementById('filterCategory').value;
-  const regionZone = document.getElementById('filterRegionZone').value;
-  const regionCity = document.getElementById('filterRegionCity').value;
-  const regionDistrict = document.getElementById('filterRegionDistrict').value;
-  const field = document.getElementById('filterField').value;
-  const company = document.getElementById('filterCompany').value;
-  
-  // 這裡可以連接實際的搜尋 API
-  // 目前顯示空結果
-  const resultsCount = 0;
-  updateDirectoryResults(resultsCount);
+  // 目前先做「全平台名片」的關鍵字搜尋（name/company/title）
+  // 類別/地區/專業領域/公司索引可以後續再接到 profile_json（或 directory_contacts）
+  refreshDirectoryResults();
 }
 
 // 更新搜尋結果

@@ -92,6 +92,73 @@ window.UVACO_CLOUD = (function () {
     return { card: data || null };
   }
 
+  async function getCardByUserId(userId) {
+    const client = getClient();
+    if (!client || !userId) return { card: null };
+    const { data, error } = await client
+      .from('cards')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) return { card: null, error };
+    return { card: data || null };
+  }
+
+  async function searchCards(params) {
+    const client = getClient();
+    if (!client) throw new Error('SUPABASE_NOT_CONFIGURED');
+    const q = String(params?.q || '').trim();
+    const limit = Math.min(Math.max(parseInt(params?.limit || 50, 10) || 50, 1), 200);
+
+    let query = client
+      .from('cards')
+      // 盡量只取通訊錄顯示需要的欄位；完整預覽再用 getCardByUserId
+      .select('user_id,name,company,title,theme,updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+
+    if (q) {
+      const esc = q.replace(/%/g, '\\%').replace(/_/g, '\\_');
+      query = query.or(
+        `name.ilike.%${esc}%,company.ilike.%${esc}%,title.ilike.%${esc}%`
+      );
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return { rows: data || [] };
+  }
+
+  async function uploadMyAsset(kind, blob, opts) {
+    const client = getClient();
+    const { session } = await getSession();
+    if (!client || !session) throw new Error('NO_SESSION');
+    if (!blob) throw new Error('NO_FILE');
+    const bucket = (opts && opts.bucket) ? String(opts.bucket) : 'card-assets';
+    const ext = (opts && opts.ext) ? String(opts.ext).replace(/^\./, '') : 'webp';
+    const contentType = (opts && opts.contentType) ? String(opts.contentType) : 'image/webp';
+    const path = `${session.user.id}/${kind}.${ext}`;
+
+    const { error } = await client.storage
+      .from(bucket)
+      .upload(path, blob, {
+        upsert: true,
+        contentType
+      });
+    if (error) throw error;
+    return { bucket, path };
+  }
+
+  async function getSignedAssetUrl(path, opts) {
+    const client = getClient();
+    if (!client || !path) return { url: '' };
+    const bucket = (opts && opts.bucket) ? String(opts.bucket) : 'card-assets';
+    const expiresIn = Math.min(Math.max(parseInt(opts?.expiresIn || 3600, 10) || 3600, 60), 60 * 60 * 24);
+    const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresIn);
+    if (error) return { url: '', error };
+    return { url: data?.signedUrl || '' };
+  }
+
   async function upsertMyCard(payload) {
     const client = getClient();
     const { session } = await getSession();
@@ -195,9 +262,13 @@ window.UVACO_CLOUD = (function () {
     signInWithEmailOtp,
     exchangeCodeForSessionIfNeeded,
     getMyCard,
+    getCardByUserId,
+    searchCards,
     upsertMyCard,
     ensureConsent,
     isAdmin,
+    uploadMyAsset,
+    getSignedAssetUrl,
     exportCardsCsv
   };
 })();
