@@ -2679,7 +2679,7 @@ function submitLinkInput(event) {
   if (t === 'line' || t === 'official-line') {
     // 允許貼完整 line.me 連結；若只貼 @id/純 ID，直接提示改用分享連結
     const v = newLink.trim();
-    if (!/^https?:\\/\\//i.test(v) || !/line\\.me\\//i.test(v)) {
+    if (!/^https?:\/\//i.test(v) || !/line\.me\//i.test(v)) {
       if (fail(
         'LINE 請貼「分享連結」，例如：https://line.me/R/ti/p/2sSjJ_o6OT\\n（請到 LINE 個人檔案 → 分享 → 複製連結）',
         'Please paste a LINE share link, e.g. https://line.me/R/ti/p/2sSjJ_o6OT'
@@ -2700,7 +2700,7 @@ function submitLinkInput(event) {
   }
 
   if (t === 'website') {
-    if (!/^https?:\\/\\//i.test(newLink)) {
+    if (!/^https?:\/\//i.test(newLink)) {
       if (fail('網站連結需以 https:// 開頭，例如 https://example.com', 'Website link must start with https://, e.g. https://example.com')) return;
     }
   }
