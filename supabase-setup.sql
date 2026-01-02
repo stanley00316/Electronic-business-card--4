@@ -189,9 +189,7 @@ using (public.is_admin());
 -- Bucket：card-assets
 -- - 寫入：只能寫到自己的路徑（{auth.uid()}/...）
 -- - 讀取：全平台公開搜尋模式下，登入者可讀取所有人的圖片（authenticated）
--- 注意：Storage 的 RLS 在 storage.objects 上；此段可重複執行（idempotent）
-
-insert into storage.buckets (id, name, public)
+-- 注意：Storage 的 RLS 在 storage.objects 上；此段可重複執行（idempotent）insert into storage.buckets (id, name, public)
 values ('card-assets', 'card-assets', false)
 on conflict (id) do nothing;
 
@@ -232,3 +230,22 @@ using (
   bucket_id = 'card-assets'
   and (name like (auth.uid()::text || '/%'))
 );
+
+-- ===== LINE 登入：身份映射表（LINE userId → user_id UUID）=====
+-- 用途：在 Supabase Hosted 沒有 LINE Provider 時，仍可透過 Edge Function 簽發 JWT（role=authenticated, sub=user_id）
+create table if not exists public.line_identities (
+  line_user_id text primary key,
+  user_id uuid not null unique,
+  display_name text,
+  created_at timestamptz not null default now(),
+  last_login_at timestamptz
+);
+
+-- 這張表建議只給 service role（Edge Function）維護；一般前端不需直接讀取。
+
+-- ===== 自訂 JWT（LINE 登入）注意事項 =====
+-- 若你要用 Edge Function 簽發 JWT 來取代 Supabase Auth provider：
+-- 你的使用者 UUID 不會存在 auth.users，因此需要移除外鍵限制。
+alter table public.cards drop constraint if exists cards_user_id_fkey;
+alter table public.directory_contacts drop constraint if exists directory_contacts_owner_user_id_fkey;
+alter table public.consents drop constraint if exists consents_user_id_fkey;

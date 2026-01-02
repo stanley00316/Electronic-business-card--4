@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>登入 | Login - UVACO</title>
-  <link rel="stylesheet" href="styles.css">
+  <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>LINE 登入 | LINE Login - UVACO</title>
+  <link rel="stylesheet" href="styles.css?v=20260102">
   <style>
     body { padding-bottom: 0; }
     .auth-page { width: 100%; max-width: 520px; margin: 0 auto; padding: 20px; padding-top: 90px; }
@@ -18,6 +22,10 @@
     body.theme-light .auth-input { background: #fff; border-color: rgba(15,23,42,0.12); color: #111827; }
     .auth-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; background: var(--uvaco-green); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 12px; }
     .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .auth-btn.secondary { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.10); color: #fff; }
+    body.theme-light .auth-btn.secondary { background: rgba(15,23,42,0.04); border-color: rgba(15,23,42,0.10); color: #111827; }
+    .auth-divider { height: 1px; background: rgba(255,255,255,0.10); margin: 16px 0; }
+    body.theme-light .auth-divider { background: rgba(15,23,42,0.10); }
     .auth-note { font-size: 12px; line-height: 1.7; margin-top: 14px; color: #9ca3af; }
     body.theme-light .auth-note { color: #6b7280; }
     .auth-status { margin-top: 14px; padding: 12px 14px; border-radius: 12px; display: none; }
@@ -28,7 +36,8 @@
   </style>
   <!-- Supabase JS（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cloud.js?v=20251231"></script>
+  <script src="cloud.js?v=20260102"></script>
+  <script src="common.js?v=20260102"></script>
 </head>
 <body class="theme-dark lang-zh">
   <!-- 背景泡泡 -->
@@ -37,19 +46,17 @@
 
   <div class="auth-page">
     <div class="auth-card">
-      <div class="auth-title">Email 驗證登入</div>
+      <div class="auth-title">LINE 登入驗證</div>
       <div class="auth-desc">
-        請輸入 Email，我們會寄送一次性登入連結（Magic Link）。<br>
-        點擊信件連結後會自動回到系統並繼續操作。
+        點擊下方按鈕將跳轉至 LINE 完成登入驗證，完成後會自動回到系統繼續操作。<br>
+        （本機測試需使用 HTTPS，例如 ngrok；LINE 不接受 http://localhost）
       </div>
 
-      <label style="display:block; font-size:13px; font-weight:700; margin-bottom:8px; color: var(--uvaco-green);">Email</label>
-      <input id="emailInput" class="auth-input" type="email" placeholder="name@example.com" autocomplete="email" />
-      <button id="sendBtn" class="auth-btn" onclick="sendLink()">寄送登入連結</button>
+      <button type="button" class="auth-btn" onclick="startLine()">使用 LINE 登入</button>
+      <button type="button" class="auth-btn secondary" onclick="explainLineAuth()">部署/設定教學</button>
 
       <div id="statusBox" class="auth-status"></div>
       <div class="auth-note">
-        若未收到信，請檢查垃圾郵件匣。<br>
         隱私權政策：<a href="privacy.html" target="_blank" rel="noopener">查看</a>
       </div>
     </div>
@@ -77,10 +84,10 @@
         return;
       }
 
-      // 如果是 magic link 回跳（含 code），先交換 session
-      var exchanged = await UVACO_CLOUD.exchangeCodeForSessionIfNeeded();
-      if (!exchanged.ok) {
-        setStatus('err', '登入驗證失敗，請重試。');
+      // 若是 LINE callback，先處理（成功會自動導回 next）
+      var lineRes = await UVACO_CLOUD.finishLineLoginFromUrl();
+      if (lineRes && lineRes.ok === false) {
+        setStatus('err', 'LINE 登入失敗，請重試。');
         return;
       }
 
@@ -91,23 +98,30 @@
       }
     }
 
-    async function sendLink() {
-      var input = document.getElementById('emailInput');
-      var btn = document.getElementById('sendBtn');
-      var email = String(input.value || '').trim();
-      if (!email) {
-        setStatus('err', '請輸入 Email。');
-        return;
-      }
-      btn.disabled = true;
+    function startLine() {
       try {
-        await UVACO_CLOUD.signInWithEmailOtp(email, getNext());
-        setStatus('ok', '已寄出登入連結，請至信箱點擊完成登入。');
+        UVACO_CLOUD.startLineLogin(getNext());
       } catch (e) {
-        setStatus('err', '寄送失敗，請稍後再試。');
-      } finally {
-        btn.disabled = false;
+        setStatus('err', 'LINE 登入尚未設定完成（請先看「部署/設定教學」）。');
       }
+    }
+
+    function explainLineAuth() {
+      alert(
+        '目前這個專案是「純前端 + Supabase RLS/Storage」。\n\n' +
+        '我已改成「自訂 JWT 模式」，不依賴 Supabase 的 LINE Provider。\n' +
+        '你需要做 3 件事（照做就能跑）：\n\n' +
+        '1) Supabase SQL Editor 執行：supabase-setup.sql（確保已建立 public.line_identities）\n' +
+        '2) Supabase Edge Functions 設定 Secrets：\n' +
+        '   - SUPABASE_URL\n' +
+        '   - SUPABASE_SERVICE_ROLE_KEY\n' +
+        '   - SUPABASE_JWT_SECRET\n' +
+        '   - LINE_CHANNEL_ID\n' +
+        '   - LINE_CHANNEL_SECRET\n' +
+        '3) 用 Supabase CLI 部署 function：line-auth\n\n' +
+        '部署後，GitHub Pages 直接按「使用 LINE 登入」即可。\n\n' +
+        '本機測試：請用 ngrok 產生 https 網址並把 redirect URI 設在 LINE Developers，否則 LINE 會擋 http://localhost。'
+      );
     }
 
     bootstrap();

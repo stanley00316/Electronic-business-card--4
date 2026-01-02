@@ -9,6 +9,16 @@ window.UVACO_CLOUD = (function () {
   // Supabase Dashboard → Settings → API Keys → Publishable key
   const SUPABASE_ANON_KEY = 'sb_publishable_iTgIYinO82u_nwhdzvS8EQ_zDtNKpdH';
 
+  // ===== LINE Login（自訂 JWT 模式）=====
+  // 若你要啟用 LINE 登入：
+  // 1) 在 LINE Developers 建立 LINE Login channel
+  // 2) 把 Channel ID 填在這裡（可公開）
+  // 3) 部署 supabase edge function：supabase/functions/line-auth
+  // 重要：LINE Login 的 Channel ID 通常是「純數字」。
+  // 你給的值若不是數字，代表可能貼到的是 LINE ID 而非 Channel ID（會導致登入失敗）。
+  const LINE_CHANNEL_ID = '2008810712'; // LINE Login 的 Channel ID（client_id）
+  const CUSTOM_JWT_KEY = 'UVACO_CUSTOM_JWT';
+
   function hasConfig() {
     return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
   }
@@ -33,21 +43,90 @@ window.UVACO_CLOUD = (function () {
     return window.__uvacoSupabaseClient;
   }
 
-  async function getSession() {
+  function getCustomJwt() {
+    try { return String(localStorage.getItem(CUSTOM_JWT_KEY) || '').trim(); } catch (e) { return ''; }
+  }
+
+  function setCustomJwt(token) {
+    const t = String(token || '').trim();
+    if (!t) return false;
+    try { localStorage.setItem(CUSTOM_JWT_KEY, t); } catch (e) {}
+    return true;
+  }
+
+  function clearCustomJwt() {
+    try { localStorage.removeItem(CUSTOM_JWT_KEY); } catch (e) {}
+    try { delete window.__uvacoSupabaseCustomClient; } catch (e) {}
+  }
+
+  function decodeJwtSub(token) {
+    try {
+      const parts = String(token || '').split('.');
+      if (parts.length < 2) return '';
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
+      const json = atob(b64 + pad);
+      const payload = JSON.parse(json);
+      return String(payload?.sub || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function getCustomClient(customJwt) {
+    if (!hasConfig()) return null;
+    const token = String(customJwt || '').trim();
+    if (!token) return null;
+    const cache = window.__uvacoSupabaseCustomClient || (window.__uvacoSupabaseCustomClient = {});
+    if (cache[token]) return cache[token];
+    if (!window.supabase || !window.supabase.createClient) return null;
+    cache[token] = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: {
+        headers: { Authorization: 'Bearer ' + token }
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    });
+    return cache[token];
+  }
+
+  async function getAuthContext() {
+    // 1) 優先：自訂 JWT（LINE 登入）
+    const customJwt = getCustomJwt();
+    if (customJwt) {
+      const userId = decodeJwtSub(customJwt);
+      const client = getCustomClient(customJwt);
+      if (client && userId) {
+        return { ok: true, mode: 'custom', client, userId, session: { user: { id: userId } } };
+      }
+    }
+
+    // 2) 次選：Supabase Auth session（Email magic link）
     const client = getClient();
-    if (!client) return { session: null, error: new Error('SUPABASE_NOT_CONFIGURED') };
+    if (!client) return { ok: false, reason: 'SUPABASE_NOT_CONFIGURED' };
     const { data, error } = await client.auth.getSession();
-    return { session: data?.session || null, error };
+    const session = data?.session || null;
+    if (error) return { ok: false, reason: 'SESSION_ERROR', error };
+    if (!session) return { ok: false, reason: 'NO_SESSION' };
+    return { ok: true, mode: 'supabase', client, userId: session.user.id, session };
+  }
+
+  async function getSession() {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { session: null, error: new Error(ctx.reason || 'NO_SESSION') };
+    return { session: ctx.session || null, error: null };
   }
 
   async function requireAuth(nextRelativeUrl) {
-    const client = getClient();
-    if (!client) {
+    if (!hasConfig()) {
       alert('尚未設定 Supabase，請先在 cloud.js 填入 SUPABASE_URL / SUPABASE_ANON_KEY。');
       return { ok: false, reason: 'no_config' };
     }
-    const { session } = await getSession();
-    if (session) return { ok: true, session };
+    const ctx = await getAuthContext();
+    if (ctx.ok) return { ok: true, session: ctx.session };
 
     const next = nextRelativeUrl || 'directory.html';
     window.location.replace('auth.html?next=' + encodeURIComponent(next));
@@ -79,21 +158,102 @@ window.UVACO_CLOUD = (function () {
     return { ok: true, exchanged: true };
   }
 
+  function getLineRedirectUri(nextRelativeUrl) {
+    // LINE callback 必須與 LINE Developers 設定完全一致。
+    // 注意：為了避免 next 參數導致 redirect_uri 每次不同（LINE 可能不接受），redirect_uri 固定不帶 next，
+    // next 改存 localStorage 轉交。
+    return getBaseUrl() + 'auth.html?provider=line';
+  }
+
+  function startLineLogin(nextRelativeUrl) {
+    if (!LINE_CHANNEL_ID) {
+      alert("尚未設定 LINE_CHANNEL_ID（請在 cloud.js 填入 LINE Channel ID）。");
+      return false;
+    }
+    if (!/^\d+$/.test(String(LINE_CHANNEL_ID))) {
+      alert("LINE 登入尚未完成：LINE_CHANNEL_ID 看起來不是 LINE Login 的 Channel ID（通常是純數字）。\n請到 LINE Developers → 你的 LINE Login Channel → Basic settings 複製 Channel ID（數字）後貼上。");
+      return false;
+    }
+    const next = nextRelativeUrl || 'directory.html';
+    try { localStorage.setItem('UVACO_LINE_NEXT', next); } catch (e) {}
+    const redirectUri = getLineRedirectUri(next);
+    const state = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { localStorage.setItem('UVACO_LINE_STATE', state); } catch (e) {}
+
+    const params = new URLSearchParams();
+    params.set('response_type', 'code');
+    params.set('client_id', LINE_CHANNEL_ID);
+    params.set('redirect_uri', redirectUri);
+    params.set('state', state);
+    params.set('scope', 'profile openid');
+
+    window.location.href = 'https://access.line.me/oauth2/v2.1/authorize?' + params.toString();
+    return true;
+  }
+
+  async function finishLineLoginFromUrl() {
+    try {
+      const url = new URL(window.location.href);
+      const provider = String(url.searchParams.get('provider') || '').toLowerCase();
+      if (provider !== 'line') return { ok: true, handled: false };
+
+      const code = String(url.searchParams.get('code') || '').trim();
+      const state = String(url.searchParams.get('state') || '').trim();
+      const expectedState = (function () {
+        try { return String(localStorage.getItem('UVACO_LINE_STATE') || '').trim(); } catch (e) { return ''; }
+      })();
+      if (!code) return { ok: false, error: 'LINE_NO_CODE' };
+      if (!state || !expectedState || state !== expectedState) return { ok: false, error: 'LINE_BAD_STATE' };
+
+      // 呼叫 Edge Function：用 code 換 JWT（role=authenticated）
+      const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
+      const redirectUri = getLineRedirectUri();
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ code, redirect_uri: redirectUri })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) return { ok: false, error: 'LINE_EXCHANGE_FAILED', detail: data };
+
+      const token = String(data?.access_token || '').trim();
+      const userId = String(data?.user_id || '').trim();
+      if (!token || !userId) return { ok: false, error: 'LINE_NO_TOKEN', detail: data };
+
+      setCustomJwt(token);
+      try { localStorage.removeItem('UVACO_LINE_STATE'); } catch (e) {}
+
+      // 清掉 query（避免重整重複處理）
+      const next = (function () {
+        try { return String(localStorage.getItem('UVACO_LINE_NEXT') || '').trim(); } catch (e) { return ''; }
+      })() || 'directory.html';
+      try { localStorage.removeItem('UVACO_LINE_NEXT'); } catch (e) {}
+      window.location.replace(next);
+      return { ok: true, handled: true };
+    } catch (e) {
+      return { ok: false, error: 'LINE_CALLBACK_ERROR' };
+    }
+  }
+
   async function getMyCard() {
-    const client = getClient();
-    const { session } = await getSession();
-    if (!client || !session) return { card: null };
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { card: null };
+    const client = ctx.client;
     const { data, error } = await client
       .from('cards')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', ctx.userId)
       .maybeSingle();
     if (error) return { card: null, error };
     return { card: data || null };
   }
 
   async function getCardByUserId(userId) {
-    const client = getClient();
+    const ctx = await getAuthContext();
+    const client = ctx.ok ? ctx.client : getClient();
     if (!client || !userId) return { card: null };
     const { data, error } = await client
       .from('cards')
@@ -105,8 +265,9 @@ window.UVACO_CLOUD = (function () {
   }
 
   async function searchCards(params) {
-    const client = getClient();
-    if (!client) throw new Error('SUPABASE_NOT_CONFIGURED');
+    const ctx = await getAuthContext();
+    if (!ctx.ok) throw new Error('NO_SESSION');
+    const client = ctx.client;
     const q = String(params?.q || '').trim();
     const limit = Math.min(Math.max(parseInt(params?.limit || 50, 10) || 50, 1), 200);
 
@@ -130,14 +291,14 @@ window.UVACO_CLOUD = (function () {
   }
 
   async function uploadMyAsset(kind, blob, opts) {
-    const client = getClient();
-    const { session } = await getSession();
-    if (!client || !session) throw new Error('NO_SESSION');
+    const ctx = await getAuthContext();
+    if (!ctx.ok) throw new Error('NO_SESSION');
+    const client = ctx.client;
     if (!blob) throw new Error('NO_FILE');
     const bucket = (opts && opts.bucket) ? String(opts.bucket) : 'card-assets';
     const ext = (opts && opts.ext) ? String(opts.ext).replace(/^\./, '') : 'webp';
     const contentType = (opts && opts.contentType) ? String(opts.contentType) : 'image/webp';
-    const path = `${session.user.id}/${kind}.${ext}`;
+    const path = `${ctx.userId}/${kind}.${ext}`;
 
     const { error } = await client.storage
       .from(bucket)
@@ -160,11 +321,11 @@ window.UVACO_CLOUD = (function () {
   }
 
   async function upsertMyCard(payload) {
-    const client = getClient();
-    const { session } = await getSession();
-    if (!client || !session) throw new Error('NO_SESSION');
+    const ctx = await getAuthContext();
+    if (!ctx.ok) throw new Error('NO_SESSION');
+    const client = ctx.client;
     const row = {
-      user_id: session.user.id,
+      user_id: ctx.userId,
       name: payload?.name || '',
       phone: payload?.phone || '',
       email: payload?.email || '',
@@ -183,13 +344,13 @@ window.UVACO_CLOUD = (function () {
   }
 
   async function ensureConsent(consentVersion, policyUrl) {
-    const client = getClient();
-    const { session } = await getSession();
-    if (!client || !session) throw new Error('NO_SESSION');
+    const ctx = await getAuthContext();
+    if (!ctx.ok) throw new Error('NO_SESSION');
+    const client = ctx.client;
     const { data: existing, error: qErr } = await client
       .from('consents')
       .select('id, consent_version, consented_at')
-      .eq('user_id', session.user.id)
+      .eq('user_id', ctx.userId)
       .order('consented_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -197,7 +358,7 @@ window.UVACO_CLOUD = (function () {
     if (existing && existing.consent_version === consentVersion) return { ok: true, existed: true };
 
     const { error } = await client.from('consents').insert({
-      user_id: session.user.id,
+      user_id: ctx.userId,
       consent_version: consentVersion,
       policy_url: policyUrl || 'privacy.html',
       consented_at: new Date().toISOString(),
@@ -208,8 +369,9 @@ window.UVACO_CLOUD = (function () {
   }
 
   async function isAdmin() {
-    const client = getClient();
-    if (!client) return false;
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return false;
+    const client = ctx.client;
     // 建議在 Supabase 以 SQL 建立 RPC：is_admin() → boolean
     const { data, error } = await client.rpc('is_admin');
     if (error) return false;
@@ -232,8 +394,9 @@ window.UVACO_CLOUD = (function () {
   }
 
   async function exportCardsCsv() {
-    const client = getClient();
-    if (!client) throw new Error('SUPABASE_NOT_CONFIGURED');
+    const ctx = await getAuthContext();
+    if (!ctx.ok) throw new Error('NO_SESSION');
+    const client = ctx.client;
     const headers = ['name', 'phone', 'email', 'company', 'title', 'theme', 'created_at', 'updated_at'];
     const { data, error } = await client
       .from('cards')
@@ -257,10 +420,14 @@ window.UVACO_CLOUD = (function () {
     hasConfig,
     getClient,
     getBaseUrl,
+    getCustomJwt,
+    clearCustomJwt,
     getSession,
     requireAuth,
     signInWithEmailOtp,
     exchangeCodeForSessionIfNeeded,
+    startLineLogin,
+    finishLineLoginFromUrl,
     getMyCard,
     getCardByUserId,
     searchCards,

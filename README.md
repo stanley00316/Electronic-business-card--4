@@ -77,3 +77,57 @@
 - **資源載入失敗**：請檢查檔名大小寫是否一致、檔案是否真的存在
 - **自訂網域**：若需要可新增 `CNAME`（此專案預設未加入）
 
+
+## Supabase（雲端名片 / 全平台搜尋 / Storage / LINE 登入）
+
+### 1) 基本設定
+
+- 在 `cloud.js` 填入：
+  - `SUPABASE_URL`
+  - `SUPABASE_ANON_KEY`
+
+### 2) 初始化資料庫與 Storage
+
+- 到 Supabase Dashboard → SQL Editor 執行 `supabase-setup.sql`
+  - 會建立 `cards / directory_contacts / consents` 等表、RLS policy
+  - 會建立（或確保存在）Storage bucket：`card-assets`（並套用 RLS policy）
+
+### 3) LINE 登入（不依賴 Supabase Provider；自訂 JWT 模式）
+
+此專案支援「LINE Login → Edge Function → 簽發 Supabase 可驗證 JWT」讓前端在 **不使用 Supabase 內建 LINE Provider** 的情況下仍可符合：
+- `role = authenticated`
+- `auth.uid()` = 你的 `user_id`（UUID）
+
+#### 你需要做的事
+
+1. **LINE Developers**
+   - 建立 LINE Login channel
+   - 取得：
+     - `LINE_CHANNEL_ID`
+     - `LINE_CHANNEL_SECRET`
+   - 設定 Callback URL（固定，不帶 next）：
+     - GitHub Pages：`https://<user>.github.io/<repo>/auth.html?provider=line`
+     - 本機：建議用 ngrok 的 https 網址（LINE 不接受 http://localhost）
+
+2. **Supabase SQL**
+   - 執行 `supabase-setup.sql`（會建立 `public.line_identities`）
+   - 重要：若你要用「自訂 JWT」而非 Supabase Auth provider，會移除三個對 `auth.users` 的外鍵限制（避免插入失敗）。
+
+3. **Supabase Edge Function**
+   - 設定 Secrets（Dashboard → Edge Functions → Secrets）：
+     - `SUPABASE_URL`
+     - `SUPABASE_SERVICE_ROLE_KEY`
+     - `SUPABASE_JWT_SECRET`
+     - `LINE_CHANNEL_ID`
+     - `LINE_CHANNEL_SECRET`
+   - 使用 Supabase CLI 部署（需要你本機安裝 supabase CLI）：
+
+```bash
+supabase login
+supabase link --project-ref <your-project-ref>
+supabase functions deploy line-auth
+```
+
+4. **前端**
+   - 在 `cloud.js` 填入 `LINE_CHANNEL_ID`
+   - 上線後開 `auth.html` 點「使用 LINE 登入」

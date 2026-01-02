@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
   <title>編輯名片 | Edit Business Card - UVACO</title>
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260102">
   <!-- 主題 CSS 檔案 -->
   <link rel="stylesheet" href="theme-1.css">
   <link rel="stylesheet" href="theme-2.css">
@@ -17,7 +21,7 @@
   <link rel="stylesheet" href="theme-9.css">
   <!-- Supabase JS（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cloud.js?v=20251231"></script>
+<script src="cloud.js?v=20260102"></script>
   <style>
 .edit-page-wrapper {
   padding-bottom: 100px;
@@ -873,10 +877,26 @@ body.theme-light .theme-selector-close {
   width: 100%;
 }
 
+/* 聯絡方式：小卡片（Grid） */
+.edit-preview-section .btn-group.contact-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (min-width: 720px) {
+  .edit-preview-section .btn-group.contact-layout-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* 聯絡方式按鈕垂直排列 */
 .edit-preview-section .contact-btn-wrapper {
   width: 100%;
   flex: 0 0 auto;
+}
+
+.edit-preview-section .btn-group.contact-layout-grid .contact-btn-wrapper {
+  width: 100%;
 }
 
 /* 按鈕寬度自適應 */
@@ -885,6 +905,18 @@ body.theme-light .theme-selector-close {
   white-space: nowrap;
   justify-content: flex-start;
   padding-left: 16px;
+}
+
+.edit-preview-section .btn-group.contact-layout-grid .btn {
+  border-radius: 18px;
+  height: 92px;
+  white-space: normal;
+  justify-content: center;
+  padding-left: 12px;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
 }
 
 /* 新增按鈕垂直排列 */
@@ -1584,7 +1616,22 @@ body.theme-light .link-input-cancel:hover {
         <div class="section-label lang-zh">聯絡方式 CONTACT</div>
         <div class="section-label lang-en">CONTACT</div>
 
-        <div class="btn-group" id="previewContacts" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+        <!-- 聯絡方式顯示樣式（列表 / 小卡） -->
+        <div class="contact-layout-toolbar">
+          <div class="contact-layout-label">
+            <span class="lang-zh">顯示方式</span><span class="lang-en">Layout</span>
+          </div>
+          <div class="contact-layout-toggle" role="group" aria-label="Contact layout">
+            <button type="button" class="contact-layout-btn is-active" id="contactLayoutListBtn" onclick="setContactLayout('list')">
+              <span class="lang-zh">列表</span><span class="lang-en">List</span>
+            </button>
+            <button type="button" class="contact-layout-btn" id="contactLayoutGridBtn" onclick="setContactLayout('grid')">
+              <span class="lang-zh">小卡</span><span class="lang-en">Cards</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="btn-group" id="previewContacts">
           <div class="contact-btn-wrapper">
             <a class="btn btn-primary lang-zh edit-clickable" href="tel:0905519002" onclick="editContact(event, 'call', 'tel:0905519002')">
               <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電
@@ -1620,7 +1667,6 @@ body.theme-light .link-input-cancel:hover {
               <img src="file-icon.svg" alt="VCF" class="btn-icon-file"> Save Contact (VCF)
             </a>
             <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="Delete">✕</button>
-          </div>
           </div>
           <button class="edit-add-btn lang-zh" onclick="addContact(event)">+ 新增聯絡方式</button>
           <button class="edit-add-btn lang-en" onclick="addContact(event)">+ Add Contact Method</button>
@@ -2016,7 +2062,7 @@ body.theme-light .link-input-cancel:hover {
   </a>
 </nav>
 
-<script src="common.js"></script>
+<script src="common.js?v=20260102"></script>
 <script>
 // 雲端版：需要登入才可編輯（未設定 Supabase 則略過）
 (async function () {
@@ -2291,12 +2337,53 @@ function deleteContactButton(btn) {
   const confirmMsg = currentLang === 'zh' ? '確定要刪除此聯絡方式嗎？' : 'Are you sure you want to delete this contact method?';
   
   if (confirm(confirmMsg)) {
-    // 找到對應的中文或英文按鈕並刪除
-    const currentLink = btn.href;
-    const allButtons = document.querySelectorAll(`#previewContacts a[href="${currentLink}"]`);
-    allButtons.forEach(b => b.remove());
+    const anchor = (btn && btn.nodeName === 'A') ? btn : (btn && btn.closest ? btn.closest('a') : null);
+    // 以 wrapper 為單位刪除（避免留下空白容器）
+    const wrapper = anchor ? anchor.closest('.contact-btn-wrapper') : null;
+    if (wrapper) {
+      wrapper.remove();
+      return;
+    }
+    // fallback：刪除相同連結的所有 wrapper
+    const currentLink = anchor ? anchor.getAttribute('href') : '';
+    if (currentLink) {
+      document.querySelectorAll(`#previewContacts a[href="${CSS.escape(currentLink)}"]`)
+        .forEach(a => a.closest('.contact-btn-wrapper')?.remove());
+    }
   }
 }
+
+// ===== 聯絡方式顯示樣式（列表 / 小卡）=====
+window.__uvacoContactLayout = window.__uvacoContactLayout || (function () {
+  try {
+    const v = String(localStorage.getItem('UVACO_CONTACT_LAYOUT') || '').toLowerCase();
+    return (v === 'grid') ? 'grid' : 'list';
+  } catch (e) {
+    return 'list';
+  }
+})();
+
+function applyContactLayout(layout) {
+  const group = document.getElementById('previewContacts');
+  const listBtn = document.getElementById('contactLayoutListBtn');
+  const gridBtn = document.getElementById('contactLayoutGridBtn');
+  const mode = (layout === 'grid') ? 'grid' : 'list';
+
+  if (group) {
+    group.classList.toggle('contact-layout-grid', mode === 'grid');
+  }
+  if (listBtn) listBtn.classList.toggle('is-active', mode === 'list');
+  if (gridBtn) gridBtn.classList.toggle('is-active', mode === 'grid');
+}
+
+function setContactLayout(layout) {
+  window.__uvacoContactLayout = (layout === 'grid') ? 'grid' : 'list';
+  try { localStorage.setItem('UVACO_CONTACT_LAYOUT', window.__uvacoContactLayout); } catch (e) {}
+  applyContactLayout(window.__uvacoContactLayout);
+}
+
+// 初始套用一次
+setTimeout(() => applyContactLayout(window.__uvacoContactLayout), 0);
 
 // 新增標語到預覽
 function addSloganToPreview(lang) {
@@ -3460,6 +3547,7 @@ async function saveCard() {
     const companyInfo = document.getElementById('companyInfoSection');
     return {
       lang: currentLang,
+      contactLayout: (window.__uvacoContactLayout === 'grid') ? 'grid' : 'list',
       nameZh: nameZhRaw,
       nameEn: nameEnRaw,
       titleZh: titleZhRaw,
@@ -3531,10 +3619,27 @@ async function saveCard() {
       } catch (e) {
         // 常見原因：尚未在 Supabase 執行 Storage bucket/RLS 的 SQL（card-assets / storage.objects policies）
         console.error('Storage upload failed', e);
-        const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
+        const detail = (e && (e.message || e.error_description)) ? String(e.message || e.error_description) : String(e || '');
+        const lower = detail.toLowerCase();
+        const status = String(e?.statusCode ?? e?.status ?? '');
+
+        let hintZh = '圖片上傳失敗。';
+        let hintEn = 'Image upload failed.';
+
+        if (detail.includes('Bucket not found') || status === '404') {
+          hintZh = "圖片上傳失敗：找不到 Storage bucket 'card-assets'。請到 Supabase Dashboard → Storage → Buckets 確認已建立 'card-assets'。";
+          hintEn = "Image upload failed: Storage bucket 'card-assets' was not found. Please create/confirm a bucket named 'card-assets' in Supabase Dashboard → Storage → Buckets.";
+        } else if (status === '403' || lower.includes('permission') || lower.includes('policy') || lower.includes('not authorized') || lower.includes('unauthorized')) {
+          hintZh = "圖片上傳失敗：Storage 權限不足（RLS policy denied）。請確認你剛剛已在 Storage → Policies 針對 'card-assets' 建立 SELECT/INSERT/UPDATE/DELETE 四條 policies，且 INSERT/UPDATE/DELETE 限制為自己的路徑 auth.uid()/...。";
+          hintEn = "Image upload failed: Storage permission denied (RLS policy). Please ensure you created the 4 policies (SELECT/INSERT/UPDATE/DELETE) for 'card-assets', and INSERT/UPDATE/DELETE are restricted to auth.uid()/... paths.";
+        } else if (lower.includes('jwt') || lower.includes('token') || lower.includes('session')) {
+          hintZh = '圖片上傳失敗：登入狀態可能已失效，請重新登入後再試一次。';
+          hintEn = 'Image upload failed: session may be expired. Please re-login and try again.';
+        }
+
         alert(currentLang === 'zh'
-          ? `圖片上傳失敗：請確認你已在 Supabase SQL Editor 執行最新版 supabase-setup.sql（包含 card-assets bucket 與 storage.objects 的 policies）。\n${detail}`
-          : `Image upload failed. Please run the latest supabase-setup.sql (card-assets bucket + storage.objects policies) in Supabase.\n${detail}`
+          ? `${hintZh}\n\n細節：${detail}`
+          : `${hintEn}\n\nDetail: ${detail}`
         );
         return;
       }

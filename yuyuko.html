@@ -3,11 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>UVACO｜電子名片 | E-Business Card</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260102">
 <!-- Supabase JS（CDN） -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=20251231"></script>
+<script src="cloud.js?v=20260102"></script>
 </head>
 
 <body class="theme-dark lang-zh">
@@ -109,7 +113,7 @@
   <div class="section-label lang-en">CONTACT</div>
 
   <!-- 按鈕群組 -->
-  <div class="btn-group">
+  <div class="btn-group" id="viewerContacts">
 
     <!-- Call -->
     <a class="btn btn-primary lang-zh" href="tel:0905519002" id="viewerPhoneZh">
@@ -177,7 +181,7 @@
   </a>
 </nav>
 
-<script src="common.js"></script>
+<script src="common.js?v=20260102"></script>
 <script>
 // 初始化頁面：
 // - 若已登入且有雲端名片：顯示自己的名片資料（從 Supabase 讀取）
@@ -273,6 +277,15 @@ document.addEventListener('DOMContentLoaded', function () {
               if (mZh) mZh.setAttribute('href', 'mailto:' + email);
               if (mEn) mEn.setAttribute('href', 'mailto:' + email);
             }
+
+            // 聯絡方式呈現：依名片擁有者設定（不影響觀看者背景主題）
+            try {
+              const layout = String(pj.contactLayout || '').toLowerCase() === 'grid' ? 'grid' : 'list';
+              const group = document.getElementById('viewerContacts');
+              if (group) {
+                group.classList.toggle('contact-layout-grid', layout === 'grid');
+              }
+            } catch (e) {}
           }
         }
       }

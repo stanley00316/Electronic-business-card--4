@@ -312,6 +312,42 @@ body.theme-light .section-label { color: #6b7280; }
   box-sizing: border-box; /* 包含所有邊距在寬度內 */
 }
 
+/* ===== CONTACT 顯示樣式：小卡片（Grid） ===== */
+.btn-group.contact-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (min-width: 720px) {
+  .btn-group.contact-layout-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.btn-group.contact-layout-grid .btn {
+  border-radius: 18px;
+  height: 92px;
+  white-space: normal; /* 小卡允許換行 */
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.btn-group.contact-layout-grid .btn img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+/* 小卡 hover 不要太「飄」 */
+.btn-group.contact-layout-grid .btn:hover {
+  transform: translateY(-1px);
+}
+
 .btn {
   display: flex;
   justify-content: center;
@@ -329,6 +365,61 @@ body.theme-light .section-label { color: #6b7280; }
   overflow: hidden; /* 改為 hidden，防止內容溢出 */
   text-overflow: ellipsis; /* 如果還是太長，顯示省略號 */
   max-width: 100%; /* 確保不超過父容器 */
+}
+
+/* ===== Contact layout toggle（編輯頁使用） ===== */
+.contact-layout-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: -8px;
+  margin-bottom: 10px;
+}
+
+.contact-layout-label {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+  user-select: none;
+}
+body.theme-dark .contact-layout-label { color: #9ca3af; }
+body.theme-light .contact-layout-label { color: #6b7280; }
+
+.contact-layout-toggle {
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.15);
+  backdrop-filter: blur(10px);
+}
+body.theme-light .contact-layout-toggle {
+  background: rgba(255,255,255,0.75);
+  border-color: rgba(15,23,42,0.10);
+}
+
+.contact-layout-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  opacity: 0.9;
+  transition: 0.2s;
+}
+
+.contact-layout-btn.is-active {
+  background: rgba(var(--uvaco-green-rgb), 0.20);
+  color: var(--uvaco-green);
+  opacity: 1;
+}
+
+.contact-layout-btn:hover {
+  transform: translateY(-1px);
 }
 
 /* 響應式字體大小調整 */
