@@ -160,9 +160,9 @@ window.UVACO_CLOUD = (function () {
 
   function getLineRedirectUri(nextRelativeUrl) {
     // LINE callback 必須與 LINE Developers 設定完全一致。
-    // 注意：為了避免 next 參數導致 redirect_uri 每次不同（LINE 可能不接受），redirect_uri 固定不帶 next，
+    // 注意：redirect_uri 建議「不要帶 query」，避免 LINE 後台登錄時更容易踩到不匹配。
     // next 改存 localStorage 轉交。
-    return getBaseUrl() + 'auth.html?provider=line';
+    return getBaseUrl() + 'auth.html';
   }
 
   function startLineLogin(nextRelativeUrl) {
@@ -194,16 +194,14 @@ window.UVACO_CLOUD = (function () {
   async function finishLineLoginFromUrl() {
     try {
       const url = new URL(window.location.href);
-      const provider = String(url.searchParams.get('provider') || '').toLowerCase();
-      if (provider !== 'line') return { ok: true, handled: false };
-
       const code = String(url.searchParams.get('code') || '').trim();
       const state = String(url.searchParams.get('state') || '').trim();
       const expectedState = (function () {
         try { return String(localStorage.getItem('UVACO_LINE_STATE') || '').trim(); } catch (e) { return ''; }
       })();
-      if (!code) return { ok: false, error: 'LINE_NO_CODE' };
-      if (!state || !expectedState || state !== expectedState) return { ok: false, error: 'LINE_BAD_STATE' };
+      // 若沒有 code/state，就不是 LINE callback
+      if (!code || !state) return { ok: true, handled: false };
+      if (!expectedState || state !== expectedState) return { ok: false, error: 'LINE_BAD_STATE' };
 
       // 呼叫 Edge Function：用 code 換 JWT（role=authenticated）
       const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
