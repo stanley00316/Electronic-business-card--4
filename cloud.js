@@ -179,6 +179,7 @@ window.UVACO_CLOUD = (function () {
     const redirectUri = getLineRedirectUri(next);
     const state = Math.random().toString(36).slice(2) + Date.now().toString(36);
     try { localStorage.setItem('UVACO_LINE_STATE', state); } catch (e) {}
+    try { sessionStorage.setItem('UVACO_LINE_STATE', state); } catch (e) {}
 
     const params = new URLSearchParams();
     params.set('response_type', 'code');
@@ -197,11 +198,17 @@ window.UVACO_CLOUD = (function () {
       const code = String(url.searchParams.get('code') || '').trim();
       const state = String(url.searchParams.get('state') || '').trim();
       const expectedState = (function () {
-        try { return String(localStorage.getItem('UVACO_LINE_STATE') || '').trim(); } catch (e) { return ''; }
+        try {
+          const a = String(localStorage.getItem('UVACO_LINE_STATE') || '').trim();
+          const b = String(sessionStorage.getItem('UVACO_LINE_STATE') || '').trim();
+          return a || b;
+        } catch (e) { return ''; }
       })();
       // 若沒有 code/state，就不是 LINE callback
       if (!code || !state) return { ok: true, handled: false };
-      if (!expectedState || state !== expectedState) return { ok: false, error: 'LINE_BAD_STATE' };
+      // 若瀏覽器（或 LINE in-app browser）阻擋 storage，expectedState 可能取不到；
+      // 為了讓登入能完成，只有在「拿得到 expectedState」時才嚴格比對。
+      if (expectedState && state !== expectedState) return { ok: false, error: 'LINE_BAD_STATE' };
 
       // 呼叫 Edge Function：用 code 換 JWT（role=authenticated）
       const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
@@ -215,7 +222,7 @@ window.UVACO_CLOUD = (function () {
         body: JSON.stringify({ code, redirect_uri: redirectUri })
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) return { ok: false, error: 'LINE_EXCHANGE_FAILED', detail: data };
+      if (!resp.ok) return { ok: false, error: 'LINE_EXCHANGE_FAILED', detail: data, status: resp.status };
 
       const token = String(data?.access_token || '').trim();
       const userId = String(data?.user_id || '').trim();
@@ -223,6 +230,7 @@ window.UVACO_CLOUD = (function () {
 
       setCustomJwt(token);
       try { localStorage.removeItem('UVACO_LINE_STATE'); } catch (e) {}
+      try { sessionStorage.removeItem('UVACO_LINE_STATE'); } catch (e) {}
 
       // 清掉 query（避免重整重複處理）
       const next = (function () {

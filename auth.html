@@ -88,7 +88,13 @@
       // 若是 LINE callback，先處理（成功會自動導回 next）
       var lineRes = await UVACO_CLOUD.finishLineLoginFromUrl();
       if (lineRes && lineRes.ok === false) {
-        setStatus('err', 'LINE 登入失敗，請重試。');
+        var detail = '';
+        try {
+          if (lineRes.status) detail += 'HTTP ' + lineRes.status + ' ';
+          if (lineRes.error) detail += String(lineRes.error) + ' ';
+          if (lineRes.detail) detail += JSON.stringify(lineRes.detail);
+        } catch (e) {}
+        setStatus('err', 'LINE 登入失敗，請重試。' + (detail ? ('\\n' + detail) : ''));
         return;
       }
 
