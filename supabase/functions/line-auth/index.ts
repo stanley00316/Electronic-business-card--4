@@ -1,5 +1,6 @@
 // Supabase Edge Function: LINE OAuth → issue Supabase-compatible JWT (role=authenticated)
 // 목적: Supabase Dashboard에 LINE Provider가 없어도, LINE 로그인으로 RLS/Storage를 사용할 수 있게 함.
+// deploy-trigger: bump
 //
 // 必要環境變數（在 Supabase Dashboard → Edge Functions → Secrets 設定）：
 // - SUPABASE_URL
