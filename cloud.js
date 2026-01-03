@@ -193,10 +193,17 @@ window.UVACO_CLOUD = (function () {
   }
 
   async function finishLineLoginFromUrl() {
+    // 注意：不要用大 try/catch 吃掉例外，否則只會看到 LINE_CALLBACK_ERROR 很難排查
+    let url;
     try {
-      const url = new URL(window.location.href);
-      const code = String(url.searchParams.get('code') || '').trim();
-      const state = String(url.searchParams.get('state') || '').trim();
+      url = new URL(window.location.href);
+    } catch (e) {
+      return { ok: false, error: 'LINE_URL_PARSE_ERROR', detail: String(e?.message || e || '') };
+    }
+
+    const code = String(url.searchParams.get('code') || '').trim();
+    const state = String(url.searchParams.get('state') || '').trim();
+    try {
       const expectedState = (function () {
         try {
           const a = String(localStorage.getItem('UVACO_LINE_STATE') || '').trim();
@@ -213,18 +220,34 @@ window.UVACO_CLOUD = (function () {
       // 呼叫 Edge Function：用 code 換 JWT（role=authenticated）
       const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
       const redirectUri = getLineRedirectUri();
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          // 若 Supabase Edge Function 開啟「Verify JWT with legacy secret」，
-          // 需要 Authorization header（使用 anon key 即可）
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
-        },
-        body: JSON.stringify({ code, redirect_uri: redirectUri })
-      });
-      const data = await resp.json().catch(() => ({}));
+      let resp;
+      try {
+        resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            // 若 Supabase Edge Function 開啟「Verify JWT with legacy secret」，
+            // 需要 Authorization header（使用 anon key 即可）
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({ code, redirect_uri: redirectUri })
+        });
+      } catch (e) {
+        return {
+          ok: false,
+          error: 'LINE_FETCH_FAILED',
+          detail: String(e?.message || e || ''),
+          endpoint
+        };
+      }
+
+      let data = {};
+      try {
+        data = await resp.json();
+      } catch (_e) {
+        data = { non_json_response: true };
+      }
       if (!resp.ok) return { ok: false, error: 'LINE_EXCHANGE_FAILED', detail: data, status: resp.status };
 
       const token = String(data?.access_token || '').trim();
@@ -243,7 +266,7 @@ window.UVACO_CLOUD = (function () {
       window.location.replace(next);
       return { ok: true, handled: true };
     } catch (e) {
-      return { ok: false, error: 'LINE_CALLBACK_ERROR' };
+      return { ok: false, error: 'LINE_CALLBACK_ERROR', detail: String(e?.message || e || '') };
     }
   }
 
