@@ -217,7 +217,10 @@ window.UVACO_CLOUD = (function () {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY
+          'apikey': SUPABASE_ANON_KEY,
+          // 若 Supabase Edge Function 開啟「Verify JWT with legacy secret」，
+          // 需要 Authorization header（使用 anon key 即可）
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
         },
         body: JSON.stringify({ code, redirect_uri: redirectUri })
       });
