@@ -89,7 +89,9 @@ serve(async (req) => {
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const SUPABASE_JWT_SECRET = Deno.env.get("SUPABASE_JWT_SECRET") || "";
+  // 注意：Supabase Edge Function Secrets 不允許自訂 secret 以 "SUPABASE_" 開頭，
+  // 因此 JWT secret 改用 JWT_SECRET（並向後相容舊名稱）。
+  const SUPABASE_JWT_SECRET = Deno.env.get("JWT_SECRET") || Deno.env.get("SUPABASE_JWT_SECRET") || "";
   const LINE_CHANNEL_ID = Deno.env.get("LINE_CHANNEL_ID") || "";
   const LINE_CHANNEL_SECRET = Deno.env.get("LINE_CHANNEL_SECRET") || "";
 
