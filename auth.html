@@ -54,6 +54,7 @@
       </div>
 
       <button type="button" class="auth-btn" onclick="startLine()">使用 LINE 登入</button>
+      <button type="button" class="auth-btn secondary" onclick="diagLine()">診斷（不會顯示密鑰）</button>
       <button type="button" class="auth-btn secondary" onclick="explainLineAuth()">部署/設定教學</button>
 
       <div id="statusBox" class="auth-status"></div>
@@ -110,6 +111,15 @@
         UVACO_CLOUD.startLineLogin(getNext());
       } catch (e) {
         setStatus('err', 'LINE 登入尚未設定完成（請先看「部署/設定教學」）。');
+      }
+    }
+
+    async function diagLine() {
+      try {
+        var r = await UVACO_CLOUD.lineAuthDiag();
+        setStatus('ok', 'line-auth 診斷：\\n' + JSON.stringify(r, null, 2));
+      } catch (e) {
+        setStatus('err', '診斷失敗：' + String(e && e.message ? e.message : e));
       }
     }
 
