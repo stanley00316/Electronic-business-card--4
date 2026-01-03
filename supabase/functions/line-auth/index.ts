@@ -5,7 +5,7 @@
 // 必要環境變數（在 Supabase Dashboard → Edge Functions → Secrets 設定）：
 // - SUPABASE_URL
 // - SUPABASE_SERVICE_ROLE_KEY
-// - SUPABASE_JWT_SECRET
+// - JWT_SECRET（或舊名 SUPABASE_JWT_SECRET）
 // - LINE_CHANNEL_ID
 // - LINE_CHANNEL_SECRET
 //
@@ -33,6 +33,15 @@ function base64UrlEncode(bytes: Uint8Array) {
   for (const b of bytes) bin += String.fromCharCode(b);
   const b64 = btoa(bin);
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function normalizeSecret(v: string | undefined | null) {
+  const s = String(v || "").trim();
+  // allow pasting with quotes in dashboard, e.g. "abc" or 'abc'
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    return s.slice(1, -1).trim();
+  }
+  return s;
 }
 
 async function signJwtHS256(payload: Record<string, unknown>, secret: string) {
@@ -90,25 +99,25 @@ serve(async (req) => {
   // 注意：Supabase Edge Function Secrets 可能限制自訂 key 不能以 "SUPABASE_" 開頭。
   // 因此這裡同時支援多組命名（你在 Dashboard 設哪組都可以）。
   const SUPABASE_URL =
-    Deno.env.get("SUPABASE_URL") ||
-    Deno.env.get("PROJECT_URL") ||
-    Deno.env.get("URL") ||
+    normalizeSecret(Deno.env.get("SUPABASE_URL")) ||
+    normalizeSecret(Deno.env.get("PROJECT_URL")) ||
+    normalizeSecret(Deno.env.get("URL")) ||
     "";
   const SUPABASE_SERVICE_ROLE_KEY =
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
-    Deno.env.get("SERVICE_ROLE_KEY") ||
-    Deno.env.get("SERVICE_ROLE") ||
+    normalizeSecret(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) ||
+    normalizeSecret(Deno.env.get("SERVICE_ROLE_KEY")) ||
+    normalizeSecret(Deno.env.get("SERVICE_ROLE")) ||
     "";
   // 注意：Supabase Edge Function Secrets 不允許自訂 secret 以 "SUPABASE_" 開頭，
   // 因此 JWT secret 改用 JWT_SECRET（並向後相容舊名稱）。
-  const SUPABASE_JWT_SECRET = Deno.env.get("JWT_SECRET") || Deno.env.get("SUPABASE_JWT_SECRET") || "";
+  const SUPABASE_JWT_SECRET = normalizeSecret(Deno.env.get("JWT_SECRET")) || normalizeSecret(Deno.env.get("SUPABASE_JWT_SECRET")) || "";
   const LINE_CHANNEL_ID =
-    Deno.env.get("LINE_CHANNEL_ID") ||
-    Deno.env.get("LINE_LOGIN_CHANNEL_ID") ||
+    normalizeSecret(Deno.env.get("LINE_CHANNEL_ID")) ||
+    normalizeSecret(Deno.env.get("LINE_LOGIN_CHANNEL_ID")) ||
     "";
   const LINE_CHANNEL_SECRET =
-    Deno.env.get("LINE_CHANNEL_SECRET") ||
-    Deno.env.get("LINE_LOGIN_CHANNEL_SECRET") ||
+    normalizeSecret(Deno.env.get("LINE_CHANNEL_SECRET")) ||
+    normalizeSecret(Deno.env.get("LINE_LOGIN_CHANNEL_SECRET")) ||
     "";
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_JWT_SECRET) {
