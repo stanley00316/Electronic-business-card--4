@@ -15,12 +15,15 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
+const BUILD_ID = "2026-01-03-1";
+
 function json(obj: unknown, init: ResponseInit = {}) {
   const headers = new Headers(init.headers);
   headers.set("content-type", "application/json; charset=utf-8");
   headers.set("access-control-allow-origin", "*");
   headers.set("access-control-allow-headers", "authorization, x-client-info, apikey, content-type");
   headers.set("access-control-allow-methods", "POST, OPTIONS");
+  headers.set("x-uvaco-build", BUILD_ID);
   return new Response(JSON.stringify(obj), { ...init, headers });
 }
 
@@ -94,7 +97,7 @@ async function fetchLineProfile(accessToken: string) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
-  if (req.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
+  if (req.method !== "POST" && req.method !== "GET") return json({ error: "METHOD_NOT_ALLOWED", build: BUILD_ID }, { status: 405 });
 
   // 注意：Supabase Edge Function Secrets 可能限制自訂 key 不能以 "SUPABASE_" 開頭。
   // 因此這裡同時支援多組命名（你在 Dashboard 設哪組都可以）。
@@ -120,18 +123,58 @@ serve(async (req) => {
     normalizeSecret(Deno.env.get("LINE_LOGIN_CHANNEL_SECRET")) ||
     "";
 
+  // 診斷：不回傳任何 secret 內容，只回 boolean 與長度，協助排查「明明更新但仍失敗」。
+  if (req.method === "GET") {
+    return json({
+      ok: true,
+      build: BUILD_ID,
+      has: {
+        supabase_url: !!SUPABASE_URL,
+        service_role_key: !!SUPABASE_SERVICE_ROLE_KEY,
+        jwt_secret: !!SUPABASE_JWT_SECRET,
+        line_channel_id: !!LINE_CHANNEL_ID,
+        line_channel_secret: !!LINE_CHANNEL_SECRET,
+      },
+      len: {
+        line_channel_id: LINE_CHANNEL_ID.length,
+        line_channel_secret: LINE_CHANNEL_SECRET.length,
+        jwt_secret: SUPABASE_JWT_SECRET.length,
+      },
+      hint: "If LINE_CHANNEL_SECRET has quotes/spaces/newlines, normalizeSecret should fix it after redeploy.",
+    });
+  }
+
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_JWT_SECRET) {
-    return bad("MISSING_SUPABASE_SECRETS");
+    return bad("MISSING_SUPABASE_SECRETS", { build: BUILD_ID });
   }
   if (!LINE_CHANNEL_ID || !LINE_CHANNEL_SECRET) {
-    return bad("MISSING_LINE_SECRETS");
+    return bad("MISSING_LINE_SECRETS", { build: BUILD_ID });
   }
 
   let body: any = null;
   try {
     body = await req.json();
   } catch (_e) {
-    return bad("INVALID_JSON");
+    return bad("INVALID_JSON", { build: BUILD_ID });
+  }
+
+  if (String(body?.action || "").trim() === "diag") {
+    return json({
+      ok: true,
+      build: BUILD_ID,
+      has: {
+        supabase_url: !!SUPABASE_URL,
+        service_role_key: !!SUPABASE_SERVICE_ROLE_KEY,
+        jwt_secret: !!SUPABASE_JWT_SECRET,
+        line_channel_id: !!LINE_CHANNEL_ID,
+        line_channel_secret: !!LINE_CHANNEL_SECRET,
+      },
+      len: {
+        line_channel_id: LINE_CHANNEL_ID.length,
+        line_channel_secret: LINE_CHANNEL_SECRET.length,
+        jwt_secret: SUPABASE_JWT_SECRET.length,
+      },
+    });
   }
 
   const code = String(body?.code || "").trim();

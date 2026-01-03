@@ -270,6 +270,24 @@ window.UVACO_CLOUD = (function () {
     }
   }
 
+  async function lineAuthDiag() {
+    const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
+    // 優先用 GET（簡單），若 function 設定要求 JWT，則用 POST + Authorization/apikey
+    try {
+      const r = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      });
+      const data = await r.json().catch(() => ({}));
+      return { ok: r.ok, status: r.status, data, endpoint };
+    } catch (e) {
+      return { ok: false, error: 'DIAG_FETCH_FAILED', detail: String(e?.message || e || ''), endpoint };
+    }
+  }
+
   async function getMyCard() {
     const ctx = await getAuthContext();
     if (!ctx.ok) return { card: null };
@@ -460,6 +478,7 @@ window.UVACO_CLOUD = (function () {
     exchangeCodeForSessionIfNeeded,
     startLineLogin,
     finishLineLoginFromUrl,
+    lineAuthDiag,
     getMyCard,
     getCardByUserId,
     searchCards,
