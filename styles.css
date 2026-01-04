@@ -537,7 +537,9 @@ body.theme-light .avatar{
   justify-content: space-around;
   align-items: center;
   padding: 12px 8px;
-  z-index: 1000;
+  /* 增加 env(safe-area-inset-bottom) 支援 iPhone X+ 底部安全區域 */
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 9999; /* 提高 z-index 確保在最上層 */
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid rgba(255,255,255,0.1);
@@ -631,6 +633,16 @@ body {
   body {
     padding-bottom: 0;
   } */
+  
+  /* 確保桌面版底部導航欄也是固定 */
+  .bottom-nav {
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 20px 20px 0 0;
+    border-left: 1px solid rgba(255,255,255,0.1);
+    border-right: 1px solid rgba(255,255,255,0.1);
+  }
 }
 
 /* ===== 設定面板 ===== */

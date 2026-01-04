@@ -160,6 +160,18 @@ body {
         <div class="settings-item-arrow">📋</div>
       </div>
 
+      <!-- 登出 -->
+      <div class="settings-item" onclick="handleLogout()">
+        <div class="settings-item-icon">🚪</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">登出</div>
+          <div class="settings-item-title lang-en">Logout</div>
+          <div class="settings-item-subtitle lang-zh">登出系統</div>
+          <div class="settings-item-subtitle lang-en">Sign out from system</div>
+        </div>
+        <div class="settings-item-arrow">→</div>
+      </div>
+
       
     </div>
   </div>
@@ -179,6 +191,8 @@ body {
   </a>
 </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloud.js?v=20260105"></script>
 <script src="common.js?v=20260105"></script>
 <script>
 async function initUserId() {
@@ -199,6 +213,20 @@ function copyMyUserId() {
     navigator.clipboard.writeText(uid).then(() => {
       alert('User ID 已複製：' + uid);
     });
+  }
+}
+
+// 登出處理
+function handleLogout() {
+  if (confirm('確定要登出系統嗎？\nAre you sure you want to logout?')) {
+    if (window.UVACO_CLOUD) {
+      UVACO_CLOUD.clearCustomJwt();
+    } else {
+      // Fallback if cloud.js not loaded
+      try { localStorage.removeItem('UVACO_CUSTOM_JWT'); } catch (e) {}
+    }
+    // 回到首頁（會自動判斷是否需登入）
+    window.location.replace('index.html');
   }
 }
 
