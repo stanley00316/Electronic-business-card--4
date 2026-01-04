@@ -14,7 +14,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const BUILD_ID = "2026-01-03-1";
+const BUILD_ID = "2026-01-04-1";
 
 function json(obj: unknown, init: ResponseInit = {}) {
   const headers = new Headers(init.headers);
@@ -65,6 +65,17 @@ async function signJwtHS256(payload: Record<string, unknown>, secret: string) {
   return `${data}.${sigB64}`;
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const ms = Math.max(parseInt(String(timeoutMs || 0), 10) || 0, 500);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function exchangeLineCodeForToken(code: string, redirectUri: string, channelId: string, channelSecret: string) {
   const body = new URLSearchParams();
   body.set("grant_type", "authorization_code");
@@ -73,11 +84,11 @@ async function exchangeLineCodeForToken(code: string, redirectUri: string, chann
   body.set("client_id", channelId);
   body.set("client_secret", channelSecret);
 
-  const resp = await fetch("https://api.line.me/oauth2/v2.1/token", {
+  const resp = await fetchWithTimeout("https://api.line.me/oauth2/v2.1/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body,
-  });
+  }, 8000);
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
     return { ok: false as const, status: resp.status, data };
@@ -86,9 +97,9 @@ async function exchangeLineCodeForToken(code: string, redirectUri: string, chann
 }
 
 async function fetchLineProfile(accessToken: string) {
-  const resp = await fetch("https://api.line.me/v2/profile", {
+  const resp = await fetchWithTimeout("https://api.line.me/v2/profile", {
     headers: { authorization: `Bearer ${accessToken}` },
-  });
+  }, 5000);
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) return { ok: false as const, status: resp.status, data };
   return { ok: true as const, data };
@@ -106,7 +117,7 @@ async function supabaseRest(
   headers.set("apikey", serviceRoleKey);
   headers.set("authorization", `Bearer ${serviceRoleKey}`);
   headers.set("accept", "application/json");
-  return await fetch(url, { ...init, headers });
+  return await fetchWithTimeout(url, { ...init, headers }, 5000);
 }
 
 serve(async (req) => {
