@@ -229,9 +229,7 @@ for delete to authenticated
 using (
   bucket_id = 'card-assets'
   and (name like (auth.uid()::text || '/%'))
-);
-
--- ===== LINE 登入：身份映射表（LINE userId → user_id UUID）=====
+);-- ===== LINE 登入：身份映射表（LINE userId → user_id UUID）=====
 -- 用途：在 Supabase Hosted 沒有 LINE Provider 時，仍可透過 Edge Function 簽發 JWT（role=authenticated, sub=user_id）
 create table if not exists public.line_identities (
   line_user_id text primary key,

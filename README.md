@@ -77,7 +77,6 @@
 - **資源載入失敗**：請檢查檔名大小寫是否一致、檔案是否真的存在
 - **自訂網域**：若需要可新增 `CNAME`（此專案預設未加入）
 
-
 ## Supabase（雲端名片 / 全平台搜尋 / Storage / LINE 登入）
 
 ### 1) 基本設定
@@ -120,9 +119,7 @@
      - `SUPABASE_JWT_SECRET`
      - `LINE_CHANNEL_ID`
      - `LINE_CHANNEL_SECRET`
-   - 使用 Supabase CLI 部署（需要你本機安裝 supabase CLI）：
-
-```bash
+   - 使用 Supabase CLI 部署（需要你本機安裝 supabase CLI）：```bash
 supabase login
 supabase link --project-ref <your-project-ref>
 supabase functions deploy line-auth

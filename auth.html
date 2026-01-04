@@ -8,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>LINE 登入 | LINE Login - UVACO</title>
-  <link rel="stylesheet" href="styles.css?v=20260104">
+  <link rel="stylesheet" href="styles.css?v=20260105">
   <style>
     body { padding-bottom: 0; }
     .auth-page { width: 100%; max-width: 520px; margin: 0 auto; padding: 20px; padding-top: 90px; }
@@ -36,8 +36,8 @@
   </style>
   <!-- Supabase JS（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cloud.js?v=20260104"></script>
-  <script src="common.js?v=20260104"></script>
+  <script src="cloud.js?v=20260105"></script>
+  <script src="common.js?v=20260105"></script>
 </head>
 <body class="theme-dark lang-zh">
   <!-- 背景泡泡 -->
@@ -125,18 +125,18 @@
 
     function explainLineAuth() {
       alert(
-        '目前這個專案是「純前端 + Supabase RLS/Storage」。\n\n' +
-        '我已改成「自訂 JWT 模式」，不依賴 Supabase 的 LINE Provider。\n' +
-        '你需要做 3 件事（照做就能跑）：\n\n' +
-        '1) Supabase SQL Editor 執行：supabase-setup.sql（確保已建立 public.line_identities）\n' +
-        '2) Supabase Edge Functions 設定 Secrets：\n' +
-        '   - SUPABASE_URL\n' +
-        '   - SUPABASE_SERVICE_ROLE_KEY\n' +
-        '   - JWT_SECRET（或舊名 SUPABASE_JWT_SECRET）\n' +
-        '   - LINE_CHANNEL_ID\n' +
-        '   - LINE_CHANNEL_SECRET\n' +
-        '3) 用 Supabase CLI 部署 function：line-auth\n\n' +
-        '部署後，GitHub Pages 直接按「使用 LINE 登入」即可。\n\n' +
+        '目前這個專案是「純前端 + Supabase RLS/Storage」。\\n\\n' +
+        '我已改成「自訂 JWT 模式」，不依賴 Supabase 的 LINE Provider。\\n' +
+        '你需要做 3 件事（照做就能跑）：\\n\\n' +
+        '1) Supabase SQL Editor 執行：supabase-setup.sql（確保已建立 public.line_identities）\\n' +
+        '2) Supabase Edge Functions 設定 Secrets：\\n' +
+        '   - SUPABASE_URL\\n' +
+        '   - SUPABASE_SERVICE_ROLE_KEY\\n' +
+        '   - JWT_SECRET（或舊名 SUPABASE_JWT_SECRET）\\n' +
+        '   - LINE_CHANNEL_ID\\n' +
+        '   - LINE_CHANNEL_SECRET\\n' +
+        '3) 用 Supabase CLI 部署 function：line-auth\\n\\n' +
+        '部署後，GitHub Pages 直接按「使用 LINE 登入」即可。\\n\\n' +
         '本機測試：請用 ngrok 產生 https 網址並把 redirect URI 設在 LINE Developers，否則 LINE 會擋 http://localhost。'
       );
     }
@@ -145,4 +145,3 @@
   </script>
 </body>
 </html>
-

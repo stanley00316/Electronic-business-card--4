@@ -1,3 +1,4 @@
+// v=20260105
 // 語言和主題管理
 function setLang(lang) {
   // 更新 body 的 class，讓 CSS 規則生效

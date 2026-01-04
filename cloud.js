@@ -116,7 +116,7 @@ window.UVACO_CLOUD = (function () {
       }
     }
 
-    // 2) 次選：Supabase Auth session（Email magic link）
+    // 2) 次選：Supabase Auth session（Email magic link - 已停用，保留代碼僅供參考或舊 session 相容）
     const client = getClient();
     if (!client) return { ok: false, reason: 'SUPABASE_NOT_CONFIGURED' };
     const { data, error } = await client.auth.getSession();
@@ -141,21 +141,14 @@ window.UVACO_CLOUD = (function () {
     if (ctx.ok) return { ok: true, session: ctx.session };
 
     const next = nextRelativeUrl || 'directory.html';
+    // 改為導向 LINE 登入頁 (auth.html)
     window.location.replace('auth.html?next=' + encodeURIComponent(next));
     return { ok: false, reason: 'no_session' };
   }
 
+  // 已廢棄：Email 登入
   async function signInWithEmailOtp(email, nextRelativeUrl) {
-    const client = getClient();
-    if (!client) throw new Error('SUPABASE_NOT_CONFIGURED');
-    const next = nextRelativeUrl || 'directory.html';
-    const redirectTo = getBaseUrl() + 'auth.html?next=' + encodeURIComponent(next);
-    const { error } = await client.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo }
-    });
-    if (error) throw error;
-    return true;
+    throw new Error('Email login is deprecated. Please use LINE login.');
   }
 
   async function exchangeCodeForSessionIfNeeded() {

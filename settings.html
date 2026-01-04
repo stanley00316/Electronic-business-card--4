@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>設定 | Settings - UVACO</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260105">
 <style>
 body {
   padding-bottom: 0;
@@ -149,6 +149,17 @@ body {
         </div>
       </div>
 
+      <!-- 系統資訊 (User ID) -->
+      <div class="settings-item" onclick="copyMyUserId()">
+        <div class="settings-item-icon">🆔</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">使用者 ID</div>
+          <div class="settings-item-title lang-en">User ID</div>
+          <div class="settings-item-subtitle" id="myUserIdDisplay">...</div>
+        </div>
+        <div class="settings-item-arrow">📋</div>
+      </div>
+
       
     </div>
   </div>
@@ -168,8 +179,29 @@ body {
   </a>
 </nav>
 
-<script src="common.js"></script>
+<script src="common.js?v=20260105"></script>
 <script>
+async function initUserId() {
+  try {
+    if (window.UVACO_CLOUD) {
+      const s = await UVACO_CLOUD.getSession();
+      const uid = s.session ? s.session.user.id : '尚未登入';
+      document.getElementById('myUserIdDisplay').textContent = uid;
+    }
+  } catch (e) {
+    document.getElementById('myUserIdDisplay').textContent = 'Error';
+  }
+}
+
+function copyMyUserId() {
+  const uid = document.getElementById('myUserIdDisplay').textContent;
+  if (uid && uid !== '...' && uid !== '尚未登入') {
+    navigator.clipboard.writeText(uid).then(() => {
+      alert('User ID 已複製：' + uid);
+    });
+  }
+}
+
 // 處理設定選項點擊
 function handleSettingsClick(action) {
   const zhElements = document.querySelectorAll('.lang-zh');
@@ -265,6 +297,9 @@ function updateSettingsLangButtons() {
 
 // 頁面載入時更新按鈕狀態並確保語言正確顯示
 function initSettingsPage() {
+  // 顯示 User ID
+  initUserId();
+
   // 確保語言切換正確
   const savedLang = localStorage.getItem('lang') || 'zh';
   if (typeof setLang === 'function') {
