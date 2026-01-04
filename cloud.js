@@ -326,6 +326,38 @@ window.UVACO_CLOUD = (function () {
     return { card: data || null };
   }
 
+  // 公開讀取名片（給 card.html 用，不需登入）
+  async function getCardPublic(userId) {
+    if (!hasConfig()) return { card: null };
+    // 使用 anon key 建立一個純公開客戶端
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data, error } = await client
+      .from('cards')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) return { card: null, error };
+    return { card: data || null };
+  }
+
+  // 管理員取得所有名片（給 admin.html 用）
+  async function getAllCardsAdmin() {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { rows: [] };
+    const client = ctx.client;
+    
+    const { data, error } = await client
+      .from('cards')
+      .select('*')
+      .order('updated_at', { ascending: false });
+      
+    if (error) {
+      console.error('List cards failed:', error);
+      return { rows: [] };
+    }
+    return { rows: data || [] };
+  }
+
   async function searchCards(params) {
     const ctx = await getAuthContext();
     if (!ctx.ok) throw new Error('NO_SESSION');

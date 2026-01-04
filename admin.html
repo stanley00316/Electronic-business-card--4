@@ -1,356 +1,136 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>管理後台 | Management Backend - UVACO</title>
-<link rel="stylesheet" href="styles.css">
-<!-- Supabase JS（CDN） -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=20251231"></script>
-</head>
-
-<body class="theme-dark lang-zh">
-
-<!-- 背景泡泡 -->
-<div class="bg-blob blob1"></div>
-<div class="bg-blob blob2"></div>
-
-<div class="admin-page-container">
-  <!-- 左側邊欄 -->
-  <aside class="admin-sidebar">
-    <a href="yuyuko.html" class="admin-sidebar-back">
-      <span>←</span>
-      <span class="lang-zh">返回</span>
-      <span class="lang-en">Back</span>
-    </a>
+  <meta charset="UTF-8">
+  <title>NFC 名片管理後台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css?v=20260104">
+  <style>
+    body { padding: 20px; max-width: 1200px; margin: 0 auto; background: #111; color: #fff; }
+    h1 { color: var(--uvaco-green); margin-bottom: 30px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 20px; }
+    input[type="text"] { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; flex: 1; }
     
-    <h1 class="admin-sidebar-title">UVACO</h1>
-  </aside>
+    table { width: 100%; border-collapse: collapse; background: #222; border-radius: 12px; overflow: hidden; }
+    th, td { padding: 15px; text-align: left; border-bottom: 1px solid #333; }
+    th { background: #333; color: #aaa; font-weight: normal; }
+    tr:hover { background: #2a2a2a; }
+    
+    .btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; margin-right: 5px; }
+    .btn-green { background: var(--uvaco-green); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid #555; color: #ccc; }
+    
+    .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
+    .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; }
+    #qrImage { width: 250px; height: 250px; margin: 20px 0; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="cloud.js?v=20260104"></script>
+</head>
+<body>
 
-  <!-- 主內容區 -->
-  <main class="admin-content">
-    <div class="admin-content-header">
-      <div class="admin-header-left">
-        <h1 class="admin-content-title lang-zh">名片列表</h1>
-        <h1 class="admin-content-title lang-en">Business Card List</h1>
-      </div>
-      <div class="admin-menu-button-wrapper">
-        <button class="admin-menu-button" onclick="toggleAdminMenu()">
-          <span class="admin-menu-button-icon">☰</span>
-          <span class="admin-menu-button-text lang-zh">選單</span>
-          <span class="admin-menu-button-text lang-en">Menu</span>
-        </button>
-        <div class="admin-menu-dropdown" id="adminMenuDropdown">
-          <a href="admin.html" class="admin-menu-dropdown-item active">
-            <span class="admin-menu-dropdown-icon">📋</span>
-            <span class="lang-zh">名片列表</span>
-            <span class="lang-en">Business Card List</span>
-          </a>
-          <a href="issue.html" class="admin-menu-dropdown-item">
-            <span class="admin-menu-dropdown-icon">➕</span>
-            <span class="lang-zh">發放名片</span>
-            <span class="lang-en">Issue Business Card</span>
-          </a>
-          <a href="company-settings.html" class="admin-menu-dropdown-item">
-            <span class="admin-menu-dropdown-icon">⚙️</span>
-            <span class="lang-zh">公司設定</span>
-            <span class="lang-en">Company Settings</span>
-          </a>
-          <a href="statistics.html" class="admin-menu-dropdown-item">
-            <span class="admin-menu-dropdown-icon">📊</span>
-            <span class="lang-zh">統計報表</span>
-            <span class="lang-en">Statistical Report</span>
-          </a>
-        </div>
-      </div>
-    </div>
+<h1>NFC 名片量產管理</h1>
 
-    <!-- 工具列 -->
-    <div class="admin-toolbar">
-      <input 
-        type="text" 
-        class="admin-search" 
-        placeholder="搜尋姓名、公司..."
-        data-placeholder-zh="搜尋姓名、公司..."
-        data-placeholder-en="Search name, company..."
-        id="adminSearchInput"
-        onkeyup="handleAdminSearch(event)"
-      >
-      <button class="admin-btn admin-btn-primary lang-zh" onclick="exportCards()">匯出</button>
-      <button class="admin-btn admin-btn-primary lang-en" onclick="exportCards()">Export</button>
-    </div>
-
-    <!-- 批量操作按鈕 -->
-    <div class="admin-toolbar" id="batchActions" style="display: none;">
-      <button class="admin-btn admin-btn-danger lang-zh" onclick="batchDisable()">停用</button>
-      <button class="admin-btn admin-btn-danger lang-en" onclick="batchDisable()">Disable</button>
-      <button class="admin-btn admin-btn-primary lang-zh" onclick="batchExport()">匯出</button>
-      <button class="admin-btn admin-btn-primary lang-en" onclick="batchExport()">Export</button>
-    </div>
-
-    <!-- 表格 -->
-    <div class="admin-table-wrapper">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th style="width: 40px;">
-              <input type="checkbox" class="admin-table-checkbox" id="selectAll" onchange="toggleSelectAll()">
-            </th>
-            <th style="width: 30%;">
-              <span class="lang-zh">姓名</span>
-              <span class="lang-en">Name</span>
-            </th>
-            <th style="width: 35%;">
-              <span class="lang-zh">公司</span>
-              <span class="lang-en">Company</span>
-            </th>
-            <th style="width: auto;">
-              <span class="lang-zh">管理</span>
-              <span class="lang-en">Manage</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody id="cardsTableBody">
-          <!-- 範例資料 -->
-          <tr>
-            <td>
-              <input type="checkbox" class="admin-table-checkbox" onchange="updateBatchActions()">
-            </td>
-            <td>
-              <span class="lang-zh">柯宜瀅</span>
-              <span class="lang-en">Yuyu Ko</span>
-            </td>
-            <td>UVACO</td>
-            <td>
-              <div class="admin-table-actions">
-                <button class="admin-action-btn lang-zh" onclick="editCard(1)">編輯</button>
-                <button class="admin-action-btn lang-en" onclick="editCard(1)">Edit</button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- 空狀態 -->
-    <div class="admin-empty-state" id="emptyState" style="display: none;">
-      <div class="admin-empty-icon">📋</div>
-      <div class="admin-empty-text lang-zh">目前沒有名片資料</div>
-      <div class="admin-empty-text lang-en">No business cards found</div>
-    </div>
-  </main>
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="搜尋姓名、公司..." onkeyup="filterTable()">
+  <button class="btn btn-green" onclick="location.reload()">重新整理</button>
+  <button class="btn btn-outline" onclick="location.href='edit.html'">返回編輯</button>
 </div>
 
-<!-- 底部導航欄 -->
-<nav class="bottom-nav">
-  <a href="directory.html" class="nav-item">
-    <span class="nav-icon">📋</span>
-    <span class="nav-label lang-zh">通訊錄</span>
-    <span class="nav-label lang-en">Directory</span>
-  </a>
-  <a href="settings.html" class="nav-item">
-    <span class="nav-icon">⚙️</span>
-    <span class="nav-label lang-zh">設定</span>
-    <span class="nav-label lang-en">Settings</span>
-  </a>
-</nav>
+<table id="userTable">
+  <thead>
+    <tr>
+      <th>姓名</th>
+      <th>公司/職稱</th>
+      <th>更新時間</th>
+      <th>NFC 網址</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td colspan="5" style="text-align:center">載入中...</td></tr>
+  </tbody>
+</table>
 
-<script src="common.js"></script>
+<div id="qrModal" class="qr-modal" onclick="this.style.display='none'">
+  <div class="qr-box" onclick="event.stopPropagation()">
+    <h3 id="qrName"></h3>
+    <div id="qrcode"></div>
+    <p>請掃描或截圖提供給印刷廠</p>
+    <button class="btn btn-outline" onclick="document.getElementById('qrModal').style.display='none'">關閉</button>
+  </div>
+</div>
+
 <script>
-// 雲端版：後台需要登入，且必須是管理者（Email 白名單）
-(async function () {
-  try {
-    if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
-      const here = 'admin.html' + (window.location.search || '');
-      const r = await UVACO_CLOUD.requireAuth(here);
-      if (!r.ok) return;
+let allData = [];
 
-      const ok = await UVACO_CLOUD.isAdmin();
-      if (!ok) {
-        alert('你沒有後台權限。');
-        window.location.replace('directory.html');
-        return;
-      }
-    }
-  } catch (e) {}
-})();
-
-// 更新搜尋欄 placeholder
-function updateAdminSearchPlaceholder() {
-  const zhElements = document.querySelectorAll('.lang-zh');
-  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
-  const searchInput = document.getElementById('adminSearchInput');
-  if (searchInput) {
-    const placeholder = currentLang === 'zh' 
-      ? searchInput.getAttribute('data-placeholder-zh')
-      : searchInput.getAttribute('data-placeholder-en');
-    if (placeholder) {
-      searchInput.setAttribute('placeholder', placeholder);
-    }
+async function init() {
+  // 1. 檢查登入
+  const { session } = await UVACO_CLOUD.getSession();
+  if (!session) {
+    window.location.href = 'auth.html?next=admin.html';
+    return;
   }
+
+  // 2. 抓取資料
+  const { rows } = await UVACO_CLOUD.getAllCardsAdmin();
+  allData = rows;
+  renderTable(rows);
 }
 
-// 覆寫 setLang 函數以包含管理後台的更新
-const originalSetLang = setLang;
-setLang = function(lang) {
-  originalSetLang(lang);
-  updateAdminSearchPlaceholder();
-};
-
-// 初始化時更新 placeholder
-updateAdminSearchPlaceholder();
-
-// 搜尋處理
-function handleAdminSearch(event) {
-  if (event.key === 'Enter' || event.type === 'keyup') {
-    const searchTerm = event.target.value.toLowerCase();
-    filterCards(searchTerm);
-  }
-}
-
-// 過濾名片
-function filterCards(searchTerm) {
-  const rows = document.querySelectorAll('#cardsTableBody tr');
-  let visibleCount = 0;
+function renderTable(data) {
+  const tbody = document.querySelector('#userTable tbody');
+  tbody.innerHTML = '';
   
-  rows.forEach(row => {
-    const nameCell = row.cells[1];
-    const nameZh = nameCell?.querySelector('.lang-zh')?.textContent.toLowerCase() || '';
-    const nameEn = nameCell?.querySelector('.lang-en')?.textContent.toLowerCase() || '';
-    const company = row.cells[2]?.textContent.toLowerCase() || '';
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">目前沒有資料</td></tr>';
+    return;
+  }
+
+  data.forEach(row => {
+    const url = `${window.location.origin}${window.location.pathname.replace('admin.html', '')}card.html?id=${row.user_id}`;
     
-    const matches = nameZh.includes(searchTerm) || 
-                   nameEn.includes(searchTerm) || 
-                   company.includes(searchTerm);
-    
-    row.style.display = matches ? '' : 'none';
-    if (matches) visibleCount++;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${row.name || '未命名'}</td>
+      <td>${row.company || '-'} <br> <small style="color:#666">${row.title || '-'}</small></td>
+      <td>${new Date(row.updated_at).toLocaleDateString()}</td>
+      <td><a href="${url}" target="_blank" style="color:#666;text-decoration:none">${url}</a></td>
+      <td>
+        <button class="btn btn-green" onclick="copyLink('${url}')">複製連結</button>
+        <button class="btn btn-outline" onclick="showQR('${row.name}', '${url}')">QR Code</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
   });
-  
-  // 顯示/隱藏空狀態
-  const emptyState = document.getElementById('emptyState');
-  const tableWrapper = document.querySelector('.admin-table-wrapper');
-  if (visibleCount === 0) {
-    emptyState.style.display = 'flex';
-    tableWrapper.style.display = 'none';
-  } else {
-    emptyState.style.display = 'none';
-    tableWrapper.style.display = 'block';
-  }
 }
 
-// 全選/取消全選
-function toggleSelectAll() {
-  const selectAll = document.getElementById('selectAll');
-  const checkboxes = document.querySelectorAll('#cardsTableBody .admin-table-checkbox');
-  checkboxes.forEach(checkbox => {
-    checkbox.checked = selectAll.checked;
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allData.filter(r => 
+    (r.name && r.name.toLowerCase().includes(q)) || 
+    (r.company && r.company.toLowerCase().includes(q))
+  );
+  renderTable(filtered);
+}
+
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(() => alert('已複製連結：\n' + url));
+}
+
+function showQR(name, url) {
+  document.getElementById('qrModal').style.display = 'flex';
+  document.getElementById('qrName').textContent = name + ' 的名片';
+  document.getElementById('qrcode').innerHTML = '';
+  new QRCode(document.getElementById('qrcode'), {
+    text: url,
+    width: 200,
+    height: 200
   });
-  updateBatchActions();
 }
 
-// 更新批量操作按鈕顯示
-function updateBatchActions() {
-  const checkboxes = document.querySelectorAll('#cardsTableBody .admin-table-checkbox:checked');
-  const batchActions = document.getElementById('batchActions');
-  if (checkboxes.length > 0) {
-    batchActions.style.display = 'flex';
-  } else {
-    batchActions.style.display = 'none';
-  }
-}
-
-// 批量停用
-function batchDisable() {
-  const checkboxes = document.querySelectorAll('#cardsTableBody .admin-table-checkbox:checked');
-  if (checkboxes.length === 0) {
-    alert('請選擇要停用的名片');
-    return;
-  }
-  
-  const zhElements = document.querySelectorAll('.lang-zh');
-  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
-  const msg = currentLang === 'zh' 
-    ? `確定要停用 ${checkboxes.length} 張名片嗎？`
-    : `Are you sure you want to disable ${checkboxes.length} business cards?`;
-  
-  if (confirm(msg)) {
-    // 這裡可以連接實際的 API
-    alert(currentLang === 'zh' ? '已停用選取的名片' : 'Selected cards have been disabled');
-    checkboxes.forEach(checkbox => {
-      checkbox.checked = false;
-    });
-    document.getElementById('selectAll').checked = false;
-    updateBatchActions();
-  }
-}
-
-// 批量匯出
-function batchExport() {
-  const checkboxes = document.querySelectorAll('#cardsTableBody .admin-table-checkbox:checked');
-  if (checkboxes.length === 0) {
-    alert('請選擇要匯出的名片');
-    return;
-  }
-  
-  const zhElements = document.querySelectorAll('.lang-zh');
-  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
-  const msg = currentLang === 'zh' 
-    ? `確定要匯出 ${checkboxes.length} 張名片嗎？`
-    : `Are you sure you want to export ${checkboxes.length} business cards?`;
-  
-  if (confirm(msg)) {
-    // 這裡可以連接實際的匯出 API
-    alert(currentLang === 'zh' ? '匯出功能開發中' : 'Export feature coming soon');
-  }
-}
-
-// 匯出所有名片
-async function exportCards() {
-  const zhElements = document.querySelectorAll('.lang-zh');
-  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
-
-  if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
-    alert(currentLang === 'zh' ? '尚未設定 Supabase，無法匯出。' : 'Supabase not configured.');
-    return;
-  }
-
-  const ok = await UVACO_CLOUD.isAdmin();
-  if (!ok) {
-    alert(currentLang === 'zh' ? '你沒有後台權限。' : 'You do not have admin permission.');
-    return;
-  }
-
-  try {
-    await UVACO_CLOUD.exportCardsCsv();
-  } catch (e) {
-    alert(currentLang === 'zh' ? '匯出失敗，請稍後再試。' : 'Export failed. Please try again.');
-  }
-}
-
-// 編輯名片
-function editCard(id) {
-  window.location.href = 'edit.html';
-}
-
-// 切換選單
-function toggleAdminMenu() {
-  const dropdown = document.getElementById('adminMenuDropdown');
-  dropdown.classList.toggle('show');
-}
-
-// 點擊外部關閉選單
-document.addEventListener('click', function(event) {
-  const menuButton = document.querySelector('.admin-menu-button');
-  const dropdown = document.getElementById('adminMenuDropdown');
-  
-  if (!menuButton.contains(event.target) && !dropdown.contains(event.target)) {
-    dropdown.classList.remove('show');
-  }
-});
+init();
 </script>
-
 </body>
 </html>
-

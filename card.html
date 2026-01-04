@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex" />
+  <title>電子名片 | Business Card</title>
+  <link rel="stylesheet" href="styles.css?v=20260104">
+  <!-- 動態載入主題 CSS -->
+  <link id="themeCSS" rel="stylesheet" href="theme-1.css">
+  <style>
+    body { opacity: 0; transition: opacity 0.5s; padding-bottom: 80px; }
+    body.loaded { opacity: 1; }
+    .error-box { text-align: center; padding: 50px 20px; color: #fff; }
+    .loading-spinner { 
+      border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--uvaco-green);
+      border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;
+      margin: 100px auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    /* 聯絡人按鈕區 */
+    .save-contact-btn {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 400px; padding: 16px;
+      background: var(--uvaco-green); color: #fff; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .save-contact-btn svg { width: 20px; height: 20px; fill: currentColor; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud.js?v=20260104"></script>
+  <script src="common.js?v=20260104"></script>
+</head>
+<body>
+
+  <div id="loading" class="loading-spinner"></div>
+
+  <!-- 名片容器 -->
+  <div id="cardContainer" class="card" style="display:none;">
+    <div class="card-inner">
+      <div class="card-front">
+        <div class="logo-area">
+          <img id="viewLogo" src="" alt="Logo" class="logo-img" style="display:none">
+        </div>
+        <div class="card-content">
+          <h2 id="viewCompany" class="company-name"></h2>
+          <div class="name-title-group">
+            <h1 id="viewName" class="name"></h1>
+            <p id="viewTitle" class="title"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 聯絡方式列表 -->
+  <div id="contactList" class="contact-list" style="display:none; margin-top: 30px;">
+    <!-- 動態產生 -->
+  </div>
+
+  <!-- 儲存聯絡人按鈕 -->
+  <button id="vcfBtn" class="save-contact-btn" style="display:none">
+    <svg viewBox="0 0 24 24"><path d="M19 13v6a2 2 0 01-2 2H7a2 2 0 01-2-2v-6m14 0V7a2 2 0 00-2-2H7a2 2 0 00-2 2v6m14 0h-2m-8 0H5m4-6h6m-6 4h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    儲存聯絡人
+  </button>
+
+  <div id="errorMsg" class="error-box" style="display:none">
+    <h2>找不到名片</h2>
+    <p>連結可能已失效或 ID 錯誤。</p>
+  </div>
+
+<script>
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const userId = params.get('id');
+
+  if (!userId) {
+    showError('網址無效 (缺少 ID)');
+    return;
+  }
+
+  // 從 Supabase 讀取資料
+  const { card, error } = await UVACO_CLOUD.getCardPublic(userId);
+  
+  if (error || !card) {
+    console.error('Fetch failed:', error);
+    showError('找不到此名片資料');
+    return;
+  }
+
+  renderCard(card);
+}
+
+function renderCard(card) {
+  document.getElementById('loading').style.display = 'none';
+  document.body.classList.add('loaded');
+  document.getElementById('cardContainer').style.display = 'block';
+  document.getElementById('contactList').style.display = 'block';
+  document.getElementById('vcfBtn').style.display = 'flex';
+
+  // 1. 設定主題
+  const themeId = card.theme || 1;
+  document.getElementById('themeCSS').href = `theme-${themeId}.css`;
+  document.getElementById('cardContainer').className = `card card-theme-${themeId}`;
+
+  // 2. 填入文字
+  setText('viewName', card.name);
+  setText('viewTitle', card.title);
+  setText('viewCompany', card.company);
+
+  // 3. 填入圖片
+  const pj = card.profile_json || {};
+  if (pj.logoPath) setImg('viewLogo', pj.logoPath);
+  
+  // 大頭貼處理 (若有上傳大頭貼，通常會顯示在名字旁或特定位置，視主題而定)
+  // 這裡簡單示範：如果有 avatar，我們可以設為背景或額外顯示
+  // 目前 edit.html 邏輯是 avatar 也是放在 profile_json
+  
+  // 4. 產生聯絡按鈕
+  renderContacts(card);
+
+  // 5. 設定 VCF 下載
+  document.getElementById('vcfBtn').onclick = () => downloadVcf(card);
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (text) {
+    el.textContent = text;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+async function setImg(id, path) {
+  if (!path) return;
+  const { url } = await UVACO_CLOUD.getSignedAssetUrl(path);
+  if (url) {
+    const el = document.getElementById(id);
+    el.src = url;
+    el.style.display = 'block';
+  }
+}
+
+function renderContacts(card) {
+  const list = document.getElementById('contactList');
+  list.innerHTML = '';
+  
+  const pj = card.profile_json || {};
+  const layout = pj.contactLayout || 'list'; // grid or list
+  
+  if (layout === 'grid') {
+    list.className = 'btn-group contact-layout-grid';
+  } else {
+    list.className = 'contact-list';
+  }
+
+  // 標準欄位
+  if (card.phone) addBtn(list, 'phone', card.phone, `tel:${card.phone}`);
+  if (card.email) addBtn(list, 'email', card.email, `mailto:${card.email}`);
+  
+  // 自訂欄位
+  const socials = pj.socials || [];
+  socials.forEach(s => {
+    if (s.value) addBtn(list, s.type, s.value, getSocialLink(s.type, s.value));
+  });
+}
+
+function addBtn(container, type, label, link) {
+  const btn = document.createElement('a');
+  btn.className = 'contact-btn';
+  btn.href = link;
+  // 若是 grid 模式，結構可能不同，這裡先用通用樣式
+  btn.innerHTML = `
+    <div class="icon-box"><img src="${getIconPath(type)}" alt="${type}"></div>
+    <div class="btn-text">${label}</div>
+    <div class="btn-arrow">➔</div>
+  `;
+  container.appendChild(btn);
+}
+
+function getIconPath(type) {
+  const map = {
+    phone: 'phone-icon.svg', email: 'email-icon.svg',
+    line: 'line-logo.svg', website: 'website-icon.svg',
+    instagram: 'instagram-logo.svg', facebook: 'facebook-logo.svg',
+    linkedin: 'linkedin-logo.svg', wechat: 'wechat-logo.svg',
+    twitter: 'twitter-logo.svg', youtube: 'youtube-logo.svg',
+    whatsapp: 'whatsapp-logo.svg'
+  };
+  return map[type] || 'website-icon.svg';
+}
+
+function getSocialLink(type, val) {
+  if (type === 'line') return val.startsWith('http') ? val : `https://line.me/ti/p/${val}`;
+  if (type === 'website') return val.startsWith('http') ? val : `https://${val}`;
+  // ... 其他略
+  return val;
+}
+
+function downloadVcf(card) {
+  // 簡易 VCF 產生邏輯
+  const vcf = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    `FN:${card.name || ''}`,
+    `TITLE:${card.title || ''}`,
+    `ORG:${card.company || ''}`,
+    `TEL;TYPE=CELL:${card.phone || ''}`,
+    `EMAIL:${card.email || ''}`,
+    'END:VCARD'
+  ].join('\n');
+  
+  const blob = new Blob([vcf], { type: 'text/vcard' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${card.name || 'contact'}.vcf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function showError(msg) {
+  document.getElementById('loading').style.display = 'none';
+  const box = document.getElementById('errorMsg');
+  box.style.display = 'block';
+  box.querySelector('p').textContent = msg;
+}
+
+init();
+</script>
+</body>
+</html>
