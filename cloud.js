@@ -6,8 +6,8 @@ window.UVACO_CLOUD = (function () {
   // - SUPABASE_URL: https://xxxx.supabase.co
   // - SUPABASE_ANON_KEY: anon public key
   const SUPABASE_URL = 'https://nqxibryjhgftyxttopuo.supabase.co';
-  // Supabase Dashboard → Settings → API Keys → Legacy anon, service_role API keys → anon (以 eyJ 開頭)
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xeGlicnlqaGdmdHl4dHRvcHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxNTY0MDksImV4cCI6MjA4MjczMjQwOX0.b8Vp__OY70wLmRv96LFjiGuqqMfcR06q0yf6VlB6ikU';
+  // Supabase Dashboard → Settings → API Keys → Publishable key (default)
+  const SUPABASE_ANON_KEY = 'sb_publishable_iTgIYinO82u_nwhdzvS8EQ_zDtNKpdH';
 
   // ===== LINE Login（自訂 JWT 模式）=====
   // 若你要啟用 LINE 登入：
