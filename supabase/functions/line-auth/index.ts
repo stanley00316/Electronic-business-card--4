@@ -13,7 +13,6 @@
 // 回傳：{ access_token, token_type, expires_in, user_id }
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 const BUILD_ID = "2026-01-03-1";
 
@@ -93,6 +92,21 @@ async function fetchLineProfile(accessToken: string) {
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) return { ok: false as const, status: resp.status, data };
   return { ok: true as const, data };
+}
+
+async function supabaseRest(
+  baseUrl: string,
+  serviceRoleKey: string,
+  pathAndQuery: string,
+  init: RequestInit,
+) {
+  const url = baseUrl.replace(/\/$/, "") + pathAndQuery;
+  const headers = new Headers(init.headers);
+  // Supabase REST needs both apikey + Authorization
+  headers.set("apikey", serviceRoleKey);
+  headers.set("authorization", `Bearer ${serviceRoleKey}`);
+  headers.set("accept", "application/json");
+  return await fetch(url, { ...init, headers });
 }
 
 serve(async (req) => {
@@ -200,32 +214,42 @@ serve(async (req) => {
   if (!lineUserId) return bad("LINE_NO_USER_ID", { detail: profRes.data });
 
   // 3) Map LINE userId → user_id (uuid) in public.line_identities
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
+  const q = `/rest/v1/line_identities?select=user_id&line_user_id=eq.${encodeURIComponent(lineUserId)}&limit=1`;
+  const qResp = await supabaseRest(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, q, { method: "GET" });
+  const qJson = await qResp.json().catch(() => null);
+  if (!qResp.ok) return json({ error: "DB_QUERY_FAILED", detail: qJson }, { status: 500 });
+  const existingUserId = String((Array.isArray(qJson) ? qJson?.[0]?.user_id : "") || "").trim();
 
-  const { data: existing, error: qErr } = await admin
-    .from("line_identities")
-    .select("user_id")
-    .eq("line_user_id", lineUserId)
-    .maybeSingle();
-  if (qErr) return json({ error: "DB_QUERY_FAILED", detail: qErr }, { status: 500 });
-
-  const userId = String(existing?.user_id || crypto.randomUUID());
-  if (!existing?.user_id) {
-    const { error: iErr } = await admin.from("line_identities").insert({
-      line_user_id: lineUserId,
-      user_id: userId,
-      display_name: displayName,
-      last_login_at: new Date().toISOString(),
+  const userId = existingUserId || crypto.randomUUID();
+  const nowIso = new Date().toISOString();
+  if (!existingUserId) {
+    const iResp = await supabaseRest(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, `/rest/v1/line_identities`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "prefer": "return=minimal" },
+      body: JSON.stringify([{
+        line_user_id: lineUserId,
+        user_id: userId,
+        display_name: displayName,
+        last_login_at: nowIso,
+      }]),
     });
-    if (iErr) return json({ error: "DB_INSERT_FAILED", detail: iErr }, { status: 500 });
+    const iJson = await iResp.json().catch(() => null);
+    if (!iResp.ok) return json({ error: "DB_INSERT_FAILED", detail: iJson }, { status: 500 });
   } else {
-    // best-effort update
-    await admin.from("line_identities").update({
-      display_name: displayName,
-      last_login_at: new Date().toISOString(),
-    }).eq("line_user_id", lineUserId);
+    const uResp = await supabaseRest(
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+      `/rest/v1/line_identities?line_user_id=eq.${encodeURIComponent(lineUserId)}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "prefer": "return=minimal" },
+        body: JSON.stringify({ display_name: displayName, last_login_at: nowIso }),
+      },
+    );
+    // best-effort update; ignore errors but don't crash login
+    if (!uResp.ok) {
+      // swallow
+    }
   }
 
   // 4) Issue JWT for Supabase PostgREST/Storage
