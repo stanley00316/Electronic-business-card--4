@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JWT Secret 驗證工具</title>
+<style>
+  body { background: #111; color: #eee; font-family: sans-serif; padding: 20px; line-height: 1.6; }
+  .box { background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 600px; margin: 0 auto; }
+  input, textarea { width: 100%; background: #000; color: #fff; border: 1px solid #555; padding: 10px; margin-bottom: 10px; border-radius: 4px; box-sizing: border-box; }
+  button { background: #00c853; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 4px; width: 100%; }
+  .result { margin-top: 20px; padding: 15px; border-radius: 4px; text-align: center; font-weight: bold; }
+  .success { background: #1b5e20; color: #a5d6a7; border: 1px solid #2e7d32; }
+  .error { background: #b71c1c; color: #ffcdd2; border: 1px solid #c62828; }
+  small { color: #aaa; display: block; margin-bottom: 5px; }
+</style>
+</head>
+<body>
+
+<div class="box">
+  <h2>🔑 Supabase 金鑰驗證器</h2>
+  <p>請將您的 Legacy JWT Secret 貼在下方，系統會自動檢查它是否能解鎖您的 Anon Key。</p>
+  
+  <label><small>Legacy Anon Key (已自動填入 cloud.js 目前的值)</small></label>
+  <textarea id="anonKey" rows="4" readonly>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xeGlicnlqaGdmdHl4dHRvcHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxNTY0MDksImV4cCI6MjA4MjczMjQwOX0.b8Vp__OY70wLmRv96LFjiGuqqMfcR06q0yf6VlB6ikU</textarea>
+
+  <label><small>👇 請在此貼上您從 Dashboard 複製的 Legacy JWT Secret</small></label>
+  <input type="text" id="secret" placeholder="貼上 Secret..." oninput="check()">
+
+  <div id="result" class="result" style="display:none"></div>
+</div>
+
+<script>
+async function check() {
+  const secret = document.getElementById('secret').value.trim();
+  const anon = document.getElementById('anonKey').value.trim();
+  const resDiv = document.getElementById('result');
+  
+  if (!secret) { resDiv.style.display = 'none'; return; }
+
+  try {
+    const parts = anon.split('.');
+    if (parts.length !== 3) throw new Error("Anon Key 格式錯誤");
+    
+    const data = parts[0] + '.' + parts[1];
+    const signature = parts[2]; // Base64Url
+
+    const enc = new TextEncoder();
+    const keyData = enc.encode(secret);
+    
+    const key = await crypto.subtle.importKey(
+      "raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    );
+    
+    const sigBuf = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+    // ArrayBuffer to Base64Url
+    let bin = "";
+    const bytes = new Uint8Array(sigBuf);
+    for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+    const computedSig = btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+
+    resDiv.style.display = 'block';
+    if (computedSig === signature) {
+      resDiv.className = 'result success';
+      resDiv.innerHTML = '✅ 驗證成功！這個 Secret 是正確的。<br>請將它貼回 Edge Functions Secrets！';
+    } else {
+      resDiv.className = 'result error';
+      resDiv.innerHTML = '❌ 驗證失敗！這個 Secret 無法解鎖 Anon Key。<br>請回到 Dashboard -> JWT Keys 再試著複製一次。';
+    }
+  } catch (e) {
+    resDiv.style.display = 'block';
+    resDiv.className = 'result error';
+    resDiv.textContent = '錯誤: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
