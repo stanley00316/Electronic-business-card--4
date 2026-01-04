@@ -19,6 +19,18 @@ window.UVACO_CLOUD = (function () {
   const LINE_CHANNEL_ID = '2008810712'; // LINE Login 的 Channel ID（client_id）
   const CUSTOM_JWT_KEY = 'UVACO_CUSTOM_JWT';
 
+  async function fetchWithTimeout(url, options, timeoutMs) {
+    const ms = Math.max(parseInt(timeoutMs || 0, 10) || 0, 1000);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+      const resp = await fetch(url, { ...(options || {}), signal: controller.signal });
+      return resp;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   function hasConfig() {
     return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
   }
@@ -222,7 +234,7 @@ window.UVACO_CLOUD = (function () {
       const redirectUri = getLineRedirectUri();
       let resp;
       try {
-        resp = await fetch(endpoint, {
+        resp = await fetchWithTimeout(endpoint, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
@@ -232,12 +244,12 @@ window.UVACO_CLOUD = (function () {
             'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
           },
           body: JSON.stringify({ code, redirect_uri: redirectUri })
-        });
+        }, 15000);
       } catch (e) {
         return {
           ok: false,
           error: 'LINE_FETCH_FAILED',
-          detail: String(e?.message || e || ''),
+          detail: String(e?.name === 'AbortError' ? 'TIMEOUT' : (e?.message || e || '')),
           endpoint
         };
       }
@@ -274,17 +286,17 @@ window.UVACO_CLOUD = (function () {
     const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
     // 優先用 GET（簡單），若 function 設定要求 JWT，則用 POST + Authorization/apikey
     try {
-      const r = await fetch(endpoint, {
+      const r = await fetchWithTimeout(endpoint, {
         method: 'GET',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
           'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
         }
-      });
+      }, 8000);
       const data = await r.json().catch(() => ({}));
       return { ok: r.ok, status: r.status, data, endpoint };
     } catch (e) {
-      return { ok: false, error: 'DIAG_FETCH_FAILED', detail: String(e?.message || e || ''), endpoint };
+      return { ok: false, error: 'DIAG_FETCH_FAILED', detail: String(e?.name === 'AbortError' ? 'TIMEOUT' : (e?.message || e || '')), endpoint };
     }
   }
 
