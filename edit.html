@@ -3657,16 +3657,12 @@ async function saveCard() {
       return;
     }
 
-    alert(currentLang === 'zh' ? '名片已儲存！' : 'Business card saved!');
+    alert(currentLang === 'zh' ? '名片已儲存！即將前往預覽頁面...' : 'Business card saved! Redirecting to preview...');
     try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
 
-    // onboarding 模式：儲存後導回指定頁（預設回通訊錄）
-    if (params.get('mode') === 'onboarding') {
-      const next = params.get('next') || 'directory.html';
-      const safe = /^[a-z0-9_\\-\\/]+\\.html(\\?.*)?$/i.test(next) ? next : 'directory.html';
-      window.location.href = safe;
-      return;
-    }
+    setTimeout(() => {
+      window.location.href = 'yuyuko.html';
+    }, 500);
   } catch (e) {
     console.error('saveCard failed', e);
     const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
