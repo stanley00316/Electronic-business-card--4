@@ -73,7 +73,15 @@ async function init() {
     return;
   }
 
-  // 2. 抓取資料
+  // 2. 檢查權限
+  const isAdmin = await UVACO_CLOUD.isAdmin();
+  if (!isAdmin) {
+    alert('權限不足：您不是管理員。');
+    window.location.href = 'directory.html';
+    return;
+  }
+
+  // 3. 抓取資料
   const { rows } = await UVACO_CLOUD.getAllCardsAdmin();
   allData = rows;
   renderTable(rows);

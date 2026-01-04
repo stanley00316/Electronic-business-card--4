@@ -466,10 +466,16 @@ window.UVACO_CLOUD = (function () {
     const ctx = await getAuthContext();
     if (!ctx.ok) return false;
     const client = ctx.client;
-    // 建議在 Supabase 以 SQL 建立 RPC：is_admin() → boolean
-    const { data, error } = await client.rpc('is_admin');
-    if (error) return false;
-    return !!data;
+    
+    // 檢查 admin_users 表
+    const { data, error } = await client
+      .from('admin_users')
+      .select('user_id')
+      .eq('user_id', ctx.userId)
+      .maybeSingle();
+      
+    if (error || !data) return false;
+    return true;
   }
 
   function toCsv(rows, headers) {
