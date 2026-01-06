@@ -307,6 +307,11 @@ function ensureEditContactLayoutToggle() {
         .btn-group.contact-layout-grid .contact-btn-wrapper{min-width:0}
         .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+1){grid-column:1/-1}
         .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+2){grid-column:span 2}
+        @media (min-width:980px){
+          .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+1){grid-column:1/-1}
+          .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+2){grid-column:span 3}
+          .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+3){grid-column:span 2}
+        }
         .btn-group.contact-layout-grid .btn:hover{transform:translateY(-1px)}
       `;
       document.head.appendChild(s);

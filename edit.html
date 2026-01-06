@@ -986,6 +986,19 @@ body.theme-light .theme-selector-close {
   grid-column: span 2;
 }
 
+/* 4 欄（桌面）尾列補滿：避免最後一排留空白 */
+@media (min-width: 980px) {
+  .edit-preview-section .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+1) {
+    grid-column: 1 / -1;
+  }
+  .edit-preview-section .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+2) {
+    grid-column: span 3;
+  }
+  .edit-preview-section .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+3) {
+    grid-column: span 2;
+  }
+}
+
 /* 按鈕寬度自適應 */
 .edit-preview-section .btn {
   width: 100%;
