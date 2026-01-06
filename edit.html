@@ -3780,7 +3780,30 @@ async function saveCard() {
       alert(currentLang === 'zh' ? '名片已儲存！即將前往預覽頁面...' : 'Business card saved! Redirecting to preview...');
       try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
       setTimeout(() => {
-        window.location.href = 'yuyuko.html';
+        // 儲存後導向「自己的名片」：避免固定跳到示例名片 yuyuko.html
+        // 若網址帶 next 參數（例如從通訊錄/其他頁進來），優先回到 next
+        try {
+          const p = new URLSearchParams(window.location.search || '');
+          const next = String(p.get('next') || '').trim();
+          if (next) {
+            window.location.href = next;
+            return;
+          }
+        } catch (e) {}
+
+        // 預設：回到 card.html?id=<目前登入者>
+        (async function () {
+          try {
+            const s = await UVACO_CLOUD.getSession();
+            const uid = s && s.session && s.session.user ? s.session.user.id : '';
+            if (uid) {
+              window.location.href = 'card.html?id=' + encodeURIComponent(uid);
+              return;
+            }
+          } catch (e) {}
+          // 最後退回：通訊錄
+          window.location.href = 'directory.html';
+        })();
       }, 500);
     }
   } catch (e) {
