@@ -973,6 +973,19 @@ body.theme-light .theme-selector-close {
   width: 100%;
 }
 
+/* Grid 尾列補滿：避免 3 欄時最後一排留大空白（特別是 iPhone SE） */
+.edit-preview-section .btn-group.contact-layout-grid .contact-btn-wrapper {
+  min-width: 0;
+}
+/* 總數 = 3n + 1：最後一張跨 3 欄 */
+.edit-preview-section .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+1) {
+  grid-column: 1 / -1;
+}
+/* 總數 = 3n + 2：最後一張跨 2 欄 */
+.edit-preview-section .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+2) {
+  grid-column: span 2;
+}
+
 /* 按鈕寬度自適應 */
 .edit-preview-section .btn {
   width: 100%;

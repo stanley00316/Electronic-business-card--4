@@ -357,6 +357,19 @@ body.theme-light .section-label { color: #6b7280; }
   display: block;
 }
 
+/* Grid 尾列補滿：避免 3 欄時最後一排留大空白（特別是 iPhone SE） */
+.btn-group.contact-layout-grid .contact-btn-wrapper {
+  min-width: 0;
+}
+/* 總數 = 3n + 1：最後一張跨 3 欄 */
+.btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+1) {
+  grid-column: 1 / -1;
+}
+/* 總數 = 3n + 2：最後一張跨 2 欄（補滿尾列剩餘空格） */
+.btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+2) {
+  grid-column: span 2;
+}
+
 /* 小卡 hover 不要太「飄」 */
 .btn-group.contact-layout-grid .btn:hover {
   transform: translateY(-1px);

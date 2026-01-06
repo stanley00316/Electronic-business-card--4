@@ -303,6 +303,10 @@ function ensureEditContactLayoutToggle() {
         .btn-group.contact-layout-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
         @media (min-width:980px){.btn-group.contact-layout-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
         .btn-group.contact-layout-grid .btn{border-radius:18px;height:92px;font-size:clamp(11px,2.6vw,14px);line-height:1.15;white-space:normal;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;overflow-wrap:anywhere;flex-direction:column;justify-content:center;align-items:center;gap:10px;padding:14px 12px;text-align:center}
+        /* Grid 尾列補滿：避免 3 欄時最後一排留大空白 */
+        .btn-group.contact-layout-grid .contact-btn-wrapper{min-width:0}
+        .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+1){grid-column:1/-1}
+        .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+2){grid-column:span 2}
         .btn-group.contact-layout-grid .btn:hover{transform:translateY(-1px)}
       `;
       document.head.appendChild(s);
