@@ -205,6 +205,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const s = await UVACO_CLOUD.getSession();
         if (s && s.session) {
+          // 需求：yuyuko.html 作為「我的名片」入口
+          // - 若未帶 uid：一律導向 card.html?id=<我的user_id>，避免看到示例頁造成混淆
+          if (!uid) {
+            const myId = String(s.session.user.id || '').trim();
+            if (myId) {
+              window.location.replace('card.html?id=' + encodeURIComponent(myId));
+              return;
+            }
+          }
+
           const res = uid ? await UVACO_CLOUD.getCardByUserId(uid) : await UVACO_CLOUD.getMyCard();
           if (res && res.card) {
             const card = res.card;

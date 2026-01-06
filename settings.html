@@ -104,8 +104,8 @@ body {
         <div class="settings-item-arrow">→</div>
       </a>
       
-      <!-- 編輯名片 -->
-      <a href="edit.html" class="settings-item">
+      <!-- 編輯名片（帶 uid，避免載入錯誤） -->
+      <a href="edit.html" class="settings-item" onclick="return gotoMyEdit(event)">
         <div class="settings-item-icon">✏️</div>
         <div class="settings-item-content">
           <div class="settings-item-title lang-zh">編輯名片</div>
@@ -227,6 +227,32 @@ function handleLogout() {
     }
     // 回到首頁（會自動判斷是否需登入）
     window.location.replace('index.html');
+  }
+}
+
+// 前往「我的編輯頁」：一律帶 uid/next，避免載入錯誤
+async function gotoMyEdit(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  try {
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+      window.location.href = 'edit.html';
+      return false;
+    }
+    const s = await UVACO_CLOUD.getSession();
+    const uid = s && s.session && s.session.user ? String(s.session.user.id || '').trim() : '';
+    if (!uid) {
+      window.location.href = 'auth.html?next=' + encodeURIComponent('settings.html');
+      return false;
+    }
+    const next = 'settings.html';
+    window.location.href = 'edit.html?uid=' + encodeURIComponent(uid) + '&next=' + encodeURIComponent(next);
+    return false;
+  } catch (e) {
+    window.location.href = 'edit.html';
+    return false;
   }
 }
 
