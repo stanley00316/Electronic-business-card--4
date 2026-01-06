@@ -916,6 +916,24 @@ body.theme-light .theme-selector-close {
   padding: 26px 150px 26px 22px; /* 右側留空給頭像 */
 }
 
+/* iPhone 等窄螢幕：縮小左右白邊（右側頭像預留不要太大） */
+@media (max-width: 420px) {
+  .edit-preview-section {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .edit-preview-section .card {
+    padding: 22px 22px 22px 18px !important;
+  }
+  /* 預覽頭像縮小，避免需要預留超大右邊空白 */
+  #previewCard .avatar {
+    width: 68px;
+    height: 68px;
+    right: 18px;
+    top: 18px;
+  }
+}
+
 /* 按鈕群組垂直排列 */
 .edit-preview-section .btn-group {
   display: flex;
@@ -1556,7 +1574,7 @@ body.theme-light .link-input-cancel:hover {
         </div>
       </div>
 
-      <div class="card" id="previewCard" style="position: relative; padding-right: 150px;">
+      <div class="card" id="previewCard" style="position: relative;">
         <img class="avatar edit-clickable" id="previewAvatar" src="default-avatar.svg" alt="Avatar" loading="lazy" onclick="editAvatar()" title="點擊編輯頭像">
         
         <div class="name lang-zh edit-clickable" id="previewNameZh" contenteditable="true" onblur="updateNameFromPreview()" onclick="focusEdit(this)">柯宜瀅 ｜ <span class="en">Yuyu Ko</span></div>
