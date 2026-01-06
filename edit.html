@@ -808,7 +808,8 @@ body.theme-light .theme-selector-close {
     width: 100%;
   }
   /* 按鈕寬度與「+ 新增中文標語」一致，避免被撐滿整行 */
-  .uvaco-company-picker-wrap .edit-add-btn { width: 135px; }
+  /* 需要覆蓋 .edit-preview-section .edit-add-btn { width:100% !important } */
+  .edit-preview-section .uvaco-company-picker-wrap .edit-add-btn { width: 135px !important; }
   .uvaco-company-picker-badge {
     margin-top: 0;
   }
@@ -816,8 +817,16 @@ body.theme-light .theme-selector-close {
 
 /* ===== iPhone SE：姓名呈現（中文｜英文）===== */
 /* 目標：姓名必須單行水平呈現；若太長，自動縮小字體維持單行 */
-#previewNameZh, #previewNameEn { white-space: nowrap; }
-#previewNameZh .en, #previewNameEn .en { display: inline; }
+/* 需要覆蓋 .edit-preview-section .name { display:inline-block } 造成的窄欄換行 */
+.edit-preview-section #previewNameZh,
+.edit-preview-section #previewNameEn {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+}
+.edit-preview-section #previewNameZh .en,
+.edit-preview-section #previewNameEn .en { display: inline; }
 
 /* 可編輯元素樣式 */
 .edit-clickable {
