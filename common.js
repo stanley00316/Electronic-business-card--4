@@ -299,9 +299,9 @@ function ensureEditContactLayoutToggle() {
         .contact-layout-btn{border:none;border-radius:999px;padding:8px 12px;font-size:13px;cursor:pointer;background:transparent;color:inherit;opacity:.9;transition:.2s}
         .contact-layout-btn.is-active{background:rgba(var(--uvaco-green-rgb),.20);color:var(--uvaco-green);opacity:1}
         .contact-layout-btn:hover{transform:translateY(-1px)}
-        /* Grid mode */
-        .btn-group.contact-layout-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-        @media (min-width:720px){.btn-group.contact-layout-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+        /* Grid mode：固定至少 3 張；寬度夠就 4 張（不允許 2/1） */
+        .btn-group.contact-layout-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+        @media (min-width:980px){.btn-group.contact-layout-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
         .btn-group.contact-layout-grid .btn{border-radius:18px;height:92px;white-space:normal;flex-direction:column;justify-content:center;align-items:center;gap:10px;padding:14px 12px;text-align:center}
         .btn-group.contact-layout-grid .btn:hover{transform:translateY(-1px)}
       `;

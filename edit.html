@@ -927,11 +927,15 @@ body.theme-light .theme-selector-close {
 /* 聯絡方式：小卡片（Grid） */
 .edit-preview-section .btn-group.contact-layout-grid {
   display: grid;
-  /* 依容器寬度自動排：寬度夠就一列 3 張/4 張，不夠就 2/1 */
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  /* 固定至少 3 張：不允許變成 2/1 */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
-/* 不再用固定斷點，改由 auto-fit 自動決定欄數 */
+@media (min-width: 980px) {
+  .edit-preview-section .btn-group.contact-layout-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
 
 /* 聯絡方式按鈕垂直排列 */
 .edit-preview-section .contact-btn-wrapper {
