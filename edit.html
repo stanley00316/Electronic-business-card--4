@@ -2165,61 +2165,109 @@ function showAdminBanner(targetUserId) {
 }
 
 function loadCardToUI(card) {
-  // 將後端名片資料填入表單
+  // 將後端名片資料直接套到「預覽區」（本頁是 contenteditable 直編模式）
   if (!card) return;
-  
-  // 1. 基本欄位
-  const setVal = (id, v) => {
-    const el = document.getElementById(id);
-    if (el) el.value = v || '';
-  };
-  
-  // 名稱拆分 (假設存的時候有 profile_json.nameZh / nameEn，或者是單一名稱字串)
+
+  const safeText = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+
   let pj = card.profile_json;
   if (typeof pj === 'string') {
     try { pj = JSON.parse(pj); } catch (e) { pj = {}; }
   }
-  pj = pj || {};
+  pj = (pj && typeof pj === 'object') ? pj : {};
 
-  // 公司鎖定/預選（給企業管理用）：一般使用者第一次儲存後鎖定
+  const setHtmlLikeName = (id, raw) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const s = safeText(raw);
+    if (!s) return;
+    const parts = s.split(/\s*｜\s*/);
+    if (parts.length >= 2) {
+      el.innerHTML = `${parts[0]} ｜ <span class="en">${parts.slice(1).join(' ｜ ')}</span>`;
+    } else {
+      el.textContent = s;
+    }
+  };
+
+  const setText = (id, raw) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const s = safeText(raw);
+    if (!s) return;
+    el.textContent = s;
+  };
+
+  // 1) 套用主題
   try {
-    const canonical = String(pj.companyCanonical || card.company || '').trim();
+    const theme = parseInt(card.theme || pj.theme || 1, 10) || 1;
+    setTheme(theme);
+    window.currentCardTheme = theme;
+    if (typeof updateCardThemeUI === 'function') updateCardThemeUI(theme);
+  } catch (e) {}
+
+  // 2) 套用姓名/職務（雙語）
+  setHtmlLikeName('previewNameZh', pj.nameZh || card.name || '');
+  setHtmlLikeName('previewNameEn', pj.nameEn || card.name || '');
+  setText('previewTitleZh', pj.titleZh || card.title || '');
+  setText('previewTitleEn', pj.titleEn || card.title || '');
+
+  // 3) 公司（canonical + 鎖定）
+  try {
+    const canonical = safeText(pj.companyCanonical || card.company || '');
     window.__uvacoSelectedCompany = canonical;
     window.__uvacoOriginalCompanyCanonical = canonical;
     window.__uvacoCompanyLocked = (pj.companyLocked === true) && !isAdminModeFromUrl();
-    if (canonical) {
-      applyCompanyToUI(canonical);
+    if (canonical) applyCompanyToUI(canonical);
+  } catch (e) {}
+
+  // 4) Logo / Avatar（優先 Storage path）
+  (async function () {
+    try {
+      const logo = document.getElementById('previewLogo');
+      const avatar = document.getElementById('previewAvatar');
+      if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
+        if (logo) {
+          if (pj.logoPath) {
+            const u = await UVACO_CLOUD.getSignedAssetUrl(String(pj.logoPath), { bucket: 'card-assets', expiresIn: 3600 });
+            if (u && u.url) logo.setAttribute('src', u.url);
+          } else if (pj.logoSrc) {
+            logo.setAttribute('src', String(pj.logoSrc));
+          }
+        }
+        if (avatar) {
+          if (pj.avatarPath) {
+            const u = await UVACO_CLOUD.getSignedAssetUrl(String(pj.avatarPath), { bucket: 'card-assets', expiresIn: 3600 });
+            if (u && u.url) avatar.setAttribute('src', u.url);
+          } else if (pj.avatarSrc) {
+            avatar.setAttribute('src', String(pj.avatarSrc));
+          }
+        }
+      }
+    } catch (e) {}
+  })();
+
+  // 5) 公司資訊（直接回填 HTML，維持原版型與可編輯事件）
+  try {
+    const section = document.getElementById('companyInfoSection');
+    if (section && pj.companyInfoHtml) {
+      section.innerHTML = String(pj.companyInfoHtml);
     }
   } catch (e) {}
 
-  // 如果有詳細欄位優先使用，否則嘗試從 name 拆分
-  if (pj.nameZh) setVal('nameZhInput', pj.nameZh);
-  if (pj.nameEn) setVal('nameEnInput', pj.nameEn);
-  if (!pj.nameZh && !pj.nameEn && card.name) {
-    // 簡易拆分嘗試
-    const parts = card.name.split(' ');
-    setVal('nameZhInput', parts[0] || '');
-    setVal('nameEnInput', parts.slice(1).join(' ') || '');
-  }
+  // 6) 聯絡方式（直接回填 HTML，維持排序與顯示方式）
+  try {
+    const contacts = document.getElementById('previewContacts');
+    if (contacts && pj.contactsHtml) {
+      contacts.innerHTML = String(pj.contactsHtml);
+    }
+    // 套用顯示方式（grid/list）
+    const layout = String(pj.contactLayout || '').toLowerCase() === 'grid' ? 'grid' : 'list';
+    window.__uvacoContactLayout = layout;
+    if (typeof applyContactLayout === 'function') applyContactLayout(layout);
+  } catch (e) {}
 
-  setVal('titleZhInput', pj.titleZh || card.title || '');
-  setVal('titleEnInput', pj.titleEn || '');
-  setVal('companyZhInput', pj.companyZh || card.company || '');
-  setVal('companyEnInput', pj.companyEn || '');
-  setVal('emailInput', card.email || '');
-  setVal('phoneInput', card.phone || '');
-  setVal('introZhInput', pj.introZh || '');
-  setVal('introEnInput', pj.introEn || '');
-
-  // 2. 主題
-  if (card.theme) {
-    setTheme(card.theme);
-    window.currentCardTheme = card.theme;
-    updateCardThemeUI(card.theme);
-  }
-
-  // 3. 觸發預覽更新
-  updatePreview();
+  // 7) 同步標語預覽（避免事件遺失）
+  try { if (typeof updateSlogansPreview === 'function') updateSlogansPreview(); } catch (e) {}
 }
 
 // 聚焦編輯
