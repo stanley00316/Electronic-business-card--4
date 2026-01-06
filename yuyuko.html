@@ -242,11 +242,27 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             // 更新名稱/職務/公司
-            // 注意：name 可能包含「｜」分隔，這裡保留原字串以符合你的顯示習慣
-            const nameZhEl = document.getElementById('viewerNameZh');
-            const nameEnEl = document.getElementById('viewerNameEn');
-            if (nameZhEl && nameZh) nameZhEl.innerHTML = nameZh;
-            if (nameEnEl && nameEn) nameEnEl.innerHTML = nameEn;
+            // 規則：支援「左｜右」或「中文（英文）」格式，英文固定換到下一列
+            const renderName = (id, raw) => {
+              const el = document.getElementById(id);
+              if (!el) return;
+              const s = safeText(raw);
+              if (!s) return;
+              const parts = s.split(/\s*｜\s*/);
+              if (parts.length >= 2) {
+                el.innerHTML = `${parts[0] || ''}<span class="en">${parts.slice(1).join(' ｜ ')}</span>`;
+                return;
+              }
+              const m = s.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
+              if (m) {
+                el.innerHTML = `${m[1].trim()}<span class="en">${m[2].trim()}</span>`;
+                return;
+              }
+              el.textContent = s;
+            };
+
+            renderName('viewerNameZh', nameZh);
+            renderName('viewerNameEn', nameEn);
             setText('viewerTitleZh', titleZh);
             setText('viewerTitleEn', titleEn);
             setText('viewerCompanyStrongZh', companyZh);

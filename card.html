@@ -100,13 +100,22 @@ function renderBilingualName(htmlTargetId, raw) {
   if (!el) return;
   const s = safeText(raw);
   if (!s) { el.textContent = '-'; return; }
-  // 嘗試把「左｜右」格式轉成 span.en（與 yuyuko.html 一致）
+  // 支援：
+  // - 「左｜右」→ 英文換到下一列
+  // - 「中文（英文）」/「中文(英文)」→ 英文換到下一列
   const parts = s.split(/\s*｜\s*/);
   if (parts.length >= 2) {
-    el.innerHTML = `${parts[0]} ｜ <span class="en">${parts.slice(1).join(' ｜ ')}</span>`;
-  } else {
-    el.textContent = s;
+    const left = parts[0] || '';
+    const right = parts.slice(1).join(' ｜ ');
+    el.innerHTML = `${left}<span class="en">${right}</span>`;
+    return;
   }
+  const m = s.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
+  if (m) {
+    el.innerHTML = `${m[1].trim()}<span class="en">${m[2].trim()}</span>`;
+    return;
+  }
+  el.textContent = s;
 }
 
 async function applyAssets(pj) {

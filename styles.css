@@ -276,6 +276,8 @@ body.theme-light .card:not([class*="card-theme-"]) {
   margin-bottom: 5px;
 }
 .name .en { color: var(--uvaco-green); }
+/* 名片頁：英文名改為下一列，避免與中文擠在同一行（小螢幕更清楚） */
+.card .name .en { display: block; }
 
 .tagline {
   font-size: 14px;
