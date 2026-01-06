@@ -26,7 +26,7 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="cloud.js?v=20260105"></script>
+  <script src="cloud.js?v=20260106"></script>
 </head>
 <body>
 
@@ -34,9 +34,12 @@
 
 <div class="toolbar">
   <input type="text" id="searchInput" placeholder="搜尋姓名、公司..." onkeyup="filterTable()">
-  <button class="btn btn-green" onclick="location.reload()">重新整理</button>
-  <button class="btn btn-outline" onclick="location.href='edit.html'">返回編輯</button>
+  <button class="btn btn-green" onclick="reloadData()">重新整理</button>
+  <button class="btn btn-outline" onclick="location.href='directory.html'">返回通訊錄</button>
+  <button class="btn btn-outline" onclick="location.href='settings.html'">前往設定</button>
 </div>
+
+<div id="adminHint" style="margin:10px 0 18px;color:#aaa;font-size:13px"></div>
 
 <table id="userTable">
   <thead>
@@ -53,6 +56,33 @@
   </tbody>
 </table>
 
+<!-- Super Admin：管理員管理 -->
+<div id="adminMgmt" style="display:none;margin-top:26px;background:#1b1b1b;border:1px solid #2b2b2b;border-radius:12px;padding:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+    <div style="font-size:16px;color:var(--uvaco-green);font-weight:700">管理員管理（超級管理員）</div>
+    <button class="btn btn-outline" onclick="loadAdmins()">重新整理管理員列表</button>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <input type="text" id="adminUserIdInput" placeholder="User ID (uuid)" style="flex:2;min-width:280px">
+    <input type="text" id="adminCompanyInput" placeholder="管理公司（留空＝超級管理員）" style="flex:1;min-width:220px">
+    <button class="btn btn-green" onclick="saveAdminUser()">新增/更新</button>
+    <button class="btn btn-outline" onclick="removeAdminUser()">移除</button>
+  </div>
+
+  <table id="adminTable" style="width:100%;border-collapse:collapse;background:#222;border-radius:12px;overflow:hidden">
+    <thead>
+      <tr>
+        <th style="background:#333;color:#aaa;font-weight:normal;padding:12px;border-bottom:1px solid #333">User ID</th>
+        <th style="background:#333;color:#aaa;font-weight:normal;padding:12px;border-bottom:1px solid #333">managed_company</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="2" style="padding:12px;text-align:center;color:#888">載入中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
 <div id="qrModal" class="qr-modal" onclick="this.style.display='none'">
   <div class="qr-box" onclick="event.stopPropagation()">
     <h3 id="qrName"></h3>
@@ -64,6 +94,7 @@
 
 <script>
 let allData = [];
+let adminStatus = null;
 
 async function init() {
   // 1. 檢查登入
@@ -74,17 +105,37 @@ async function init() {
   }
 
   // 2. 檢查權限
-  const isAdmin = await UVACO_CLOUD.isAdmin();
-  if (!isAdmin) {
+  adminStatus = await UVACO_CLOUD.isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) {
     alert('權限不足：您不是管理員。');
     window.location.href = 'directory.html';
     return;
   }
 
-  // 3. 抓取資料
+  // 顯示管理員提示（超級管理員 / 企業管理員）
+  const hint = document.getElementById('adminHint');
+  if (hint) {
+    hint.textContent = adminStatus.managedCompany
+      ? `目前身分：企業管理員（只顯示公司包含「${adminStatus.managedCompany}」的名片）`
+      : '目前身分：超級管理員（可管理全部名片與管理員名單）';
+  }
+
+  // Super Admin 才顯示管理員管理區
+  const mgmt = document.getElementById('adminMgmt');
+  if (mgmt) {
+    mgmt.style.display = (!adminStatus.managedCompany) ? 'block' : 'none';
+  }
+
+  await reloadData();
+  if (!adminStatus.managedCompany) {
+    await loadAdmins();
+  }
+}
+
+async function reloadData() {
   const { rows } = await UVACO_CLOUD.getAllCardsAdmin();
-  allData = rows;
-  renderTable(rows);
+  allData = rows || [];
+  renderTable(allData);
 }
 
 function renderTable(data) {
@@ -108,6 +159,8 @@ function renderTable(data) {
       <td>
         <button class="btn btn-green" onclick="copyLink('${url}')">複製連結</button>
         <button class="btn btn-outline" onclick="showQR('${row.name}', '${url}')">QR Code</button>
+        <button class="btn btn-outline" onclick="editCard('${row.user_id}')">編輯</button>
+        <button class="btn btn-outline" onclick="deleteCard('${row.user_id}')">刪除</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -136,6 +189,81 @@ function showQR(name, url) {
     width: 200,
     height: 200
   });
+}
+
+function editCard(userId) {
+  const u = encodeURIComponent(userId);
+  window.location.href = `edit.html?adminMode=true&targetUserId=${u}&next=admin.html`;
+}
+
+async function deleteCard(userId) {
+  const ok = confirm('確定要刪除此名片嗎？此動作無法復原。');
+  if (!ok) return;
+  try {
+    await UVACO_CLOUD.deleteCard(userId);
+    await reloadData();
+    alert('已刪除。');
+  } catch (e) {
+    alert('刪除失敗：' + String(e?.message || e || ''));
+  }
+}
+
+async function loadAdmins() {
+  const tbody = document.querySelector('#adminTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="2" style="padding:12px;text-align:center;color:#888">載入中...</td></tr>';
+  try {
+    const { rows } = await UVACO_CLOUD.getAdminUsers();
+    const list = rows || [];
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="2" style="padding:12px;text-align:center;color:#888">無資料</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    list.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding:12px;border-bottom:1px solid #333;color:#ddd;font-family:monospace">${r.user_id}</td>
+        <td style="padding:12px;border-bottom:1px solid #333;color:#aaa">${r.managed_company || '(Super Admin)'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="2" style="padding:12px;text-align:center;color:#ef4444">載入失敗</td></tr>';
+  }
+}
+
+async function saveAdminUser() {
+  const uid = (document.getElementById('adminUserIdInput')?.value || '').trim();
+  const company = (document.getElementById('adminCompanyInput')?.value || '').trim();
+  if (!uid) {
+    alert('請輸入 User ID');
+    return;
+  }
+  try {
+    await UVACO_CLOUD.upsertAdminUser(uid, company);
+    await loadAdmins();
+    alert('已更新管理員。');
+  } catch (e) {
+    alert('更新失敗：' + String(e?.message || e || ''));
+  }
+}
+
+async function removeAdminUser() {
+  const uid = (document.getElementById('adminUserIdInput')?.value || '').trim();
+  if (!uid) {
+    alert('請輸入要移除的 User ID');
+    return;
+  }
+  const ok = confirm('確定要移除此管理員嗎？');
+  if (!ok) return;
+  try {
+    await UVACO_CLOUD.deleteAdminUser(uid);
+    await loadAdmins();
+    alert('已移除管理員。');
+  } catch (e) {
+    alert('移除失敗：' + String(e?.message || e || ''));
+  }
 }
 
 init();

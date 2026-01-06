@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="theme-9.css">
   <!-- Supabase JS（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=20260105"></script>
+<script src="cloud.js?v=20260106"></script>
   <style>
 .edit-page-wrapper {
   padding-bottom: 100px;
@@ -2073,26 +2073,122 @@ body.theme-light .link-input-cancel:hover {
       const r = await UVACO_CLOUD.requireAuth(here);
       if (!r.ok) return;
 
-      // 若使用者已經有名片：視為已 onboarding（避免清掉 localStorage 後又被當新手）
-      const my = await UVACO_CLOUD.getMyCard();
-      if (my && my.card) {
-        try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
-        return;
+      // Admin Mode: 檢查是否有 adminMode=true 與 targetUserId
+      const params = new URLSearchParams(window.location.search || '');
+      const adminMode = params.get('adminMode') === 'true';
+      const targetUserId = params.get('targetUserId');
+
+      // 預設為編輯自己的名片
+      let cardData = null;
+
+      if (adminMode && targetUserId) {
+        // 管理員模式：檢查權限並讀取目標名片
+        const adminStatus = await UVACO_CLOUD.isAdmin();
+        if (!adminStatus || !adminStatus.isAdmin) {
+          alert('權限不足：您不是管理員');
+          window.location.href = 'directory.html';
+          return;
+        }
+        
+        // 顯示管理員提示條
+        showAdminBanner(targetUserId);
+
+        // 讀取目標名片
+        const res = await UVACO_CLOUD.getCardByUserId(targetUserId);
+        cardData = res.card;
+        
+        // 如果該用戶還沒名片，cardData 為 null，視為幫他新建
+      } else {
+        // 一般模式：讀取自己的名片
+        const my = await UVACO_CLOUD.getMyCard();
+        cardData = my.card;
+        
+        // 若使用者已經有名片：視為已 onboarding（避免清掉 localStorage 後又被當新手）
+        if (cardData) {
+          try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
+        }
+
+        // 若尚未建立名片，且網址未指定 mode：自動切換為 onboarding
+        if (!cardData && !params.get('mode')) {
+          params.set('mode', 'onboarding');
+          if (!params.get('next')) params.set('next', 'directory.html');
+          const qs = params.toString();
+          const newUrl = 'edit.html' + (qs ? ('?' + qs) : '');
+          window.history.replaceState({}, '', newUrl);
+        }
       }
 
-      // 若尚未建立名片，且網址未指定 mode：自動切換為 onboarding
-      // 目的：saveCard() 可走 onboarding 的同意確認與儲存後導回 next
-      const params = new URLSearchParams(window.location.search || '');
-      if (!params.get('mode')) {
-        params.set('mode', 'onboarding');
-        if (!params.get('next')) params.set('next', 'directory.html');
-        const qs = params.toString();
-        const newUrl = 'edit.html' + (qs ? ('?' + qs) : '');
-        window.history.replaceState({}, '', newUrl);
+      // 如果有讀到名片資料，載入到介面
+      if (cardData) {
+        loadCardToUI(cardData);
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Init failed', e);
+  }
 })();
+
+function showAdminBanner(targetUserId) {
+  const div = document.createElement('div');
+  div.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; 
+    background: #eab308; color: #000; font-weight: bold; 
+    text-align: center; padding: 8px; z-index: 9999;
+    font-size: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  `;
+  div.innerHTML = `⚠️ 管理員模式：您正在編輯使用者 ${targetUserId} 的名片 <button onclick="window.location.href='admin.html'" style="margin-left:10px;padding:2px 8px;border:1px solid #000;background:transparent;cursor:pointer;border-radius:4px;">返回後台</button>`;
+  document.body.appendChild(div);
+  // 把 top-bar 往下推一點以免被擋住
+  const topBar = document.querySelector('.top-bar');
+  if (topBar) topBar.style.marginTop = '36px';
+}
+
+function loadCardToUI(card) {
+  // 將後端名片資料填入表單
+  if (!card) return;
+  
+  // 1. 基本欄位
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.value = v || '';
+  };
+  
+  // 名稱拆分 (假設存的時候有 profile_json.nameZh / nameEn，或者是單一名稱字串)
+  let pj = card.profile_json;
+  if (typeof pj === 'string') {
+    try { pj = JSON.parse(pj); } catch (e) { pj = {}; }
+  }
+  pj = pj || {};
+
+  // 如果有詳細欄位優先使用，否則嘗試從 name 拆分
+  if (pj.nameZh) setVal('nameZhInput', pj.nameZh);
+  if (pj.nameEn) setVal('nameEnInput', pj.nameEn);
+  if (!pj.nameZh && !pj.nameEn && card.name) {
+    // 簡易拆分嘗試
+    const parts = card.name.split(' ');
+    setVal('nameZhInput', parts[0] || '');
+    setVal('nameEnInput', parts.slice(1).join(' ') || '');
+  }
+
+  setVal('titleZhInput', pj.titleZh || card.title || '');
+  setVal('titleEnInput', pj.titleEn || '');
+  setVal('companyZhInput', pj.companyZh || card.company || '');
+  setVal('companyEnInput', pj.companyEn || '');
+  setVal('emailInput', card.email || '');
+  setVal('phoneInput', card.phone || '');
+  setVal('introZhInput', pj.introZh || '');
+  setVal('introEnInput', pj.introEn || '');
+
+  // 2. 主題
+  if (card.theme) {
+    setTheme(card.theme);
+    window.currentCardTheme = card.theme;
+    updateCardThemeUI(card.theme);
+  }
+
+  // 3. 觸發預覽更新
+  updatePreview();
+}
 
 // 聚焦編輯
 function focusEdit(element) {
@@ -3583,6 +3679,8 @@ async function saveCard() {
   const consentVersion = 'v1.0';
   const policyUrl = (UVACO_CLOUD.getBaseUrl ? UVACO_CLOUD.getBaseUrl() : '') + 'privacy.html';
   const needConfirm = params.get('mode') === 'onboarding';
+  const adminMode = params.get('adminMode') === 'true';
+  const targetUserId = params.get('targetUserId');
   if (needConfirm) {
     const ok = confirm(
       currentLang === 'zh'
@@ -3596,8 +3694,19 @@ async function saveCard() {
     // 寫入同意紀錄（若已同意同版本則會略過）
     await UVACO_CLOUD.ensureConsent(consentVersion, policyUrl);
 
+    // 管理員模式：不支援替他人上傳圖片（Storage 路徑與權限以 auth.uid() 為準）
+    if (adminMode && targetUserId) {
+      if (window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
+        alert(currentLang === 'zh'
+          ? '管理員模式目前不支援替他人上傳圖片，請由本人登入後更新頭像/Logo。'
+          : 'Admin mode does not support uploading images for other users. Please ask the owner to update avatar/logo.'
+        );
+        return;
+      }
+    }
+
     // 圖片上傳：若有選新圖，先上傳到 Supabase Storage，再把 path 寫入 profile_json
-    if (window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
+    if (!adminMode && window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
       try {
         if (window.__uvacoPendingAssets.logo) {
           const up = await UVACO_CLOUD.uploadMyAsset('logo', window.__uvacoPendingAssets.logo.blob, {
@@ -3646,7 +3755,12 @@ async function saveCard() {
     }
 
     try {
-      await UVACO_CLOUD.upsertMyCard({ name, phone, email, company, title, theme, profile_json });
+      if (adminMode && targetUserId) {
+        // 管理員更新他人名片
+        await UVACO_CLOUD.adminUpdateCard(targetUserId, { name, phone, email, company, title, theme, profile_json });
+      } else {
+        await UVACO_CLOUD.upsertMyCard({ name, phone, email, company, title, theme, profile_json });
+      }
     } catch (e) {
       console.error('Card upsert failed', e);
       const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
@@ -3657,12 +3771,18 @@ async function saveCard() {
       return;
     }
 
-    alert(currentLang === 'zh' ? '名片已儲存！即將前往預覽頁面...' : 'Business card saved! Redirecting to preview...');
-    try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
-
-    setTimeout(() => {
-      window.location.href = 'yuyuko.html';
-    }, 500);
+    if (adminMode && targetUserId) {
+      alert(currentLang === 'zh' ? '管理員：名片已更新！' : 'Admin: card updated!');
+      setTimeout(() => {
+        window.location.href = 'admin.html';
+      }, 200);
+    } else {
+      alert(currentLang === 'zh' ? '名片已儲存！即將前往預覽頁面...' : 'Business card saved! Redirecting to preview...');
+      try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
+      setTimeout(() => {
+        window.location.href = 'yuyuko.html';
+      }, 500);
+    }
   } catch (e) {
     console.error('saveCard failed', e);
     const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
