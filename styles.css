@@ -330,7 +330,12 @@ body.theme-light .section-label { color: #6b7280; }
 .btn-group.contact-layout-grid .btn {
   border-radius: 18px;
   height: 92px;
-  white-space: normal; /* 小卡允許換行 */
+  /* 圖標上、文字下；文字必須單行水平（必要時縮字，仍超出則 …） */
+  font-size: clamp(11px, 2.8vw, 14px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
   flex-direction: column;
   justify-content: center;
   align-items: center;

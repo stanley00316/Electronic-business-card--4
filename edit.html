@@ -976,7 +976,12 @@ body.theme-light .theme-selector-close {
 .edit-preview-section .btn-group.contact-layout-grid .btn {
   border-radius: 18px;
   height: 92px;
-  white-space: normal;
+  /* 圖標上、文字下；文字必須單行水平（必要時縮字，仍超出則 …） */
+  font-size: clamp(11px, 2.8vw, 14px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
   justify-content: center;
   padding-left: 12px;
   flex-direction: column;
