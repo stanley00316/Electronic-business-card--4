@@ -1,310 +1,265 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="robots" content="noindex" />
-  <title>電子名片 | Business Card</title>
-  <link rel="stylesheet" href="styles.css?v=20260105">
-  <!-- 動態載入主題 CSS，預設主題1 -->
-  <link id="themeCSS" rel="stylesheet" href="theme-1.css">
-  <style>
-    body { opacity: 0; transition: opacity 0.5s; padding-bottom: 80px; }
-    body.loaded { opacity: 1; }
-    .error-box { text-align: center; padding: 50px 20px; color: #fff; }
-    .loading-spinner { 
-      border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--uvaco-green);
-      border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;
-      margin: 100px auto;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    
-    /* 卡片容器：與 yuyuko.html 結構對齊 */
-    .card-container {
-      width: 100%;
-      max-width: 480px;
-      margin: 20px auto;
-      padding: 0 16px;
-      box-sizing: border-box;
-    }
-    
-    .contact-list-container {
-      width: 100%;
-      max-width: 480px;
-      margin: 30px auto 100px;
-      padding: 0 16px;
-      box-sizing: border-box;
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    .save-contact-btn {
-      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      width: 90%; max-width: 400px; padding: 16px;
-      background: var(--uvaco-green); color: #fff; border: none; border-radius: 12px;
-      font-size: 16px; font-weight: 700; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .save-contact-btn svg { width: 20px; height: 20px; fill: currentColor; }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cloud.js?v=20260106"></script>
-  <script src="common.js?v=20260105"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<meta name="robots" content="noindex" />
+<title>電子名片 | Business Card</title>
+<link rel="stylesheet" href="styles.css?v=20260105">
+<!-- Supabase JS（CDN） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloud.js?v=20260106"></script>
+<script src="common.js?v=20260105"></script>
 </head>
-<body>
 
-  <!-- 背景泡泡 -->
-  <div class="bg-blob blob1"></div>
-  <div class="bg-blob blob2"></div>
+<body class="theme-dark lang-zh">
 
-  <div id="loading" class="loading-spinner"></div>
+<!-- 背景泡泡 -->
+<div class="bg-blob blob1"></div>
+<div class="bg-blob blob2"></div>
 
-  <!-- 錯誤訊息 -->
-  <div id="errorMsg" class="error-box" style="display:none">
-    <h2>找不到名片</h2>
-    <p>連結可能已失效或 ID 錯誤。</p>
+<!-- LOGO 區 -->
+<div class="hero">
+  <div class="hero-frame">
+    <img src="uvaco-logo.svg" class="hero-logo" alt="UVACO" id="viewerLogo">
+  </div>
+</div>
+
+<!-- 資料卡（與 yuyuko.html 完全一致的結構） -->
+<div class="card" id="previewCard">
+
+  <!-- 大頭照（放置於卡片右上角） -->
+  <img class="avatar" src="default-avatar.svg" alt="Avatar" loading="lazy" id="viewerAvatar">
+
+  <!-- 姓名 -->
+  <div class="name lang-zh" id="viewerNameZh">-</div>
+  <div class="name lang-en" id="viewerNameEn">-</div>
+
+  <!-- 職務 -->
+  <div class="tagline lang-zh" id="viewerTitleZh">-</div>
+  <div class="tagline lang-en" id="viewerTitleEn">-</div>
+
+  <!-- 標語（固定佔位，實際以公司名稱為主） -->
+  <div class="tagline lang-zh">健康・事業・未來</div>
+  <div class="tagline lang-zh"><strong id="viewerCompanyStrongZh">-</strong></div>
+
+  <div class="tagline lang-en">Health • Business • Future</div>
+  <div class="tagline lang-en"><strong id="viewerCompanyStrongEn">-</strong></div>
+
+  <div class="divider"></div>
+
+  <!-- 公司資訊區塊（直接使用 edit.html 儲存的 companyInfoHtml） -->
+  <div class="company-info-section" id="companyInfoSection" style="display:none"></div>
+
+  <div class="divider"></div>
+
+  <!-- 標題：聯絡方式 -->
+  <div class="section-label lang-zh">聯絡方式 CONTACT</div>
+  <div class="section-label lang-en">CONTACT</div>
+
+  <!-- 按鈕群組 -->
+  <div class="btn-group" id="viewerContacts">
+    <!-- 會由 profile_json.contactsHtml 動態填入；若不存在則 fallback 使用 phone/email -->
   </div>
 
-  <!-- 名片本體 -->
-  <div id="cardContainer" class="card-container" style="display:none;">
-    <div class="card">
-      <div class="card-inner">
-        <div class="card-front">
-          <div class="logo-area">
-            <img id="viewLogo" src="" alt="Logo" class="logo-img" style="display:none">
-          </div>
-          <div class="card-content">
-            <h2 id="viewCompany" class="company-name"></h2>
-            <div class="name-title-group">
-              <h1 id="viewName" class="name"></h1>
-              <p id="viewTitle" class="title"></p>
-            </div>
-            
-            <!-- 標語區域 -->
-            <div class="taglines">
-              <div id="viewSlogansZh"></div>
-              <div id="viewSlogansEn"></div>
-            </div>
-
-            <!-- 公司資訊 -->
-            <div class="company-info" id="viewCompanyInfo" style="display:none">
-              <!-- 動態填入 -->
-            </div>
-          </div>
-          
-          <!-- 大頭貼 (若有) -->
-          <div class="avatar-area">
-             <img id="viewAvatar" src="" alt="Avatar" class="avatar" style="display:none">
-          </div>
-        </div>
-      </div>
-    </div>
+  <!-- 提示文字 -->
+  <div class="hint lang-zh">
+    若您透過 <strong>NFC 名片</strong> 或分享連結開啟此頁，我會盡快回覆您。
+  </div>
+  <div class="hint lang-en">
+    If you opened this page via <strong>NFC card</strong> or shared link, I will respond as soon as possible.
   </div>
 
-  <!-- 聯絡方式列表 -->
-  <div id="contactList" class="contact-list-container" style="display:none;">
-    <!-- 動態產生按鈕 -->
-  </div>
+</div>
 
-  <!-- 儲存聯絡人按鈕 -->
-  <button id="vcfBtn" class="save-contact-btn" style="display:none">
-    <svg viewBox="0 0 24 24"><path d="M19 13v6a2 2 0 01-2 2H7a2 2 0 01-2-2v-6m14 0V7a2 2 0 00-2-2H7a2 2 0 00-2 2v6m14 0h-2m-8 0H5m4-6h6m-6 4h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    儲存聯絡人
-  </button>
+<!-- 底部導航欄 -->
+<nav class="bottom-nav">
+  <a href="directory.html" class="nav-item">
+    <span class="nav-icon">📋</span>
+    <span class="nav-label lang-zh">通訊錄</span>
+    <span class="nav-label lang-en">Directory</span>
+  </a>
+  <a href="settings.html" class="nav-item">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label lang-zh">設定</span>
+    <span class="nav-label lang-en">Settings</span>
+  </a>
+</nav>
 
 <script>
-async function init() {
-  const params = new URLSearchParams(window.location.search);
-  const userId = params.get('id');
+function safeText(v) {
+  return String(v ?? '').replace(/\s+/g, ' ').trim();
+}
 
-  if (!userId) {
-    showError('網址無效 (缺少 ID)');
+function renderBilingualName(htmlTargetId, raw) {
+  const el = document.getElementById(htmlTargetId);
+  if (!el) return;
+  const s = safeText(raw);
+  if (!s) { el.textContent = '-'; return; }
+  // 嘗試把「左｜右」格式轉成 span.en（與 yuyuko.html 一致）
+  const parts = s.split(/\s*｜\s*/);
+  if (parts.length >= 2) {
+    el.innerHTML = `${parts[0]} ｜ <span class="en">${parts.slice(1).join(' ｜ ')}</span>`;
+  } else {
+    el.textContent = s;
+  }
+}
+
+async function applyAssets(pj) {
+  try {
+    if (pj.logoPath) {
+      const u = await UVACO_CLOUD.getSignedAssetUrl(String(pj.logoPath), { bucket: 'card-assets', expiresIn: 3600 });
+      if (u && u.url) document.getElementById('viewerLogo')?.setAttribute('src', u.url);
+    } else if (pj.logoSrc) {
+      document.getElementById('viewerLogo')?.setAttribute('src', String(pj.logoSrc));
+    }
+  } catch (e) {}
+
+  try {
+    if (pj.avatarPath) {
+      const u = await UVACO_CLOUD.getSignedAssetUrl(String(pj.avatarPath), { bucket: 'card-assets', expiresIn: 3600 });
+      if (u && u.url) document.getElementById('viewerAvatar')?.setAttribute('src', u.url);
+    } else if (pj.avatarSrc) {
+      document.getElementById('viewerAvatar')?.setAttribute('src', String(pj.avatarSrc));
+    }
+  } catch (e) {}
+}
+
+function applyCompanyInfo(pj) {
+  const section = document.getElementById('companyInfoSection');
+  if (!section) return;
+  const html = String(pj.companyInfoHtml || '').trim();
+  if (!html) {
+    section.style.display = 'none';
     return;
   }
+  section.innerHTML = html;
+  section.style.display = 'block';
+}
 
-  // 從 Supabase 讀取資料
+function applyContacts(pj, card) {
+  const group = document.getElementById('viewerContacts');
+  if (!group) return;
+  group.innerHTML = '';
+
+  const html = String(pj.contactsHtml || '').trim();
+  if (html) {
+    group.innerHTML = html;
+  } else {
+    // fallback：只用 phone/email
+    const phone = safeText(card.phone);
+    const email = safeText(card.email);
+
+    if (phone) {
+      group.insertAdjacentHTML('beforeend', `
+        <a class="btn btn-primary lang-zh" href="tel:${phone}">
+          <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電
+        </a>
+        <a class="btn btn-primary lang-en" href="tel:${phone}">
+          <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now
+        </a>
+      `);
+    }
+
+    if (email) {
+      group.insertAdjacentHTML('beforeend', `
+        <a class="btn btn-secondary lang-zh" href="mailto:${email}">
+          <img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email
+        </a>
+        <a class="btn btn-secondary lang-en" href="mailto:${email}">
+          <img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email
+        </a>
+      `);
+    }
+  }
+
+  // 版型（grid/list）
   try {
-    const { card, error } = await UVACO_CLOUD.getCardPublic(userId);
-    
-    if (error || !card) {
-      console.error('Fetch failed:', error);
-      showError('找不到此名片資料');
+    const layout = String(pj.contactLayout || '').toLowerCase() === 'grid' ? 'grid' : 'list';
+    group.classList.toggle('contact-layout-grid', layout === 'grid');
+  } catch (e) {}
+}
+
+function openMap(addressType, event) {
+  event.stopPropagation();
+  event.preventDefault();
+  const typeCapitalized = addressType.charAt(0).toUpperCase() + addressType.slice(1);
+  const zhEl = document.getElementById(`preview${typeCapitalized}Zh`);
+  const enEl = document.getElementById(`preview${typeCapitalized}En`);
+  const address = zhEl?.querySelector('.address-text')?.textContent || enEl?.querySelector('.address-text')?.textContent || '';
+  if (address && address !== '（未設定）' && address !== '（Not Set）') {
+    const encodedAddress = encodeURIComponent(address);
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    window.open(mapUrl, '_blank');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  (async function () {
+    const params = new URLSearchParams(window.location.search || '');
+    const userId = params.get('id');
+    if (!userId) {
+      alert('網址無效（缺少 id）');
       return;
     }
 
-    renderCard(card);
-  } catch (e) {
-    console.error(e);
-    showError('載入失敗，請稍後再試');
-  }
-}
-
-async function renderCard(card) {
-  document.getElementById('loading').style.display = 'none';
-  document.body.classList.add('loaded');
-  document.getElementById('cardContainer').style.display = 'block';
-  document.getElementById('contactList').style.display = 'block';
-  document.getElementById('vcfBtn').style.display = 'flex';
-
-  // 1. 設定主題
-  const themeId = card.theme || 1;
-  if (typeof setTheme === 'function') {
-    setTheme(themeId);
-  } else {
-    // Fallback: 如果 common.js 尚未就緒或 setTheme 不存在
-    document.getElementById('themeCSS').href = `theme-${themeId}.css`;
-    document.body.className = `card-theme-${themeId}`;
-  }
-  
-  // 2. 填入基本文字
-  const pj = (typeof card.profile_json === 'string') 
-    ? JSON.parse(card.profile_json) 
-    : (card.profile_json || {});
-
-  // 優先使用 profile_json 中的雙語欄位，沒有則退回 card 根欄位
-  const lang = localStorage.getItem('lang') || 'zh'; // 之後可做切換
-  const isZh = lang === 'zh';
-
-  const name = (isZh ? pj.nameZh : pj.nameEn) || card.name || '';
-  const title = (isZh ? pj.titleZh : pj.titleEn) || card.title || '';
-  const company = (isZh ? pj.companyZh : pj.companyEn) || card.company || '';
-
-  setText('viewName', name);
-  setText('viewTitle', title);
-  setText('viewCompany', company);
-
-  // 3. 圖片 (Logo / Avatar)
-  if (pj.logoPath) await setImg('viewLogo', pj.logoPath);
-  if (pj.avatarPath) await setImg('viewAvatar', pj.avatarPath);
-
-  // 4. 標語 (Slogans)
-  // 假設 edit.html 儲存時把 HTML 直接存進了 profile_json.slogansHtml? 
-  // 或者我們重新組裝。為了簡單，這裡假設資料結構：
-  // 暫時若 edit.html 沒存結構化 slogans，我們略過或顯示預設
-  
-  // 5. 公司資訊 (地址/統編)
-  if (pj.companyInfoHtml) {
-    const infoBox = document.getElementById('viewCompanyInfo');
-    infoBox.innerHTML = pj.companyInfoHtml;
-    infoBox.style.display = 'block';
-  }
-
-  // 6. 聯絡按鈕
-  renderContacts(pj, card);
-
-  // 7. VCF 下載
-  document.getElementById('vcfBtn').onclick = () => downloadVcf(card, pj);
-}
-
-function setText(id, text) {
-  const el = document.getElementById(id);
-  if (text) {
-    el.textContent = text;
-    el.style.display = '';
-  } else {
-    el.style.display = 'none';
-  }
-}
-
-async function setImg(id, path) {
-  if (!path) return;
-  const { url } = await UVACO_CLOUD.getSignedAssetUrl(path);
-  if (url) {
-    const el = document.getElementById(id);
-    el.src = url;
-    el.style.display = 'block';
-  }
-}
-
-function renderContacts(pj, card) {
-  const container = document.getElementById('contactList');
-  container.innerHTML = ''; // 清空
-
-  // 如果有 contactsHtml (從 edit.html 直接存來的 HTML)，優先使用
-  // 因為 edit.html 裡面的排序、按鈕樣式都已經由使用者調整好
-  if (pj.contactsHtml) {
-    container.innerHTML = pj.contactsHtml;
-    
-    // 修正連結點擊 (因為 HTML 是靜態的，onclick 事件可能失效或指向舊函式)
-    // 我們需要重新綁定點擊事件或確保 href 是正確的
-    // edit.html 存的是 <a href="...">...</a>，所以通常沒問題
-    
-    // 處理版型 (Grid / List)
-    const layout = pj.contactLayout || 'list';
-    const listDiv = container.querySelector('#previewContacts') || container.querySelector('.btn-group') || container.firstElementChild;
-    if (listDiv) {
-        if (layout === 'grid') {
-            listDiv.classList.add('contact-layout-grid');
-            listDiv.classList.remove('contact-list');
-        } else {
-            listDiv.classList.add('contact-list');
-            listDiv.classList.remove('contact-layout-grid');
-        }
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+      alert('尚未設定 Supabase（請先設定 cloud.js）');
+      return;
     }
-    return;
-  }
 
-  // Fallback: 如果沒有儲存 HTML，則從欄位重建 (舊資料相容)
-  const list = document.createElement('div');
-  list.className = (pj.contactLayout === 'grid') ? 'btn-group contact-layout-grid' : 'contact-list';
-  
-  if (card.phone) addBtn(list, 'phone', card.phone, `tel:${card.phone}`);
-  if (card.email) addBtn(list, 'email', card.email, `mailto:${card.email}`);
-  
-  container.appendChild(list);
-}
+    let ownerTheme = 1;
+    try {
+      const res = await UVACO_CLOUD.getCardPublic(userId);
+      const card = res?.card || null;
+      if (!card) {
+        alert('找不到名片資料');
+        return;
+      }
 
-function addBtn(container, type, label, link) {
-  const btn = document.createElement('a');
-  btn.className = 'contact-btn'; // 或 'btn' 視 CSS 而定
-  btn.href = link;
-  // 簡易樣式
-  btn.innerHTML = `<span>${type}: ${label}</span>`;
-  container.appendChild(btn);
-}
+      ownerTheme = parseInt(card.theme || 1, 10) || 1;
 
-function downloadVcf(card, pj) {
-  // 產生 VCF 內容
-  const n = (pj.nameZh || card.name || '').replace(/;/g, '');
-  const org = (pj.companyZh || card.company || '').replace(/;/g, '');
-  const tel = (card.phone || '').replace(/[^0-9+]/g, '');
-  
-  const vcf = [
-    'BEGIN:VCARD',
-    'VERSION:3.0',
-    `FN:${n}`,
-    `ORG:${org}`,
-    `TITLE:${pj.titleZh || card.title || ''}`,
-    `TEL;TYPE=CELL:${tel}`,
-    `EMAIL:${card.email || ''}`,
-    // 如果有頭像 URL，有些手機支援 PHOTO;URI:...
-    'END:VCARD'
-  ].join('\n');
-  
-  const blob = new Blob([vcf], { type: 'text/vcard' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${n || 'contact'}.vcf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
+      let pj = card.profile_json;
+      if (typeof pj === 'string') {
+        try { pj = JSON.parse(pj); } catch (e) { pj = null; }
+      }
+      pj = (pj && typeof pj === 'object') ? pj : {};
 
-function showError(msg) {
-  document.getElementById('loading').style.display = 'none';
-  const box = document.getElementById('errorMsg');
-  box.style.display = 'block';
-  box.querySelector('p').textContent = msg;
-}
+      const nameZh = safeText(pj.nameZh) || safeText(card.name);
+      const nameEn = safeText(pj.nameEn) || safeText(card.name);
+      const titleZh = safeText(pj.titleZh) || safeText(card.title);
+      const titleEn = safeText(pj.titleEn) || safeText(card.title);
+      const companyZh = safeText(pj.companyZh) || safeText(card.company);
+      const companyEn = safeText(pj.companyEn) || safeText(card.company);
 
-init();
+      renderBilingualName('viewerNameZh', nameZh);
+      renderBilingualName('viewerNameEn', nameEn);
+      document.getElementById('viewerTitleZh').textContent = titleZh || '-';
+      document.getElementById('viewerTitleEn').textContent = titleEn || '-';
+      document.getElementById('viewerCompanyStrongZh').textContent = companyZh || '-';
+      document.getElementById('viewerCompanyStrongEn').textContent = companyEn || '-';
+
+      await applyAssets(pj);
+      applyCompanyInfo(pj);
+      applyContacts(pj, card);
+    } catch (e) {
+      console.error(e);
+      alert('載入失敗，請稍後再試');
+    } finally {
+      // 套用「觀看者背景主題」+「名片主題」的規則（與 yuyuko.html 一致）
+      if (typeof initViewerPage === 'function') {
+        initViewerPage(ownerTheme);
+      } else if (typeof setTheme === 'function') {
+        setTheme(ownerTheme);
+      }
+    }
+  })();
+});
 </script>
+
 </body>
 </html>
