@@ -819,14 +819,13 @@ body.theme-light .theme-selector-close {
 /* 目標：姓名必須單行水平呈現；若太長，自動縮小字體維持單行 */
 /* 需要覆蓋 .edit-preview-section .name { display:inline-block } 造成的窄欄換行 */
 .edit-preview-section #previewNameZh,
-.edit-preview-section #previewNameEn {
   display: block !important;
   width: 100% !important;
   max-width: 100% !important;
   white-space: nowrap !important;
 }
 .edit-preview-section #previewNameZh .en,
-.edit-preview-section #previewNameEn .en { display: inline; }
+.edit-preview-section #previewNameZh .en { display: inline; }
 
 /* 可編輯元素樣式 */
 .edit-clickable {
@@ -1560,7 +1559,6 @@ body.theme-light .link-input-cancel:hover {
         <img class="avatar edit-clickable" id="previewAvatar" src="default-avatar.svg" alt="Avatar" loading="lazy" onclick="editAvatar()" title="點擊編輯頭像">
         
         <div class="name lang-zh edit-clickable" id="previewNameZh" contenteditable="true" onblur="updateNameFromPreview()" onclick="focusEdit(this)">柯宜瀅 ｜ <span class="en">Yuyu Ko</span></div>
-        <div class="name lang-en edit-clickable" id="previewNameEn" contenteditable="true" onblur="updateNameFromPreview()" onclick="focusEdit(this)">Yuyu Ko ｜ <span class="en">Ko</span></div>
         
         <div class="tagline lang-zh edit-clickable" id="previewTitleZh" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)">業務經理</div>
         <div class="tagline lang-en edit-clickable" id="previewTitleEn" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)">Sales Manager</div>
@@ -2269,12 +2267,10 @@ function loadCardToUI(card) {
 
   // 2) 套用姓名/職務（雙語）
   setHtmlLikeName('previewNameZh', pj.nameZh || card.name || '');
-  setHtmlLikeName('previewNameEn', pj.nameEn || card.name || '');
   setText('previewTitleZh', pj.titleZh || card.title || '');
   setText('previewTitleEn', pj.titleEn || card.title || '');
   // 姓名單行自動縮字（iPhone SE 等小螢幕）
   try { fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: 34 }); } catch (e) {}
-  try { fitTextToSingleLine(document.getElementById('previewNameEn'), { minPx: 16, maxPx: 34 }); } catch (e) {}
 
   // 3) 公司（canonical + 鎖定）
   try {
@@ -2691,34 +2687,22 @@ function injectCompanyPickerButtons() {
 // 從預覽更新姓名
 function updateNameFromPreview() {
   const nameZhEl = document.getElementById('previewNameZh');
-  const nameEnEl = document.getElementById('previewNameEn');
   const nameZhText = nameZhEl.textContent.trim();
-  const nameEnText = nameEnEl.textContent.trim();
   
   // 解析姓名（格式：中文名 ｜ 英文名）
   const zhMatch = nameZhText.match(/^(.+?)\s*｜\s*(.+)$/);
-  const enMatch = nameEnText.match(/^(.+?)\s*｜\s*(.+)$/);
 
   // 相容：使用者可能輸入「中文（EN）」或「中文(EN)」
   const zhParen = nameZhText.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
-  const enParen = nameEnText.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
   
   if (zhMatch) {
     nameZhEl.innerHTML = zhMatch[1] + ' ｜ <span class="en">' + zhMatch[2] + '</span>';
   } else if (zhParen) {
     nameZhEl.innerHTML = zhParen[1].trim() + ' ｜ <span class="en">' + zhParen[2].trim() + '</span>';
   }
-  if (enMatch) {
-    nameEnEl.innerHTML = enMatch[1] + ' ｜ <span class="en">' + enMatch[1].split(' ')[0] + '</span>';
-  } else if (enParen) {
-    // 英文欄位：右側取第一段（名），避免太長
-    const first = enParen[2].trim().split(/\s+/)[0] || enParen[2].trim();
-    nameEnEl.innerHTML = enParen[1].trim() + ' ｜ <span class="en">' + first + '</span>';
-  }
 
   // 套用自動縮字，確保單行水平顯示
   try { fitTextToSingleLine(nameZhEl, { minPx: 16, maxPx: 34 }); } catch (e) {}
-  try { fitTextToSingleLine(nameEnEl, { minPx: 16, maxPx: 34 }); } catch (e) {}
 }
 
 // 從預覽更新職務
@@ -2755,7 +2739,6 @@ function fitTextToSingleLine(el, opts) {
 // 初次載入/視窗改變時也重算（避免 iPhone SE 旋轉或縮放後跑版）
 window.addEventListener('resize', function () {
   try { fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: 34 }); } catch (e) {}
-  try { fitTextToSingleLine(document.getElementById('previewNameEn'), { minPx: 16, maxPx: 34 }); } catch (e) {}
 });
 
 // 更新標語預覽
@@ -4181,6 +4164,18 @@ async function saveCard() {
     return s.split(/\s*[｜|]\s*/)[0].trim();
   }
 
+  function englishPartFromNameZh(text) {
+    const s = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!s) return '';
+    // 1) 中文 ｜ 英文
+    const bar = s.match(/^(.+?)\s*｜\s*(.+)$/);
+    if (bar) return String(bar[2] || '').trim();
+    // 2) 中文（英文）/中文(英文)
+    const paren = s.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
+    if (paren) return String(paren[2] || '').trim();
+    return '';
+  }
+
   function companyFromSlogans(lang) {
     const sel = lang === 'zh' ? '#previewSlogansZh strong' : '#previewSlogansEn strong';
     const strong = document.querySelector(sel);
@@ -4189,7 +4184,7 @@ async function saveCard() {
 
   // 基本欄位：符合你要匯出的欄位（name/phone/email/company/title/theme/created_at/updated_at）
   const nameZhRaw = textOf('previewNameZh');
-  const nameEnRaw = textOf('previewNameEn');
+  const nameEnRaw = englishPartFromNameZh(nameZhRaw);
   const titleZhRaw = textOf('previewTitleZh');
   const titleEnRaw = textOf('previewTitleEn');
 
