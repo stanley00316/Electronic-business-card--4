@@ -8,15 +8,16 @@
   <style>
     body { padding: 20px; max-width: 1200px; margin: 0 auto; background: #111; color: #fff; }
     h1 { color: var(--uvaco-green); margin-bottom: 30px; }
-    .toolbar { display: flex; gap: 10px; margin-bottom: 20px; }
-    input[type="text"] { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; flex: 1; }
+    .toolbar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .toolbar-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    input[type="text"] { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; width: 100%; box-sizing: border-box; }
     
     table { width: 100%; border-collapse: collapse; background: #222; border-radius: 12px; overflow: hidden; }
     th, td { padding: 15px; text-align: left; border-bottom: 1px solid #333; }
     th { background: #333; color: #aaa; font-weight: normal; }
     tr:hover { background: #2a2a2a; }
     
-    .btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; margin-right: 5px; }
+    .btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; margin-right: 5px; white-space: nowrap; width: auto; }
     .btn-green { background: var(--uvaco-green); color: #fff; }
     .btn-outline { background: transparent; border: 1px solid #555; color: #ccc; }
     
@@ -33,10 +34,12 @@
 <h1>NFC 名片量產管理</h1>
 
 <div class="toolbar">
+  <div class="toolbar-actions">
+    <button class="btn btn-green" onclick="reloadData()">重新整理</button>
+    <button class="btn btn-outline" onclick="location.href='directory.html'">返回通訊錄</button>
+    <button class="btn btn-outline" onclick="location.href='settings.html'">前往設定</button>
+  </div>
   <input type="text" id="searchInput" placeholder="搜尋姓名、公司..." onkeyup="filterTable()">
-  <button class="btn btn-green" onclick="reloadData()">重新整理</button>
-  <button class="btn btn-outline" onclick="location.href='directory.html'">返回通訊錄</button>
-  <button class="btn btn-outline" onclick="location.href='settings.html'">前往設定</button>
 </div>
 
 <div id="adminHint" style="margin:10px 0 18px;color:#aaa;font-size:13px"></div>
