@@ -913,7 +913,7 @@ body.theme-light .theme-selector-close {
 .edit-preview-section .card {
   max-width: 1200px;
   width: 100%;
-  padding: 26px 150px 26px 22px; /* 右側留空給頭像 */
+  padding: 26px 110px 26px 22px; /* 右側留空給頭像（降低留白，避免過多空白） */
 }
 
 /* iPhone 等窄螢幕：縮小左右白邊（右側頭像預留不要太大） */
@@ -923,7 +923,8 @@ body.theme-light .theme-selector-close {
     padding-right: 0;
   }
   .edit-preview-section .card {
-    padding: 22px 22px 22px 18px !important;
+    /* 右側仍需預留給頭像，避免姓名/職務蓋到頭像框 */
+    padding: 22px 96px 22px 18px !important;
   }
   /* 預覽頭像縮小，避免需要預留超大右邊空白 */
   #previewCard .avatar {
@@ -931,6 +932,13 @@ body.theme-light .theme-selector-close {
     height: 68px;
     right: 18px;
     top: 18px;
+  }
+}
+
+/* iPhone SE：姓名避免蓋到頭像（限制最大字級） */
+@media (max-width: 420px) {
+  .edit-preview-section #previewNameZh {
+    font-size: clamp(18px, 7vw, 30px) !important;
   }
 }
 
@@ -2298,8 +2306,11 @@ function loadCardToUI(card) {
   setHtmlLikeName('previewNameZh', pj.nameZh || card.name || '');
   setText('previewTitleZh', pj.titleZh || card.title || '');
   setText('previewTitleEn', pj.titleEn || card.title || '');
-  // 姓名單行自動縮字（iPhone SE 等小螢幕）
-  try { fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: 34 }); } catch (e) {}
+  // 姓名單行自動縮字（iPhone SE 等小螢幕）：手機端限制最大字級，避免蓋到頭像框
+  try {
+    const isSmall = (window.matchMedia && window.matchMedia('(max-width: 420px)').matches);
+    fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: isSmall ? 30 : 34 });
+  } catch (e) {}
 
   // 3) 公司（canonical + 鎖定）
   try {
@@ -2764,7 +2775,10 @@ function updateNameFromPreview() {
   }
 
   // 套用自動縮字，確保單行水平顯示
-  try { fitTextToSingleLine(nameZhEl, { minPx: 16, maxPx: 34 }); } catch (e) {}
+  try {
+    const isSmall = (window.matchMedia && window.matchMedia('(max-width: 420px)').matches);
+    fitTextToSingleLine(nameZhEl, { minPx: 16, maxPx: isSmall ? 30 : 34 });
+  } catch (e) {}
 }
 
 // 從預覽更新職務
@@ -2800,7 +2814,10 @@ function fitTextToSingleLine(el, opts) {
 
 // 初次載入/視窗改變時也重算（避免 iPhone SE 旋轉或縮放後跑版）
 window.addEventListener('resize', function () {
-  try { fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: 34 }); } catch (e) {}
+  try {
+    const isSmall = (window.matchMedia && window.matchMedia('(max-width: 420px)').matches);
+    fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: isSmall ? 30 : 34 });
+  } catch (e) {}
 });
 
 // 更新標語預覽

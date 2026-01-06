@@ -350,10 +350,11 @@ body.theme-light .section-label { color: #6b7280; }
 }
 
 .btn-group.contact-layout-grid .btn img {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   flex: 0 0 auto;
+  display: block;
 }
 
 /* 小卡 hover 不要太「飄」 */
