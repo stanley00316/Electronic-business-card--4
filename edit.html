@@ -4460,18 +4460,8 @@ async function saveCard() {
       alert(currentLang === 'zh' ? '名片已儲存！即將前往預覽頁面...' : 'Business card saved! Redirecting to preview...');
       try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
       setTimeout(() => {
-        // 儲存後導向「自己的名片」：避免固定跳到示例名片 yuyuko.html
-        // 若網址帶 next 參數（例如從通訊錄/其他頁進來），優先回到 next
-        try {
-          const p = new URLSearchParams(window.location.search || '');
-          const next = String(p.get('next') || '').trim();
-          if (next) {
-            window.location.href = next;
-            return;
-          }
-        } catch (e) {}
-
-        // 預設：回到 card.html?id=<目前登入者>
+        // 儲存後一律導向「我的名片」：card.html?id=<目前登入者>
+        // 需求：避免 next 參數把使用者帶回 edit.html 或其他頁，造成「儲存後又回編輯頁」的困惑。
         (async function () {
           try {
             const s = await UVACO_CLOUD.getSession();
