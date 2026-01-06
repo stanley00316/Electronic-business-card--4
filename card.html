@@ -76,11 +76,6 @@
 
 </div>
 
-<!-- 編輯此名片（帶 uid/next，避免載入錯誤） -->
-<button id="editThisCardBtn" type="button" style="position:fixed;right:14px;top:14px;z-index:2500;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:#fff;backdrop-filter:blur(12px);cursor:pointer;font-weight:800;display:none;">
-  ✏️ 編輯
-</button>
-
 <!-- 底部導航欄 -->
 <nav class="bottom-nav">
   <a href="directory.html" class="nav-item">
@@ -154,6 +149,10 @@ function applyContacts(pj, card) {
   const html = String(pj.contactsHtml || '').trim();
   if (html) {
     group.innerHTML = html;
+    // 展示頁：移除編輯用的刪除按鈕（避免把 edit.html 的 UI 帶到 card.html）
+    try {
+      group.querySelectorAll('.contact-delete-btn').forEach(btn => btn.remove());
+    } catch (e) {}
   } else {
     // fallback：只用 phone/email
     const phone = safeText(card.phone);
@@ -251,18 +250,6 @@ document.addEventListener('DOMContentLoaded', function () {
       await applyAssets(pj);
       applyCompanyInfo(pj);
       applyContacts(pj, card);
-
-      // 提供「編輯此名片」：一律帶 uid/next
-      try {
-        const btn = document.getElementById('editThisCardBtn');
-        if (btn) {
-          btn.style.display = 'block';
-          btn.onclick = function () {
-            const next = 'card.html?id=' + encodeURIComponent(userId);
-            window.location.href = 'edit.html?uid=' + encodeURIComponent(userId) + '&next=' + encodeURIComponent(next);
-          };
-        }
-      } catch (e) {}
     } catch (e) {
       console.error(e);
       alert('載入失敗，請稍後再試');
