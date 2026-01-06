@@ -780,6 +780,34 @@ body.theme-light .theme-selector-close {
   }
 }
 
+/* ===== 公司選擇器（小螢幕堆疊修正）===== */
+.uvaco-company-picker-wrap {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+}
+.uvaco-company-picker-badge {
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.4;
+}
+@media (max-width: 420px) {
+  .uvaco-company-picker-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+  .uvaco-company-picker-wrap .edit-add-btn {
+    width: 100%;
+  }
+  .uvaco-company-picker-badge {
+    margin-top: 0;
+  }
+}
+
 /* 可編輯元素樣式 */
 .edit-clickable {
   cursor: pointer;
@@ -2588,39 +2616,53 @@ function injectCompanyPickerButtons() {
   const anchorEn = getSloganStrong('en')?.parentElement;
   if (!anchorZh && !anchorEn) return;
 
-  // 插入提示 badge
-  const badge = document.createElement('div');
-  badge.id = 'uvacoCompanyLockBadge';
-  badge.style.cssText = 'margin-top:8px;color:#9ca3af;font-size:12px;line-height:1.4;';
-  badge.textContent = window.__uvacoCompanyLocked && !isAdminModeFromUrl()
-    ? '公司已鎖定（如需更改請聯絡管理員）'
-    : '公司：必選下拉（可輸入關鍵字快速帶入）';
+  // 小螢幕堆疊：用 wrapper 包住按鈕 + badge，避免 iPhone SE 擠壓
+  const makeWrap = (lang) => {
+    const wrap = document.createElement('div');
+    wrap.className = `uvaco-company-picker-wrap lang-${lang}`;
+    return wrap;
+  };
 
-  // 中文按鈕
+  const makeBadge = () => {
+    const badge = document.createElement('div');
+    badge.id = 'uvacoCompanyLockBadge';
+    badge.className = 'uvaco-company-picker-badge';
+    badge.textContent = window.__uvacoCompanyLocked && !isAdminModeFromUrl()
+      ? '公司已鎖定（如需更改請聯絡管理員）'
+      : '公司：必選下拉（可輸入關鍵字快速帶入）';
+    return badge;
+  };
+
+  // 中文按鈕 + badge
   if (anchorZh) {
+    const wrapZh = makeWrap('zh');
     const btnZh = document.createElement('button');
     btnZh.type = 'button';
     btnZh.id = 'uvacoCompanyPickBtnZh';
     btnZh.className = 'edit-add-btn lang-zh';
     btnZh.textContent = '🏢 選擇公司';
     btnZh.onclick = openCompanySelector;
-    anchorZh.insertAdjacentElement('afterend', btnZh);
+    wrapZh.appendChild(btnZh);
+    wrapZh.appendChild(makeBadge());
+    anchorZh.insertAdjacentElement('afterend', wrapZh);
   }
 
-  // 英文按鈕
+  // 英文按鈕 + badge（若中文不存在才插入 badge，避免重複 id）
   if (anchorEn) {
+    const wrapEn = makeWrap('en');
     const btnEn = document.createElement('button');
     btnEn.type = 'button';
     btnEn.id = 'uvacoCompanyPickBtnEn';
     btnEn.className = 'edit-add-btn lang-en';
     btnEn.textContent = '🏢 Select Company';
     btnEn.onclick = openCompanySelector;
-    anchorEn.insertAdjacentElement('afterend', btnEn);
+    wrapEn.appendChild(btnEn);
+    // 若中文已插入 badge（已存在 id），英文就不再插入 badge
+    if (!document.getElementById('uvacoCompanyLockBadge')) {
+      wrapEn.appendChild(makeBadge());
+    }
+    anchorEn.insertAdjacentElement('afterend', wrapEn);
   }
-
-  // badge 放在中文按鈕後（或英文按鈕後）
-  const target = document.getElementById('uvacoCompanyPickBtnZh') || document.getElementById('uvacoCompanyPickBtnEn');
-  if (target) target.insertAdjacentElement('afterend', badge);
 }
 
 // 從預覽更新姓名
