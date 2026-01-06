@@ -2531,20 +2531,34 @@ function ensureCompanySelectorModal() {
       if (ev.key === 'Escape') { closeCompanySelector(); return; }
       if (ev.key === 'Enter') {
         ev.preventDefault();
-        // Enter：帶入第一個可見選項
+        // Enter：優先帶入第一個可見選項；若沒有，則用輸入框文字建立並帶入
         const first = document.querySelector('#uvacoCompanyList button[data-company]');
-        if (first) first.click();
+        if (first) {
+          first.click();
+        } else {
+          document.getElementById('uvacoCompanyConfirm')?.click();
+        }
       }
     });
   }
 
   document.getElementById('uvacoCompanyConfirm')?.addEventListener('click', () => {
+    const inputVal = String(document.getElementById('uvacoCompanySearch')?.value || '').trim();
     const chosen = String(overlay.getAttribute('data-chosen') || '').trim();
-    if (!chosen) {
-      showCompanyErr('請先從清單選擇公司名稱。');
+    const value = chosen || inputVal;
+    if (!value) {
+      showCompanyErr('請輸入或選擇公司名稱。');
       return;
     }
-    applyCompanyToUI(chosen);
+    // 建立新公司：把新值加入 options（避免下次搜尋找不到）
+    try {
+      window.__uvacoCompanyOptions = Array.isArray(window.__uvacoCompanyOptions) ? window.__uvacoCompanyOptions : [];
+      if (!window.__uvacoCompanyOptions.includes(value)) {
+        window.__uvacoCompanyOptions.push(value);
+        window.__uvacoCompanyOptions.sort((a, b) => String(a).localeCompare(String(b), 'zh-Hant'));
+      }
+    } catch (e) {}
+    applyCompanyToUI(value);
     closeCompanySelector();
   });
 }
@@ -2606,7 +2620,26 @@ function renderCompanyList() {
   }
 
   if (!filtered.length) {
-    list.innerHTML = `<div style="padding:12px;color:#9ca3af;font-size:13px;line-height:1.6;">找不到符合的公司名稱。\n請改用其他關鍵字，或聯絡管理員先建立該公司選項。</div>`;
+    const displayQ = String(document.getElementById('uvacoCompanySearch')?.value || '').trim();
+    list.innerHTML = `
+      <div style="padding:12px;color:#9ca3af;font-size:13px;line-height:1.6;">
+        找不到符合的公司名稱。
+      </div>
+      ${displayQ ? `
+        <button type="button" id="uvacoCompanyCreateBtn"
+          style="width:100%;text-align:left;padding:12px;border:none;border-top:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;font-size:14px;font-weight:800;">
+          ➕ 建立並帶入「${displayQ}」
+        </button>
+      ` : ''}
+    `;
+    const btn = document.getElementById('uvacoCompanyCreateBtn');
+    if (btn && displayQ) {
+      btn.addEventListener('click', () => {
+        overlay.setAttribute('data-chosen', displayQ);
+        clearCompanyErr();
+        applyCompanyToUI(displayQ);
+      });
+    }
     return;
   }
 
