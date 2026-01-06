@@ -214,8 +214,8 @@
         <div class="my-card-v" id="myCardEmail"></div>
       </div>
       <div class="my-card-actions">
-        <a class="btn btn-secondary lang-zh" href="edit.html" onclick="return gotoMyCardFromDirectory(event)">✏️ 編輯名片</a>
-        <a class="btn btn-secondary lang-en" href="edit.html" onclick="return gotoMyCardFromDirectory(event)">✏️ Edit Card</a>
+        <a class="btn btn-secondary lang-zh" href="edit.html" onclick="return gotoMyEditFromDirectory(event)">✏️ 編輯名片</a>
+        <a class="btn btn-secondary lang-en" href="edit.html" onclick="return gotoMyEditFromDirectory(event)">✏️ Edit Card</a>
         <a class="btn btn-secondary lang-zh" href="yuyuko.html?v=1e6be8e" target="_blank" rel="noopener noreferrer">👀 預覽</a>
         <a class="btn btn-secondary lang-en" href="yuyuko.html?v=1e6be8e" target="_blank" rel="noopener noreferrer">👀 Preview</a>
       </div>
@@ -496,15 +496,15 @@
 
 <script src="common.js?v=20260105"></script>
 <script>
-// 前往「我的名片」：統一由 card.html 進入 edit.html（避免任何載入錯誤）
-async function gotoMyCardFromDirectory(event) {
+// 前往「我的編輯頁」：一律帶 uid/next，確保編輯到自己的名片
+async function gotoMyEditFromDirectory(event) {
   if (event) {
     event.preventDefault();
     event.stopPropagation();
   }
   try {
     if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
-      window.location.href = 'yuyuko.html';
+      window.location.href = 'edit.html';
       return false;
     }
     const s = await UVACO_CLOUD.getSession();
@@ -513,10 +513,11 @@ async function gotoMyCardFromDirectory(event) {
       window.location.href = 'auth.html?next=' + encodeURIComponent('directory.html');
       return false;
     }
-    window.location.href = 'card.html?id=' + encodeURIComponent(uid);
+    const next = 'card.html?id=' + encodeURIComponent(uid);
+    window.location.href = 'edit.html?uid=' + encodeURIComponent(uid) + '&next=' + encodeURIComponent(next);
     return false;
   } catch (e) {
-    window.location.href = 'yuyuko.html';
+    window.location.href = 'edit.html';
     return false;
   }
 }
