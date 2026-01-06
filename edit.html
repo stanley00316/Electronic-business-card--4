@@ -2138,6 +2138,11 @@ body.theme-light .link-input-cancel:hover {
       if (cardData) {
         loadCardToUI(cardData);
       }
+
+      // 注入公司選擇器按鈕（與語系同步顯示）
+      try {
+        setTimeout(() => injectCompanyPickerButtons(), 0);
+      } catch (e) {}
     }
   } catch (e) {
     console.error('Init failed', e);
@@ -2175,6 +2180,17 @@ function loadCardToUI(card) {
     try { pj = JSON.parse(pj); } catch (e) { pj = {}; }
   }
   pj = pj || {};
+
+  // 公司鎖定/預選（給企業管理用）：一般使用者第一次儲存後鎖定
+  try {
+    const canonical = String(pj.companyCanonical || card.company || '').trim();
+    window.__uvacoSelectedCompany = canonical;
+    window.__uvacoOriginalCompanyCanonical = canonical;
+    window.__uvacoCompanyLocked = (pj.companyLocked === true) && !isAdminModeFromUrl();
+    if (canonical) {
+      applyCompanyToUI(canonical);
+    }
+  } catch (e) {}
 
   // 如果有詳細欄位優先使用，否則嘗試從 name 拆分
   if (pj.nameZh) setVal('nameZhInput', pj.nameZh);
@@ -2256,6 +2272,294 @@ document.addEventListener('paste', function (e) {
     sel.addRange(range);
   } catch (_e) {}
 });
+
+// ===== 公司選擇器（必選下拉 + 關鍵字匹配）=====
+// 規格：
+// - 公司清單來源：從 cards.company 自動彙整（去重）
+// - 一般使用者：第一次儲存後鎖定公司（避免改掉導致企業管理員看不到）
+// - 管理員模式：可改他人公司（不受鎖定限制）
+window.__uvacoCompanyOptions = window.__uvacoCompanyOptions || null; // Array<string>
+window.__uvacoSelectedCompany = window.__uvacoSelectedCompany || ''; // canonical company (cards.company)
+window.__uvacoOriginalCompanyCanonical = window.__uvacoOriginalCompanyCanonical || '';
+window.__uvacoCompanyLocked = window.__uvacoCompanyLocked || false;
+
+function getEditUrlTargetUserId() {
+  try {
+    const p = new URLSearchParams(window.location.search || '');
+    return p.get('targetUserId') || p.get('uid') || p.get('id') || '';
+  } catch (e) { return ''; }
+}
+
+function isAdminModeFromUrl() {
+  try {
+    const p = new URLSearchParams(window.location.search || '');
+    return p.get('adminMode') === 'true';
+  } catch (e) { return false; }
+}
+
+async function loadCompanyOptionsFromCards() {
+  if (Array.isArray(window.__uvacoCompanyOptions)) return window.__uvacoCompanyOptions;
+  window.__uvacoCompanyOptions = [];
+  try {
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) return window.__uvacoCompanyOptions;
+    // 需要登入（走 RLS）
+    const here = 'edit.html' + (window.location.search || '');
+    const auth = await UVACO_CLOUD.requireAuth(here);
+    if (!auth.ok) return window.__uvacoCompanyOptions;
+
+    const client = UVACO_CLOUD.getClient();
+    if (!client) return window.__uvacoCompanyOptions;
+
+    // 取前 1000 筆 company 作去重（足夠用於下拉；若未來很大可改成 RPC/索引）
+    const { data, error } = await client
+      .from('cards')
+      .select('company')
+      .not('company', 'is', null)
+      .limit(1000);
+    if (error) return window.__uvacoCompanyOptions;
+
+    const set = new Set();
+    (data || []).forEach(r => {
+      const c = String(r?.company || '').trim();
+      if (c) set.add(c);
+    });
+    window.__uvacoCompanyOptions = Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+  } catch (e) {}
+  return window.__uvacoCompanyOptions;
+}
+
+function getSloganStrong(lang) {
+  try {
+    const containerId = (lang === 'zh') ? 'previewSlogansZh' : 'previewSlogansEn';
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+    const strong = container.querySelector('.slogan-item strong');
+    return strong || null;
+  } catch (e) { return null; }
+}
+
+function getCanonicalCompanyFromStrongText(text) {
+  const s = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  // 只取左半邊（公司名）作為 canonical
+  return s.split(/\s*[｜|]\s*/)[0].trim();
+}
+
+function applyCompanyToUI(canonical) {
+  const c = String(canonical || '').trim();
+  if (!c) return false;
+
+  // 中文 strong：保留右半邊（若存在）
+  const zhStrong = getSloganStrong('zh');
+  if (zhStrong) {
+    const old = String(zhStrong.textContent || '').trim();
+    const parts = old.split(/\s*｜\s*/);
+    const suffix = (parts.length >= 2) ? parts.slice(1).join('｜').trim() : '專業陪伴';
+    zhStrong.textContent = c + '｜' + (suffix || '專業陪伴');
+  }
+
+  // 英文 strong：保留右半邊（若存在）
+  const enStrong = getSloganStrong('en');
+  if (enStrong) {
+    const old = String(enStrong.textContent || '').trim();
+    const parts = old.split(/\s*\|\s*/);
+    const suffix = (parts.length >= 2) ? parts.slice(1).join('|').trim() : 'Professional Support';
+    enStrong.textContent = c + ' | ' + (suffix || 'Professional Support');
+  }
+
+  window.__uvacoSelectedCompany = c;
+  // 同步整理，避免事件缺失
+  if (typeof updateSlogansPreview === 'function') updateSlogansPreview();
+  // 更新鎖定提示
+  try {
+    const badge = document.getElementById('uvacoCompanyLockBadge');
+    if (badge) {
+      badge.textContent = window.__uvacoCompanyLocked && !isAdminModeFromUrl()
+        ? '公司已鎖定（如需更改請聯絡管理員）'
+        : '公司：必選下拉（可輸入關鍵字快速帶入）';
+    }
+  } catch (e) {}
+  return true;
+}
+
+function ensureCompanySelectorModal() {
+  if (document.getElementById('uvacoCompanyModal')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'uvacoCompanyModal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:3000;padding:18px;';
+  overlay.innerHTML = `
+    <div style="width:100%;max-width:520px;border-radius:16px;padding:16px 14px;background:#111;border:1px solid rgba(255,255,255,.10);color:#fff;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+        <div style="font-weight:800;color:var(--uvaco-green);">選擇公司</div>
+        <button type="button" id="uvacoCompanyCloseBtn" style="border:none;background:transparent;color:#9ca3af;font-size:20px;cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:13px;color:#9ca3af;line-height:1.6;margin-bottom:10px;">
+        請輸入關鍵字搜尋公司名稱，並從清單點選帶入。<br>
+        （公司為必選；第一次儲存後會鎖定，避免改掉導致管理權限失效）
+      </div>
+      <input id="uvacoCompanySearch" type="text" placeholder="輸入關鍵字（例如：UVACO / 葡眾）" style="width:100%;box-sizing:border-box;padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#1a1a1a;color:#fff;font-size:14px;outline:none;" />
+      <div id="uvacoCompanyList" style="margin-top:10px;max-height:280px;overflow:auto;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:#151515;"></div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button type="button" id="uvacoCompanyCancel" style="flex:1;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;">取消</button>
+        <button type="button" id="uvacoCompanyConfirm" style="flex:1;padding:12px;border-radius:12px;border:none;background:var(--uvaco-green);color:#fff;font-weight:800;cursor:pointer;">確認帶入</button>
+      </div>
+      <div id="uvacoCompanyErr" style="display:none;margin-top:10px;color:#ef4444;font-size:13px;white-space:pre-wrap;"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeCompanySelector();
+  });
+  document.getElementById('uvacoCompanyCloseBtn')?.addEventListener('click', closeCompanySelector);
+  document.getElementById('uvacoCompanyCancel')?.addEventListener('click', closeCompanySelector);
+
+  // 搜尋互動
+  const input = document.getElementById('uvacoCompanySearch');
+  if (input) {
+    input.addEventListener('input', () => renderCompanyList());
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') { closeCompanySelector(); return; }
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        // Enter：帶入第一個可見選項
+        const first = document.querySelector('#uvacoCompanyList button[data-company]');
+        if (first) first.click();
+      }
+    });
+  }
+
+  document.getElementById('uvacoCompanyConfirm')?.addEventListener('click', () => {
+    const chosen = String(overlay.getAttribute('data-chosen') || '').trim();
+    if (!chosen) {
+      showCompanyErr('請先從清單選擇公司名稱。');
+      return;
+    }
+    applyCompanyToUI(chosen);
+    closeCompanySelector();
+  });
+}
+
+function showCompanyErr(msg) {
+  const el = document.getElementById('uvacoCompanyErr');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = String(msg || '');
+}
+
+function clearCompanyErr() {
+  const el = document.getElementById('uvacoCompanyErr');
+  if (!el) return;
+  el.style.display = 'none';
+  el.textContent = '';
+}
+
+function openCompanySelector() {
+  // 鎖定：一般使用者不可改；管理員模式可改
+  if (window.__uvacoCompanyLocked && !isAdminModeFromUrl()) {
+    alert('公司已鎖定，如需更改請聯絡管理員。');
+    return;
+  }
+  ensureCompanySelectorModal();
+  clearCompanyErr();
+  const overlay = document.getElementById('uvacoCompanyModal');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  overlay.setAttribute('data-chosen', '');
+  const input = document.getElementById('uvacoCompanySearch');
+  if (input) {
+    input.value = '';
+    setTimeout(() => input.focus(), 0);
+  }
+  // 先載入公司清單再渲染
+  Promise.resolve(loadCompanyOptionsFromCards()).then(() => renderCompanyList());
+}
+
+function closeCompanySelector() {
+  const overlay = document.getElementById('uvacoCompanyModal');
+  if (!overlay) return;
+  overlay.style.display = 'none';
+}
+
+function renderCompanyList() {
+  const list = document.getElementById('uvacoCompanyList');
+  const overlay = document.getElementById('uvacoCompanyModal');
+  if (!list || !overlay) return;
+  const q = String(document.getElementById('uvacoCompanySearch')?.value || '').trim().toLowerCase();
+  const options = Array.isArray(window.__uvacoCompanyOptions) ? window.__uvacoCompanyOptions : [];
+  const filtered = q
+    ? options.filter(c => String(c).toLowerCase().includes(q)).slice(0, 50)
+    : options.slice(0, 50);
+
+  if (!options.length) {
+    list.innerHTML = `<div style="padding:12px;color:#9ca3af;font-size:13px;line-height:1.6;">目前尚無公司清單（cards.company 為空）。\n請先由管理員建立第一張名片以產生公司選項。</div>`;
+    return;
+  }
+
+  if (!filtered.length) {
+    list.innerHTML = `<div style="padding:12px;color:#9ca3af;font-size:13px;line-height:1.6;">找不到符合的公司名稱。\n請改用其他關鍵字，或聯絡管理員先建立該公司選項。</div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  filtered.forEach(company => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('data-company', company);
+    btn.style.cssText = 'width:100%;text-align:left;padding:12px;border:none;border-bottom:1px solid rgba(255,255,255,.06);background:transparent;color:#fff;cursor:pointer;font-size:14px;';
+    btn.textContent = company;
+    btn.addEventListener('click', () => {
+      overlay.setAttribute('data-chosen', company);
+      clearCompanyErr();
+      // 立即預覽帶入（但不關閉，讓使用者可再選）
+      applyCompanyToUI(company);
+    });
+    list.appendChild(btn);
+  });
+}
+
+function injectCompanyPickerButtons() {
+  // 已注入就不重複
+  if (document.getElementById('uvacoCompanyPickBtnZh')) return;
+
+  const anchorZh = getSloganStrong('zh')?.parentElement;
+  const anchorEn = getSloganStrong('en')?.parentElement;
+  if (!anchorZh && !anchorEn) return;
+
+  // 插入提示 badge
+  const badge = document.createElement('div');
+  badge.id = 'uvacoCompanyLockBadge';
+  badge.style.cssText = 'margin-top:8px;color:#9ca3af;font-size:12px;line-height:1.4;';
+  badge.textContent = window.__uvacoCompanyLocked && !isAdminModeFromUrl()
+    ? '公司已鎖定（如需更改請聯絡管理員）'
+    : '公司：必選下拉（可輸入關鍵字快速帶入）';
+
+  // 中文按鈕
+  if (anchorZh) {
+    const btnZh = document.createElement('button');
+    btnZh.type = 'button';
+    btnZh.id = 'uvacoCompanyPickBtnZh';
+    btnZh.className = 'edit-add-btn lang-zh';
+    btnZh.textContent = '🏢 選擇公司';
+    btnZh.onclick = openCompanySelector;
+    anchorZh.insertAdjacentElement('afterend', btnZh);
+  }
+
+  // 英文按鈕
+  if (anchorEn) {
+    const btnEn = document.createElement('button');
+    btnEn.type = 'button';
+    btnEn.id = 'uvacoCompanyPickBtnEn';
+    btnEn.className = 'edit-add-btn lang-en';
+    btnEn.textContent = '🏢 Select Company';
+    btnEn.onclick = openCompanySelector;
+    anchorEn.insertAdjacentElement('afterend', btnEn);
+  }
+
+  // badge 放在中文按鈕後（或英文按鈕後）
+  const target = document.getElementById('uvacoCompanyPickBtnZh') || document.getElementById('uvacoCompanyPickBtnEn');
+  if (target) target.insertAdjacentElement('afterend', badge);
+}
 
 // 從預覽更新姓名
 function updateNameFromPreview() {
@@ -3749,17 +4053,50 @@ async function saveCard() {
     return a ? String(a.getAttribute('href') || '').replace(/^mailto:/i, '').trim() : '';
   })();
 
-  const company = (function () {
-    // 優先：從「粗體標語」抓公司名稱（預設樣式：<strong>公司｜標語</strong> / <strong>Company | Slogan</strong>）
-    const fromSlogans = (currentLang === 'zh' ? companyFromSlogans('zh') : companyFromSlogans('en')) ||
-      companyFromSlogans('zh') ||
-      companyFromSlogans('en');
-    if (fromSlogans) return fromSlogans;
+  // 公司（企業管理用）：必選下拉/關鍵字匹配；cards.company 存 canonical（不含「｜專業陪伴」）
+  const companyCanonical = (function () {
+    // 優先：公司選擇器帶入
+    const picked = String(window.__uvacoSelectedCompany || '').trim();
+    if (picked) return picked;
 
-    // 次選：其他可編輯欄位（若未來有獨立 company 欄位可直接命中）
-    const el = document.querySelector('[data-field="company"], #previewCompany, #companyName');
-    return el ? primaryPart(String(el.textContent || el.value || '').trim()) : '';
+    // 次選：從粗體標語解析（相容舊資料）
+    const zhStrong = getSloganStrong('zh');
+    const enStrong = getSloganStrong('en');
+    const fromZh = getCanonicalCompanyFromStrongText(zhStrong ? zhStrong.textContent : '');
+    const fromEn = getCanonicalCompanyFromStrongText(enStrong ? enStrong.textContent : '');
+    return fromZh || fromEn || '';
   })();
+
+  // 公司必選：若沒有公司，拒絕儲存（避免企業管理權限失效）
+  if (!companyCanonical) {
+    alert(currentLang === 'zh'
+      ? '請先選擇公司（公司為必選）。\n提示：點「🏢 選擇公司」可用關鍵字帶入。'
+      : 'Please select a company first (Company is required).\nTip: click “🏢 Select Company” and search by keyword.'
+    );
+    return;
+  }
+
+  // 公司鎖定：一般使用者第一次儲存後鎖定，後續不可更改（管理員可改）
+  const adminModeForCompany = isAdminModeFromUrl() || (function () {
+    try {
+      const p = new URLSearchParams(window.location.search || '');
+      return p.get('adminMode') === 'true';
+    } catch (e) { return false; }
+  })();
+  if (window.__uvacoCompanyLocked && !adminModeForCompany) {
+    const original = String(window.__uvacoOriginalCompanyCanonical || '').trim();
+    if (original && String(companyCanonical) !== String(original)) {
+      alert(currentLang === 'zh'
+        ? '公司已鎖定，無法更改（如需更改請聯絡管理員）。'
+        : 'Company is locked and cannot be changed. Please contact admin.'
+      );
+      // 回復 UI
+      applyCompanyToUI(original);
+      return;
+    }
+  }
+
+  const company = companyCanonical;
 
   // 完整資料：先用 profile_json 保存目前預覽區內容（不改 UI 結構）
   const profile_json = (function () {
@@ -3775,8 +4112,17 @@ async function saveCard() {
       nameEn: nameEnRaw,
       titleZh: titleZhRaw,
       titleEn: titleEnRaw,
-      companyZh: companyFromSlogans('zh'),
-      companyEn: companyFromSlogans('en'),
+      // 公司資訊：儲存「粗體標語」的完整字串以保持原版型
+      companyCanonical: companyCanonical,
+      companyLocked: !adminModeForCompany ? true : (pj.companyLocked === true),
+      companyZh: (function () {
+        const s = getSloganStrong('zh');
+        return s ? String(s.textContent || '').trim() : '';
+      })(),
+      companyEn: (function () {
+        const s = getSloganStrong('en');
+        return s ? String(s.textContent || '').trim() : '';
+      })(),
       theme: theme,
       // 圖片：改用 Storage path（避免把 base64 存進 DB）
       // 若尚未上傳（離線/尚未儲存），仍可能是 blob: 或 data:，僅作為暫存預覽用
