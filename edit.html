@@ -803,32 +803,21 @@ body.theme-light .theme-selector-close {
   .uvaco-company-picker-wrap {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
     gap: 8px;
     width: 100%;
   }
-  .uvaco-company-picker-wrap .edit-add-btn {
-    width: 100%;
-  }
+  /* 按鈕寬度與「+ 新增中文標語」一致，避免被撐滿整行 */
+  .uvaco-company-picker-wrap .edit-add-btn { width: 135px; }
   .uvaco-company-picker-badge {
     margin-top: 0;
   }
 }
 
 /* ===== iPhone SE：姓名呈現（中文｜英文）===== */
-/* 目標：正常寬度同列；小螢幕英文換到下一列但仍水平顯示 */
-#previewNameZh, #previewNameEn {
-  white-space: normal;
-}
-#previewNameZh .en, #previewNameEn .en {
-  display: inline;
-}
-@media (max-width: 420px) {
-  #previewNameZh .en, #previewNameEn .en {
-    display: block;
-    margin-left: 0;
-  }
-}
+/* 目標：姓名必須單行水平呈現；若太長，自動縮小字體維持單行 */
+#previewNameZh, #previewNameEn { white-space: nowrap; }
+#previewNameZh .en, #previewNameEn .en { display: inline; }
 
 /* 可編輯元素樣式 */
 .edit-clickable {
@@ -2274,6 +2263,9 @@ function loadCardToUI(card) {
   setHtmlLikeName('previewNameEn', pj.nameEn || card.name || '');
   setText('previewTitleZh', pj.titleZh || card.title || '');
   setText('previewTitleEn', pj.titleEn || card.title || '');
+  // 姓名單行自動縮字（iPhone SE 等小螢幕）
+  try { fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: 34 }); } catch (e) {}
+  try { fitTextToSingleLine(document.getElementById('previewNameEn'), { minPx: 16, maxPx: 34 }); } catch (e) {}
 
   // 3) 公司（canonical + 鎖定）
   try {
@@ -2714,6 +2706,10 @@ function updateNameFromPreview() {
     const first = enParen[2].trim().split(/\s+/)[0] || enParen[2].trim();
     nameEnEl.innerHTML = enParen[1].trim() + ' ｜ <span class="en">' + first + '</span>';
   }
+
+  // 套用自動縮字，確保單行水平顯示
+  try { fitTextToSingleLine(nameZhEl, { minPx: 16, maxPx: 34 }); } catch (e) {}
+  try { fitTextToSingleLine(nameEnEl, { minPx: 16, maxPx: 34 }); } catch (e) {}
 }
 
 // 從預覽更新職務
@@ -2722,6 +2718,36 @@ function updateTitleFromPreview() {
   const titleEnEl = document.getElementById('previewTitleEn');
   // 職務已經直接編輯，不需要額外處理
 }
+
+// ===== 自動縮字：讓元素文字保持單行水平呈現（超出就縮小到 minPx）=====
+function fitTextToSingleLine(el, opts) {
+  if (!el) return;
+  const minPx = (opts && typeof opts.minPx === 'number') ? opts.minPx : 16;
+  const maxPx = (opts && typeof opts.maxPx === 'number') ? opts.maxPx : 34;
+
+  // 只在可見時處理
+  const rect = el.getBoundingClientRect();
+  if (!rect.width || rect.width <= 0) return;
+
+  el.style.whiteSpace = 'nowrap';
+  el.style.fontSize = maxPx + 'px';
+
+  // 若仍超出，逐步縮小
+  let size = maxPx;
+  // 迴圈上限避免卡住
+  for (let i = 0; i < 40; i++) {
+    if (el.scrollWidth <= el.clientWidth + 1) break;
+    size -= 1;
+    if (size <= minPx) { size = minPx; break; }
+    el.style.fontSize = size + 'px';
+  }
+}
+
+// 初次載入/視窗改變時也重算（避免 iPhone SE 旋轉或縮放後跑版）
+window.addEventListener('resize', function () {
+  try { fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: 34 }); } catch (e) {}
+  try { fitTextToSingleLine(document.getElementById('previewNameEn'), { minPx: 16, maxPx: 34 }); } catch (e) {}
+});
 
 // 更新標語預覽
 function updateSlogansPreview() {
