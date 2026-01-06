@@ -104,8 +104,8 @@ body {
         <div class="settings-item-arrow">→</div>
       </a>
       
-      <!-- 編輯名片（帶 uid，避免載入錯誤） -->
-      <a href="edit.html" class="settings-item" onclick="return gotoMyEdit(event)">
+      <!-- 編輯名片：統一流程「先到我的 card.html」，再從 card.html 進入 edit -->
+      <a href="edit.html" class="settings-item" onclick="return gotoMyCard(event)">
         <div class="settings-item-icon">✏️</div>
         <div class="settings-item-content">
           <div class="settings-item-title lang-zh">編輯名片</div>
@@ -230,15 +230,15 @@ function handleLogout() {
   }
 }
 
-// 前往「我的編輯頁」：一律帶 uid/next，避免載入錯誤
-async function gotoMyEdit(event) {
+// 前往「我的名片」：統一由 card.html 進入 edit.html（避免任何載入錯誤）
+async function gotoMyCard(event) {
   if (event) {
     event.preventDefault();
     event.stopPropagation();
   }
   try {
     if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
-      window.location.href = 'edit.html';
+      window.location.href = 'yuyuko.html';
       return false;
     }
     const s = await UVACO_CLOUD.getSession();
@@ -247,11 +247,10 @@ async function gotoMyEdit(event) {
       window.location.href = 'auth.html?next=' + encodeURIComponent('settings.html');
       return false;
     }
-    const next = 'settings.html';
-    window.location.href = 'edit.html?uid=' + encodeURIComponent(uid) + '&next=' + encodeURIComponent(next);
+    window.location.href = 'card.html?id=' + encodeURIComponent(uid);
     return false;
   } catch (e) {
-    window.location.href = 'edit.html';
+    window.location.href = 'yuyuko.html';
     return false;
   }
 }
