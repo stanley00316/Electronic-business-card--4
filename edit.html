@@ -2229,14 +2229,55 @@ function updateTitleFromPreview() {
 
 // 更新標語預覽
 function updateSlogansPreview() {
-  const zhSlogans = Array.from(document.querySelectorAll('#slogansZhList .edit-slogan-input')).map(input => input.value);
-  const enSlogans = Array.from(document.querySelectorAll('#slogansEnList .edit-slogan-input')).map(input => input.value);
-  
+  // 修正：標語目前是直接在預覽區（contenteditable）編輯，
+  // 若這裡用 #slogansZhList/#slogansEnList 的 input 來源重建 DOM，
+  // 會導致編輯後內容被覆蓋成空，出現「編輯後消失、無法儲存」的問題。
+
   const zhContainer = document.getElementById('previewSlogansZh');
   const enContainer = document.getElementById('previewSlogansEn');
-  
-  zhContainer.innerHTML = zhSlogans.map(slogan => `<div class="tagline lang-zh">${slogan}</div>`).join('');
-  enContainer.innerHTML = enSlogans.map(slogan => `<div class="tagline lang-en">${slogan}</div>`).join('');
+  if (!zhContainer || !enContainer) return;
+
+  // 只做最小化整理：清理空白、確保 class/事件存在，不重建 DOM
+  const normalizeContainer = (container, lang) => {
+    const items = Array.from(container.querySelectorAll('.slogan-item'));
+    items.forEach(item => {
+      const tagline = item.querySelector('.tagline');
+      if (!tagline) return;
+
+      // 確保語系 class 正確
+      tagline.classList.add('tagline');
+      tagline.classList.toggle('lang-zh', lang === 'zh');
+      tagline.classList.toggle('lang-en', lang !== 'zh');
+      tagline.classList.add('edit-clickable');
+
+      // 確保可編輯與事件存在
+      tagline.contentEditable = 'true';
+      tagline.onblur = function () { updateSlogansPreview(); };
+      tagline.onclick = function () { focusEdit(this); };
+
+      // 若使用者把內容清空，給一個最小提示字避免整個消失
+      const html = String(tagline.innerHTML || '').trim();
+      const text = String(tagline.textContent || '').trim();
+      if (!html && !text) {
+        tagline.textContent = (lang === 'zh') ? '新標語' : 'New Slogan';
+      }
+    });
+  };
+
+  normalizeContainer(zhContainer, 'zh');
+  normalizeContainer(enContainer, 'en');
+
+  // 若舊版存在 input 清單，則同步回去（避免混用時資料不同步）
+  try {
+    const zhInputs = Array.from(document.querySelectorAll('#slogansZhList .edit-slogan-input'));
+    const zhTaglines = Array.from(zhContainer.querySelectorAll('.slogan-item .tagline'));
+    zhInputs.forEach((inp, i) => { if (zhTaglines[i]) inp.value = String(zhTaglines[i].textContent || '').trim(); });
+  } catch (e) {}
+  try {
+    const enInputs = Array.from(document.querySelectorAll('#slogansEnList .edit-slogan-input'));
+    const enTaglines = Array.from(enContainer.querySelectorAll('.slogan-item .tagline'));
+    enInputs.forEach((inp, i) => { if (enTaglines[i]) inp.value = String(enTaglines[i].textContent || '').trim(); });
+  } catch (e) {}
 }
 
 // ===== 圖片處理（壓縮/裁切/上傳 Storage）=====
