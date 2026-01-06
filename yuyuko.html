@@ -294,6 +294,20 @@ document.addEventListener('DOMContentLoaded', function () {
     } finally {
       // card 主題使用 ownerTheme；背景使用觀看者主題（localStorage）
       initViewerPage(ownerTheme);
+
+      // 修正：若是以 ?uid=xxx 查看他人名片，提供正確的「編輯」連結參數（uid/next）
+      // - 若 uid=本人：edit.html 會顯示自己的名片
+      // - 若 uid≠本人：edit.html 會要求管理員權限（adminMode）
+      try {
+        const p2 = new URLSearchParams(window.location.search || '');
+        const uid2 = String(p2.get('uid') || '').trim();
+        if (uid2) {
+          const editHref = 'edit.html?uid=' + encodeURIComponent(uid2) + '&next=' + encodeURIComponent('yuyuko.html?uid=' + encodeURIComponent(uid2));
+          document.querySelectorAll('a[href="edit.html"], a[href^="edit.html?"]').forEach(a => {
+            a.setAttribute('href', editHref);
+          });
+        }
+      } catch (e) {}
     }
   })();
 });

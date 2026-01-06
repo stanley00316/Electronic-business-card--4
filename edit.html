@@ -2073,15 +2073,31 @@ body.theme-light .link-input-cancel:hover {
       const r = await UVACO_CLOUD.requireAuth(here);
       if (!r.ok) return;
 
-      // Admin Mode: 檢查是否有 adminMode=true 與 targetUserId
+      // Admin Mode: 支援：
+      // - edit.html?adminMode=true&targetUserId=<uuid>
+      // - edit.html?uid=<uuid>（若 uid=自己 → 一般模式；若 uid≠自己 → 需要管理員權限）
+      // - edit.html?id=<uuid>（同 uid）
       const params = new URLSearchParams(window.location.search || '');
-      const adminMode = params.get('adminMode') === 'true';
-      const targetUserId = params.get('targetUserId');
+      const targetUserId = params.get('targetUserId') || params.get('uid') || params.get('id');
+      // 先以 URL 顯式指定為準；若未指定但帶了 targetUserId，後面會再依「是否為本人」決定是否需要管理員
+      let adminMode = params.get('adminMode') === 'true';
 
       // 預設為編輯自己的名片
       let cardData = null;
 
-      if (adminMode && targetUserId) {
+      // 取得目前登入者 id，用於判斷是否為「編輯本人」或「編輯他人」
+      let myUserId = '';
+      try {
+        const s = await UVACO_CLOUD.getSession();
+        myUserId = s && s.session && s.session.user ? String(s.session.user.id || '') : '';
+      } catch (e) {}
+
+      if (targetUserId && myUserId && String(targetUserId) !== String(myUserId)) {
+        // 有指定 targetUserId 且不是本人 → 自動轉為管理員模式
+        adminMode = true;
+      }
+
+      if (adminMode && targetUserId && myUserId && String(targetUserId) !== String(myUserId)) {
         // 管理員模式：檢查權限並讀取目標名片
         const adminStatus = await UVACO_CLOUD.isAdmin();
         if (!adminStatus || !adminStatus.isAdmin) {
@@ -3790,8 +3806,16 @@ async function saveCard() {
   const consentVersion = 'v1.0';
   const policyUrl = (UVACO_CLOUD.getBaseUrl ? UVACO_CLOUD.getBaseUrl() : '') + 'privacy.html';
   const needConfirm = params.get('mode') === 'onboarding';
-  const adminMode = params.get('adminMode') === 'true';
-  const targetUserId = params.get('targetUserId');
+  const targetUserId = params.get('targetUserId') || params.get('uid') || params.get('id');
+  // 管理員模式判斷：顯式 adminMode=true 或指定 targetUserId 且不是本人
+  let adminMode = params.get('adminMode') === 'true';
+  try {
+    const s = await UVACO_CLOUD.getSession();
+    const myUserId = s && s.session && s.session.user ? String(s.session.user.id || '') : '';
+    if (targetUserId && myUserId && String(targetUserId) !== String(myUserId)) {
+      adminMode = true;
+    }
+  } catch (e) {}
   if (needConfirm) {
     const ok = confirm(
       currentLang === 'zh'
