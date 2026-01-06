@@ -2075,11 +2075,13 @@ body.theme-light .link-input-cancel:hover {
 
       // Admin Mode: 支援：
       // - edit.html?adminMode=true&targetUserId=<uuid>
-      // - edit.html?uid=<uuid>（若 uid=自己 → 一般模式；若 uid≠自己 → 需要管理員權限）
+      // - edit.html?uid=<uuid>
       // - edit.html?id=<uuid>（同 uid）
+      // 規則：
+      // - 只要網址有 uid/id/targetUserId，就以該 id 為「要編輯的目標」。
+      // - 若目標不是本人 → 需要管理員權限。
       const params = new URLSearchParams(window.location.search || '');
       const targetUserId = params.get('targetUserId') || params.get('uid') || params.get('id');
-      // 先以 URL 顯式指定為準；若未指定但帶了 targetUserId，後面會再依「是否為本人」決定是否需要管理員
       let adminMode = params.get('adminMode') === 'true';
 
       // 預設為編輯自己的名片
@@ -2094,6 +2096,11 @@ body.theme-light .link-input-cancel:hover {
 
       if (targetUserId && myUserId && String(targetUserId) !== String(myUserId)) {
         // 有指定 targetUserId 且不是本人 → 自動轉為管理員模式
+        adminMode = true;
+      }
+
+      // 若指定的 targetUserId 不是本人 → 走管理員模式（不管有沒有帶 adminMode=true）
+      if (targetUserId && myUserId && String(targetUserId) !== String(myUserId)) {
         adminMode = true;
       }
 
@@ -2115,9 +2122,16 @@ body.theme-light .link-input-cancel:hover {
         
         // 如果該用戶還沒名片，cardData 為 null，視為幫他新建
       } else {
-        // 一般模式：讀取自己的名片
-        const my = await UVACO_CLOUD.getMyCard();
-        cardData = my.card;
+        // 一般模式：
+        // - 若網址有指定 uid/id/targetUserId（且是本人），就用 getCardByUserId() 明確讀取，避免載入錯誤或落回示例。
+        // - 否則才用 getMyCard()
+        if (targetUserId && myUserId && String(targetUserId) === String(myUserId)) {
+          const meRes = await UVACO_CLOUD.getCardByUserId(targetUserId);
+          cardData = meRes.card;
+        } else {
+          const my = await UVACO_CLOUD.getMyCard();
+          cardData = my.card;
+        }
         
         // 若使用者已經有名片：視為已 onboarding（避免清掉 localStorage 後又被當新手）
         if (cardData) {
