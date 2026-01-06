@@ -147,6 +147,13 @@ function applyCompanyInfo(pj) {
     return;
   }
   section.innerHTML = html;
+  // 展示頁：移除編輯用按鈕（例如「+ 新增公司資訊」）
+  try {
+    section.querySelectorAll('.edit-add-btn').forEach(btn => btn.remove());
+    // 順便移除任何 contenteditable/onclick（避免在展示頁仍可點擊編輯）
+    section.querySelectorAll('[contenteditable="true"]').forEach(el => el.removeAttribute('contenteditable'));
+    section.querySelectorAll('.edit-clickable').forEach(el => el.removeAttribute('onclick'));
+  } catch (e) {}
   section.style.display = 'block';
 }
 
@@ -161,6 +168,11 @@ function applyContacts(pj, card) {
     // 展示頁：移除編輯用的刪除按鈕（避免把 edit.html 的 UI 帶到 card.html）
     try {
       group.querySelectorAll('.contact-delete-btn').forEach(btn => btn.remove());
+      // 展示頁：移除編輯用按鈕（例如「+ 新增聯絡方式」）
+      group.querySelectorAll('.edit-add-btn').forEach(btn => btn.remove());
+      // 移除 contenteditable/onclick
+      group.querySelectorAll('[contenteditable="true"]').forEach(el => el.removeAttribute('contenteditable'));
+      group.querySelectorAll('.edit-clickable').forEach(el => el.removeAttribute('onclick'));
     } catch (e) {}
   } else {
     // fallback：只用 phone/email
