@@ -2192,14 +2192,54 @@ function loadCardToUI(card) {
 
 // 聚焦編輯
 function focusEdit(element) {
-  element.focus();
-  // 選中所有文字
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  const selection = window.getSelection();
-  selection.removeAllRanges();
-  selection.addRange(range);
+  // 修正：避免每次點擊都「全選」導致貼上/輸入時游標跳動、文字被整段覆蓋。
+  // 行為改為：若尚未聚焦，聚焦並把游標放到結尾（不全選）。
+  try {
+    const alreadyFocused = (document.activeElement === element);
+    element.focus();
+    if (alreadyFocused) return;
+
+    const selection = window.getSelection();
+    if (!selection) return;
+    selection.removeAllRanges();
+
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false); // 游標放到結尾
+    selection.addRange(range);
+  } catch (e) {}
 }
+
+// 修正：contenteditable 貼上時一律以「純文字」插入，避免插入 HTML 造成結構變動與游標跑位
+document.addEventListener('paste', function (e) {
+  try {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    const el = t.closest('[contenteditable="true"]');
+    if (!el) return;
+    // 只處理可編輯欄位（避免影響其他輸入）
+    if (!el.classList || !el.classList.contains('edit-clickable')) return;
+
+    const text = (e.clipboardData || window.clipboardData)?.getData('text/plain');
+    if (typeof text !== 'string') return;
+    e.preventDefault();
+
+    // 優先用 execCommand（相容性好），不行再用 Range
+    if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+      document.execCommand('insertText', false, text);
+      return;
+    }
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    sel.deleteFromDocument();
+    const range = sel.getRangeAt(0);
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } catch (_e) {}
+});
 
 // 從預覽更新姓名
 function updateNameFromPreview() {
