@@ -302,7 +302,7 @@ function ensureEditContactLayoutToggle() {
         /* Grid mode：固定至少 3 張；寬度夠就 4 張（不允許 2/1） */
         .btn-group.contact-layout-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
         @media (min-width:980px){.btn-group.contact-layout-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-        .btn-group.contact-layout-grid .btn{border-radius:18px;height:92px;font-size:clamp(11px,2.8vw,14px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;flex-direction:column;justify-content:center;align-items:center;gap:10px;padding:14px 12px;text-align:center}
+        .btn-group.contact-layout-grid .btn{border-radius:18px;height:92px;font-size:clamp(11px,2.6vw,14px);line-height:1.15;white-space:normal;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;overflow-wrap:anywhere;flex-direction:column;justify-content:center;align-items:center;gap:10px;padding:14px 12px;text-align:center}
         .btn-group.contact-layout-grid .btn:hover{transform:translateY(-1px)}
       `;
       document.head.appendChild(s);
