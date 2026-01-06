@@ -792,6 +792,13 @@ body.theme-light .theme-selector-close {
   font-size: 12px;
   line-height: 1.4;
 }
+/* 放在標語 item 內時強制換行到下一列（避免擠到 strong 旁） */
+.slogan-item { flex-wrap: wrap; }
+.slogan-item .uvaco-company-picker-wrap {
+  flex: 0 0 100%;
+  width: 100%;
+  margin-left: 0;
+}
 @media (max-width: 420px) {
   .uvaco-company-picker-wrap {
     display: flex;
@@ -805,6 +812,21 @@ body.theme-light .theme-selector-close {
   }
   .uvaco-company-picker-badge {
     margin-top: 0;
+  }
+}
+
+/* ===== iPhone SE：姓名呈現（中文｜英文）===== */
+/* 目標：正常寬度同列；小螢幕英文換到下一列但仍水平顯示 */
+#previewNameZh, #previewNameEn {
+  white-space: normal;
+}
+#previewNameZh .en, #previewNameEn .en {
+  display: inline;
+}
+@media (max-width: 420px) {
+  #previewNameZh .en, #previewNameEn .en {
+    display: block;
+    margin-left: 0;
   }
 }
 
@@ -2675,12 +2697,22 @@ function updateNameFromPreview() {
   // 解析姓名（格式：中文名 ｜ 英文名）
   const zhMatch = nameZhText.match(/^(.+?)\s*｜\s*(.+)$/);
   const enMatch = nameEnText.match(/^(.+?)\s*｜\s*(.+)$/);
+
+  // 相容：使用者可能輸入「中文（EN）」或「中文(EN)」
+  const zhParen = nameZhText.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
+  const enParen = nameEnText.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
   
   if (zhMatch) {
     nameZhEl.innerHTML = zhMatch[1] + ' ｜ <span class="en">' + zhMatch[2] + '</span>';
+  } else if (zhParen) {
+    nameZhEl.innerHTML = zhParen[1].trim() + ' ｜ <span class="en">' + zhParen[2].trim() + '</span>';
   }
   if (enMatch) {
     nameEnEl.innerHTML = enMatch[1] + ' ｜ <span class="en">' + enMatch[1].split(' ')[0] + '</span>';
+  } else if (enParen) {
+    // 英文欄位：右側取第一段（名），避免太長
+    const first = enParen[2].trim().split(/\s+/)[0] || enParen[2].trim();
+    nameEnEl.innerHTML = enParen[1].trim() + ' ｜ <span class="en">' + first + '</span>';
   }
 }
 
