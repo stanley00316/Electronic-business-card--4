@@ -2524,8 +2524,17 @@ setTimeout(() => applyContactLayout(window.__uvacoContactLayout), 0);
 
 // 新增標語到預覽
 function addSloganToPreview(lang) {
+  // 若目前語系與要新增的語系不同，新增後會被 setLang() 隱藏（造成「點了沒出現」的錯覺）。
+  // 因此這裡自動切換到對應語系，並把游標聚焦到新標語。
+  const getCurrentLang = () => {
+    const zhElements = document.querySelectorAll('.lang-zh');
+    return (zhElements.length > 0 && zhElements[0].style.display !== 'none') ? 'zh' : 'en';
+  };
+
   const containerId = lang === 'zh' ? 'previewSlogansZh' : 'previewSlogansEn';
   const container = document.getElementById(containerId);
+  if (!container) return;
+
   const sloganItem = document.createElement('div');
   sloganItem.className = 'slogan-item';
   
@@ -2545,6 +2554,27 @@ function addSloganToPreview(lang) {
     deleteSloganFromPreview(this);
   };
   
+  // 組裝並加入
+  sloganItem.appendChild(tagline);
+  sloganItem.appendChild(deleteBtn);
+  container.appendChild(sloganItem);
+
+  // 同步整理（避免空白被清掉、確保事件存在）
+  updateSlogansPreview();
+
+  // 自動切換語系並聚焦
+  const currentLang = getCurrentLang();
+  if (typeof setLang === 'function' && currentLang !== lang) {
+    setLang(lang);
+  }
+  setTimeout(() => {
+    try { sloganItem.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+    try { focusEdit(tagline); } catch (e) { try { tagline.focus(); } catch (_e) {} }
+  }, 0);
+
+  return;
+
+  // 下面原本的 append 若存在，保留但不會走到（避免重複 append）
   sloganItem.appendChild(tagline);
   sloganItem.appendChild(deleteBtn);
   container.appendChild(sloganItem);
