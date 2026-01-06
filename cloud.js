@@ -691,6 +691,7 @@ window.UVACO_CLOUD = (function () {
     lineAuthDiag,
     getMyCard,
     getCardByUserId,
+    getCardPublic,
     searchCards,
     upsertMyCard,
     ensureConsent,
