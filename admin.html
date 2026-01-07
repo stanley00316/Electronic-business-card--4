@@ -27,19 +27,30 @@
     .actions-cell{white-space:normal}
     .actions-cell .actions-wrap{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 
-    /* 小螢幕：表格轉卡片列表（UX：避免超出畫面、欄名直排） */
+    /* 小螢幕：表格轉卡片列表（UX：避免超出畫面、欄名直排）
+       注意：同時提供 media query 與 body class（admin-narrow），避免某些環境 media query 沒吃到 */
     @media (max-width: 900px){
       body{padding:14px}
       table{min-width:0}
-      #userTable thead{display:none}
+      #userTable thead{display:none !important}
       #userTable tbody{display:block}
       #userTable tbody tr{display:block;background:#1f1f1f;border:1px solid #2b2b2b;border-radius:14px;padding:12px;margin:12px 0}
-      #userTable tbody td{display:flex;gap:10px;padding:8px 0;border:none;align-items:flex-start}
+      #userTable tbody td{display:flex !important;gap:10px;padding:8px 0;border:none;align-items:flex-start}
       #userTable tbody td::before{content:attr(data-label);flex:0 0 86px;color:#9ca3af;font-size:12px;font-weight:700;letter-spacing:.08em}
-      #userTable tbody td.actions-cell{display:block}
+      #userTable tbody td.actions-cell{display:block !important}
       #userTable tbody td.actions-cell::before{content:'';display:none}
       #userTable tbody td.actions-cell .actions-wrap{justify-content:flex-start}
     }
+    body.admin-narrow{padding:14px}
+    body.admin-narrow table{min-width:0}
+    body.admin-narrow #userTable thead{display:none !important}
+    body.admin-narrow #userTable tbody{display:block}
+    body.admin-narrow #userTable tbody tr{display:block;background:#1f1f1f;border:1px solid #2b2b2b;border-radius:14px;padding:12px;margin:12px 0}
+    body.admin-narrow #userTable tbody td{display:flex !important;gap:10px;padding:8px 0;border:none;align-items:flex-start}
+    body.admin-narrow #userTable tbody td::before{content:attr(data-label);flex:0 0 86px;color:#9ca3af;font-size:12px;font-weight:700;letter-spacing:.08em}
+    body.admin-narrow #userTable tbody td.actions-cell{display:block !important}
+    body.admin-narrow #userTable tbody td.actions-cell::before{content:'';display:none}
+    body.admin-narrow #userTable tbody td.actions-cell .actions-wrap{justify-content:flex-start}
     
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
     .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; }
@@ -123,7 +134,16 @@
 let allData = [];
 let adminStatus = null;
 
+function applyResponsiveAdminLayout() {
+  try {
+    const narrow = (window.innerWidth || 0) <= 900;
+    document.body.classList.toggle('admin-narrow', !!narrow);
+  } catch (e) {}
+}
+
 async function init() {
+  applyResponsiveAdminLayout();
+  window.addEventListener('resize', applyResponsiveAdminLayout);
   // 1. 檢查登入
   const { session } = await UVACO_CLOUD.getSession();
   if (!session) {
