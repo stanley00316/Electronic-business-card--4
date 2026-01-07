@@ -333,20 +333,25 @@ body.theme-light .section-label { color: #6b7280; }
   /* 圖標上、文字下；文字需像範例可讀：允許最多兩行換行（仍保持水平） */
   font-size: clamp(11px, 2.6vw, 14px);
   line-height: 1.15;
-  white-space: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 10px;
   padding: 14px 12px;
   text-align: center;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.btn-group.contact-layout-grid .btn .contact-btn-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .btn-group.contact-layout-grid .btn img {
@@ -355,6 +360,7 @@ body.theme-light .section-label { color: #6b7280; }
   object-fit: contain;
   flex: 0 0 auto;
   display: block;
+  margin: 0 auto;
 }
 
 /* Grid 尾列補滿：避免 3 欄時最後一排留大空白（特別是 iPhone SE） */
@@ -362,26 +368,26 @@ body.theme-light .section-label { color: #6b7280; }
   min-width: 0;
 }
 /* 總數 = 3n + 1：最後一張跨 3 欄 */
-.btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+1) {
+.btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-of-type(1):nth-of-type(3n+1) {
   grid-column: 1 / -1;
 }
 /* 總數 = 3n + 2：最後一張跨 2 欄（補滿尾列剩餘空格） */
-.btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(3n+2) {
+.btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-of-type(1):nth-of-type(3n+2) {
   grid-column: span 2;
 }
 
 /* 4 欄（桌面）尾列補滿：避免最後一排留空白 */
 @media (min-width: 980px) {
   /* 總數 = 4n + 1：最後一張跨 4 欄 */
-  .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+1) {
+  .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-of-type(1):nth-of-type(4n+1) {
     grid-column: 1 / -1;
   }
   /* 總數 = 4n + 2：最後一張跨 3 欄（補滿 col2-col4） */
-  .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+2) {
+  .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-of-type(1):nth-of-type(4n+2) {
     grid-column: span 3;
   }
   /* 總數 = 4n + 3：最後一張跨 2 欄（補滿 col3-col4） */
-  .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-child(1):nth-child(4n+3) {
+  .btn-group.contact-layout-grid .contact-btn-wrapper:nth-last-of-type(1):nth-of-type(4n+3) {
     grid-column: span 2;
   }
 }
