@@ -12,6 +12,51 @@ END $$;
 -- 2-1) admin_users：先把現有 policies 全部刪掉（不靠名字），再重建成「不自我查表」的版本
 ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
 
+-- 若你現有的 public.is_admin() 會查 admin_users，policy 內再呼叫它會造成無限遞迴 → stack depth limit exceeded。
+-- 因此這裡改用 SECURITY DEFINER（由 postgres 擁有、繞過 RLS）來判斷 super admin / managed_company。
+-- 注意：在 Supabase SQL Editor 以 role=postgres 執行時，函式 owner 會是 postgres，可 bypass RLS。
+create or replace function public.is_super_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists(
+    select 1
+    from public.admin_users au
+    where au.user_id::text = auth.uid()::text
+      and au.managed_company is null
+  );
+$$;
+
+create or replace function public.is_any_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists(
+    select 1
+    from public.admin_users au
+    where au.user_id::text = auth.uid()::text
+  );
+$$;
+
+create or replace function public.my_managed_company()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select au.managed_company
+  from public.admin_users au
+  where au.user_id::text = auth.uid()::text
+  limit 1;
+$$;
+
 DO $$
 DECLARE p record;
 BEGIN
@@ -32,32 +77,32 @@ TO authenticated
 USING (user_id::text = auth.uid()::text);
 
 -- Super Admin：可讀全部（後台列表用）
--- 注意：這裡用 public.is_admin()（通常查 admin_allowlist），避免在 policy 裡查 admin_users 自己
+-- 注意：不要用 public.is_admin()（你的 DB 可能用它查 admin_users，會遞迴），改用 SECURITY DEFINER 的 public.is_super_admin()
 CREATE POLICY "admin_users_select_all_super"
 ON public.admin_users
 FOR SELECT
 TO authenticated
-USING (public.is_admin());
+USING (public.is_super_admin());
 
 -- Super Admin：可寫入/刪除/更新 admin_users
 CREATE POLICY "admin_users_insert_super"
 ON public.admin_users
 FOR INSERT
 TO authenticated
-WITH CHECK (public.is_admin());
+WITH CHECK (public.is_super_admin());
 
 CREATE POLICY "admin_users_update_super"
 ON public.admin_users
 FOR UPDATE
 TO authenticated
-USING (public.is_admin())
-WITH CHECK (public.is_admin());
+USING (public.is_super_admin())
+WITH CHECK (public.is_super_admin());
 
 CREATE POLICY "admin_users_delete_super"
 ON public.admin_users
 FOR DELETE
 TO authenticated
-USING (public.is_admin());
+USING (public.is_super_admin());
 
 -- 2-2) cards：允許管理員（super/company）更新/刪除；company admin 限制只能操作自己公司
 ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
@@ -68,14 +113,10 @@ ON public.cards
 FOR UPDATE
 TO authenticated
 USING (
-  EXISTS (
-    SELECT 1
-    FROM public.admin_users au
-    WHERE au.user_id::text = auth.uid()::text
-      AND (
-        au.managed_company IS NULL
-        OR public.cards.company ILIKE ('%' || au.managed_company || '%')
-      )
+  public.is_any_admin()
+  and (
+    public.my_managed_company() is null
+    or public.cards.company ilike ('%' || public.my_managed_company() || '%')
   )
 );
 
@@ -85,14 +126,10 @@ ON public.cards
 FOR DELETE
 TO authenticated
 USING (
-  EXISTS (
-    SELECT 1
-    FROM public.admin_users au
-    WHERE au.user_id::text = auth.uid()::text
-      AND (
-        au.managed_company IS NULL
-        OR public.cards.company ILIKE ('%' || au.managed_company || '%')
-      )
+  public.is_any_admin()
+  and (
+    public.my_managed_company() is null
+    or public.cards.company ilike ('%' || public.my_managed_company() || '%')
   )
 );
 
