@@ -12,14 +12,34 @@
     .toolbar-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     input[type="text"] { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; width: 100%; box-sizing: border-box; }
     
-    table { width: 100%; border-collapse: collapse; background: #222; border-radius: 12px; overflow: hidden; }
-    th, td { padding: 15px; text-align: left; border-bottom: 1px solid #333; }
+    .table-wrap{width:100%;overflow:auto;-webkit-overflow-scrolling:touch;border-radius:12px}
+    table { width: 100%; min-width: 860px; border-collapse: collapse; background: #222; border-radius: 12px; overflow: hidden; }
+    th, td { padding: 15px; text-align: left; border-bottom: 1px solid #333; vertical-align: top; }
     th { background: #333; color: #aaa; font-weight: normal; }
     tr:hover { background: #2a2a2a; }
     
     .btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; margin-right: 5px; white-space: nowrap; width: auto; }
     .btn-green { background: var(--uvaco-green); color: #fff; }
     .btn-outline { background: transparent; border: 1px solid #555; color: #ccc; }
+
+    /* 長網址不要撐爆版面 */
+    .nfc-url-cell a{color:#9ca3af;text-decoration:none;word-break:break-all;overflow-wrap:anywhere}
+    .actions-cell{white-space:normal}
+    .actions-cell .actions-wrap{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+
+    /* 小螢幕：表格轉卡片列表（UX：避免超出畫面、欄名直排） */
+    @media (max-width: 900px){
+      body{padding:14px}
+      table{min-width:0}
+      #userTable thead{display:none}
+      #userTable tbody{display:block}
+      #userTable tbody tr{display:block;background:#1f1f1f;border:1px solid #2b2b2b;border-radius:14px;padding:12px;margin:12px 0}
+      #userTable tbody td{display:flex;gap:10px;padding:8px 0;border:none;align-items:flex-start}
+      #userTable tbody td::before{content:attr(data-label);flex:0 0 86px;color:#9ca3af;font-size:12px;font-weight:700;letter-spacing:.08em}
+      #userTable tbody td.actions-cell{display:block}
+      #userTable tbody td.actions-cell::before{content:'';display:none}
+      #userTable tbody td.actions-cell .actions-wrap{justify-content:flex-start}
+    }
     
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
     .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; }
@@ -44,6 +64,7 @@
 
 <div id="adminHint" style="margin:10px 0 18px;color:#aaa;font-size:13px"></div>
 
+<div class="table-wrap">
 <table id="userTable">
   <thead>
     <tr>
@@ -58,6 +79,7 @@
     <tr><td colspan="5" style="text-align:center">載入中...</td></tr>
   </tbody>
 </table>
+</div>
 
 <!-- Super Admin：管理員管理 -->
 <div id="adminMgmt" style="display:none;margin-top:26px;background:#1b1b1b;border:1px solid #2b2b2b;border-radius:12px;padding:16px">
@@ -73,7 +95,8 @@
     <button class="btn btn-outline" onclick="removeAdminUser()">移除</button>
   </div>
 
-  <table id="adminTable" style="width:100%;border-collapse:collapse;background:#222;border-radius:12px;overflow:hidden">
+  <div class="table-wrap">
+  <table id="adminTable" style="width:100%;border-collapse:collapse;background:#222;border-radius:12px;overflow:hidden;min-width:520px">
     <thead>
       <tr>
         <th style="background:#333;color:#aaa;font-weight:normal;padding:12px;border-bottom:1px solid #333">User ID</th>
@@ -84,6 +107,7 @@
       <tr><td colspan="2" style="padding:12px;text-align:center;color:#888">載入中...</td></tr>
     </tbody>
   </table>
+  </div>
 </div>
 
 <div id="qrModal" class="qr-modal" onclick="this.style.display='none'">
@@ -152,18 +176,21 @@ function renderTable(data) {
 
   data.forEach(row => {
     const url = `${window.location.origin}${window.location.pathname.replace('admin.html', '')}card.html?id=${row.user_id}`;
+    const urlLabel = `card.html?id=${row.user_id}`;
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${row.name || '未命名'}</td>
-      <td>${row.company || '-'} <br> <small style="color:#666">${row.title || '-'}</small></td>
-      <td>${new Date(row.updated_at).toLocaleDateString()}</td>
-      <td><a href="${url}" target="_blank" style="color:#666;text-decoration:none">${url}</a></td>
-      <td>
-        <button class="btn btn-green" onclick="copyLink('${url}')">複製連結</button>
-        <button class="btn btn-outline" onclick="showQR('${row.name}', '${url}')">QR Code</button>
-        <button class="btn btn-outline" onclick="editCard('${row.user_id}')">編輯</button>
-        <button class="btn btn-outline" onclick="deleteCard('${row.user_id}')">刪除</button>
+      <td data-label="姓名">${row.name || '未命名'}</td>
+      <td data-label="公司/職稱">${row.company || '-'} <br> <small style="color:#9ca3af">${row.title || '-'}</small></td>
+      <td data-label="更新時間">${new Date(row.updated_at).toLocaleDateString()}</td>
+      <td data-label="NFC 網址" class="nfc-url-cell"><a href="${url}" target="_blank" rel="noopener noreferrer">${urlLabel}</a></td>
+      <td class="actions-cell">
+        <div class="actions-wrap">
+          <button class="btn btn-green" onclick="copyLink('${url}')">複製連結</button>
+          <button class="btn btn-outline" onclick="showQR('${row.name}', '${url}')">QR Code</button>
+          <button class="btn btn-outline" onclick="editCard('${row.user_id}')">編輯</button>
+          <button class="btn btn-outline" onclick="deleteCard('${row.user_id}')">刪除</button>
+        </div>
       </td>
     `;
     tbody.appendChild(tr);
