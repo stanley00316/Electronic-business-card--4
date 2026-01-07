@@ -29,7 +29,7 @@ CREATE POLICY "admin_users_select_own"
 ON public.admin_users
 FOR SELECT
 TO authenticated
-USING (user_id = auth.uid());
+USING (user_id::text = auth.uid()::text);
 
 -- Super Admin：可讀全部（後台列表用）
 -- 注意：這裡用 public.is_admin()（通常查 admin_allowlist），避免在 policy 裡查 admin_users 自己
