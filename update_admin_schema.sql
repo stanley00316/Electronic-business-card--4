@@ -6,7 +6,60 @@ BEGIN
     END IF;
 END $$;
 
--- 2. 設定 RLS (使用 ::text 強制轉型比較)
+-- 2. 強制整理 RLS policies（避免舊 policy 殘留造成遞迴 stack depth）
+-- 重要：你遇到的 stack depth limit exceeded (code=54001) 幾乎都是「policy 內查同表」造成無限遞迴。
+
+-- 2-1) admin_users：先把現有 policies 全部刪掉（不靠名字），再重建成「不自我查表」的版本
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE p record;
+BEGIN
+  FOR p IN
+    SELECT policyname
+    FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'admin_users'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.admin_users;', p.policyname);
+  END LOOP;
+END $$;
+
+-- 登入者：只能讀自己的 admin row（供前端判斷角色：super/company admin）
+CREATE POLICY "admin_users_select_own"
+ON public.admin_users
+FOR SELECT
+TO authenticated
+USING (user_id = auth.uid());
+
+-- Super Admin：可讀全部（後台列表用）
+-- 注意：這裡用 public.is_admin()（通常查 admin_allowlist），避免在 policy 裡查 admin_users 自己
+CREATE POLICY "admin_users_select_all_super"
+ON public.admin_users
+FOR SELECT
+TO authenticated
+USING (public.is_admin());
+
+-- Super Admin：可寫入/刪除/更新 admin_users
+CREATE POLICY "admin_users_insert_super"
+ON public.admin_users
+FOR INSERT
+TO authenticated
+WITH CHECK (public.is_admin());
+
+CREATE POLICY "admin_users_update_super"
+ON public.admin_users
+FOR UPDATE
+TO authenticated
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
+
+CREATE POLICY "admin_users_delete_super"
+ON public.admin_users
+FOR DELETE
+TO authenticated
+USING (public.is_admin());
+
+-- 2-2) cards：允許管理員（super/company）更新/刪除；company admin 限制只能操作自己公司
 ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow update for admins" ON public.cards;
@@ -43,48 +96,4 @@ USING (
   )
 );
 
--- 3. 設定 admin_users RLS（避免 policy 自我查表造成 stack depth limit exceeded）
-ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
-
--- 登入者只能讀自己的 admin row（供前端判斷角色）
-DROP POLICY IF EXISTS "Allow read own admin row" ON public.admin_users;
-CREATE POLICY "Allow read own admin row"
-ON public.admin_users
-FOR SELECT
-TO authenticated
-USING (user_id = auth.uid());
-
--- Super Admin（建議使用 admin_allowlist / public.is_admin()）可讀取全部 admin_users（後台列表用）
-DROP POLICY IF EXISTS "Allow read all for super admins" ON public.admin_users;
-CREATE POLICY "Allow read all for super admins"
-ON public.admin_users
-FOR SELECT
-TO authenticated
-USING (public.is_admin());
-
--- 4. 設定 Super Admin 寫入權限
-DROP POLICY IF EXISTS "Allow insert for super admins" ON public.admin_users;
-CREATE POLICY "Allow insert for super admins"
-ON public.admin_users
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  public.is_admin()
-);
-
-DROP POLICY IF EXISTS "Allow delete for super admins" ON public.admin_users;
-CREATE POLICY "Allow delete for super admins"
-ON public.admin_users
-FOR DELETE
-TO authenticated
-USING (
-  public.is_admin()
-);
-
-DROP POLICY IF EXISTS "Allow update for super admins" ON public.admin_users;
-CREATE POLICY "Allow update for super admins"
-ON public.admin_users
-FOR UPDATE
-TO authenticated
-USING (public.is_admin())
-WITH CHECK (public.is_admin());
+-- 注意：admin_users 的 policies 已在上方以「全刪再建」處理，避免舊 policy 遺留造成遞迴
