@@ -254,7 +254,24 @@ async function deleteCard(userId) {
     await reloadData();
     alert('已刪除。');
   } catch (e) {
-    alert('刪除失敗：' + String(e?.message || e || ''));
+    try { console.error('deleteCard failed', e); } catch (_e) {}
+    const msg = String(e?.message || e || '');
+    const code = String(e?.code || '');
+    const details = String(e?.details || '');
+    const hint = String(e?.hint || '');
+    const extra = [code && ('code=' + code), details && ('details=' + details), hint && ('hint=' + hint)]
+      .filter(Boolean)
+      .join('\n');
+    // 常見：Supabase / Postgres RLS policy 自我參照，會回傳 stack depth limit exceeded
+    if (/stack\s+depth\s+limit\s+exceeded/i.test(msg)) {
+      alert(
+        '刪除失敗：資料庫權限規則（RLS policy）可能有「自我查表」造成遞迴，導致 stack depth limit exceeded。\n\n' +
+        '請到 Supabase SQL Editor 重新執行專案的 update_admin_schema.sql（最新版已修正此問題），再重試刪除。\n\n' +
+        (extra ? ('\n\n' + extra) : '')
+      );
+      return;
+    }
+    alert('刪除失敗：' + msg + (extra ? ('\n\n' + extra) : ''));
   }
 }
 

@@ -1,5 +1,4 @@
-
--- 1. 新增 managed_company 欄位到 admin_users 表 (若不存在)
+-- 1. 新增 managed_company 欄位
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'admin_users' AND column_name = 'managed_company') THEN
@@ -7,62 +6,70 @@ BEGIN
     END IF;
 END $$;
 
--- 2. 確保 RLS 政策允許 Admin 修改與刪除 cards 表
--- 先啟用 cards 表的 RLS (如果還沒的話)
+-- 2. 設定 RLS (使用 ::text 強制轉型比較)
 ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
 
--- 刪除舊的 Admin 相關政策 (避免衝突)
 DROP POLICY IF EXISTS "Allow update for admins" ON public.cards;
-DROP POLICY IF EXISTS "Allow delete for admins" ON public.cards;
-
--- 新增政策：允許 admin_users 表中存在的 user_id 對 cards 執行 UPDATE
--- 邏輯：檢查當前 auth.uid() 是否存在於 admin_users 表中
--- (這裡先做簡單的全權管理，細部的 "只能管自己公司" 邏輯會在前端 cloud.js 和 後端 Edge Function/RPC 進一步過濾，
--- 但 RLS 層面我們先開放給 admin_users，以便操作)
 CREATE POLICY "Allow update for admins"
 ON public.cards
 FOR UPDATE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM public.admin_users 
-    WHERE user_id = auth.uid()
+    SELECT 1
+    FROM public.admin_users au
+    WHERE au.user_id::text = auth.uid()::text
+      AND (
+        au.managed_company IS NULL
+        OR public.cards.company ILIKE ('%' || au.managed_company || '%')
+      )
   )
 );
 
--- 新增政策：允許 admin_users 表中存在的 user_id 對 cards 執行 DELETE
+DROP POLICY IF EXISTS "Allow delete for admins" ON public.cards;
 CREATE POLICY "Allow delete for admins"
 ON public.cards
 FOR DELETE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM public.admin_users 
-    WHERE user_id = auth.uid()
+    SELECT 1
+    FROM public.admin_users au
+    WHERE au.user_id::text = auth.uid()::text
+      AND (
+        au.managed_company IS NULL
+        OR public.cards.company ILIKE ('%' || au.managed_company || '%')
+      )
   )
 );
 
--- 3. 確保 admin_users 表本身可以被 admin 讀取 (我們之前做過了，這裡再確保一次)
-DROP POLICY IF EXISTS "Allow read for authenticated users" ON public.admin_users;
-CREATE POLICY "Allow read for authenticated users"
+-- 3. 設定 admin_users RLS（避免 policy 自我查表造成 stack depth limit exceeded）
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+
+-- 登入者只能讀自己的 admin row（供前端判斷角色）
+DROP POLICY IF EXISTS "Allow read own admin row" ON public.admin_users;
+CREATE POLICY "Allow read own admin row"
 ON public.admin_users
 FOR SELECT
 TO authenticated
-USING (true);
+USING (user_id = auth.uid());
 
--- 允許 Super Admin (managed_company IS NULL) 管理 admin_users 表 (新增/刪除其他 admin)
--- 這部分需要更嚴謹的政策，這裡先允許 "所有在 admin_users 裡的人" 讀取，但寫入權限我們暫時只開放給 Super Admin
+-- Super Admin（建議使用 admin_allowlist / public.is_admin()）可讀取全部 admin_users（後台列表用）
+DROP POLICY IF EXISTS "Allow read all for super admins" ON public.admin_users;
+CREATE POLICY "Allow read all for super admins"
+ON public.admin_users
+FOR SELECT
+TO authenticated
+USING (public.is_admin());
+
+-- 4. 設定 Super Admin 寫入權限
 DROP POLICY IF EXISTS "Allow insert for super admins" ON public.admin_users;
 CREATE POLICY "Allow insert for super admins"
 ON public.admin_users
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.admin_users 
-    WHERE user_id = auth.uid() 
-    AND managed_company IS NULL -- 只有 Super Admin 可以新增
-  )
+  public.is_admin()
 );
 
 DROP POLICY IF EXISTS "Allow delete for super admins" ON public.admin_users;
@@ -71,9 +78,13 @@ ON public.admin_users
 FOR DELETE
 TO authenticated
 USING (
-  EXISTS (
-    SELECT 1 FROM public.admin_users 
-    WHERE user_id = auth.uid() 
-    AND managed_company IS NULL -- 只有 Super Admin 可以刪除
-  )
+  public.is_admin()
 );
+
+DROP POLICY IF EXISTS "Allow update for super admins" ON public.admin_users;
+CREATE POLICY "Allow update for super admins"
+ON public.admin_users
+FOR UPDATE
+TO authenticated
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
