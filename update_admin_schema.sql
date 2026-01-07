@@ -107,29 +107,80 @@ USING (public.is_super_admin());
 -- 2-2) cards：允許管理員（super/company）更新/刪除；company admin 限制只能操作自己公司
 ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Allow update for admins" ON public.cards;
-CREATE POLICY "Allow update for admins"
+-- 先刪除 cards 既有 policies（不靠名字），避免舊 policy 殘留造成遞迴 stack depth
+DO $$
+DECLARE p record;
+BEGIN
+  FOR p IN
+    SELECT policyname
+    FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'cards'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.cards;', p.policyname);
+  END LOOP;
+END $$;
+
+-- cards：使用者自己的資料
+CREATE POLICY "cards_own_select"
+ON public.cards
+FOR SELECT
+TO authenticated
+USING (user_id = auth.uid());
+
+CREATE POLICY "cards_directory_select"
+ON public.cards
+FOR SELECT
+TO authenticated
+USING (true);
+
+CREATE POLICY "cards_own_insert"
+ON public.cards
+FOR INSERT
+TO authenticated
+WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "cards_own_update"
+ON public.cards
+FOR UPDATE
+TO authenticated
+USING (user_id = auth.uid())
+WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "cards_own_delete"
+ON public.cards
+FOR DELETE
+TO authenticated
+USING (user_id = auth.uid());
+
+-- cards：管理員更新/刪除（company admin 限制只能操作自己公司；super admin 不限制）
+CREATE POLICY "cards_admin_update"
 ON public.cards
 FOR UPDATE
 TO authenticated
 USING (
   public.is_any_admin()
-  and (
-    public.my_managed_company() is null
-    or public.cards.company ilike ('%' || public.my_managed_company() || '%')
+  AND (
+    public.my_managed_company() IS NULL
+    OR public.cards.company ILIKE ('%' || public.my_managed_company() || '%')
+  )
+)
+WITH CHECK (
+  public.is_any_admin()
+  AND (
+    public.my_managed_company() IS NULL
+    OR public.cards.company ILIKE ('%' || public.my_managed_company() || '%')
   )
 );
 
-DROP POLICY IF EXISTS "Allow delete for admins" ON public.cards;
-CREATE POLICY "Allow delete for admins"
+CREATE POLICY "cards_admin_delete"
 ON public.cards
 FOR DELETE
 TO authenticated
 USING (
   public.is_any_admin()
-  and (
-    public.my_managed_company() is null
-    or public.cards.company ilike ('%' || public.my_managed_company() || '%')
+  AND (
+    public.my_managed_company() IS NULL
+    OR public.cards.company ILIKE ('%' || public.my_managed_company() || '%')
   )
 );
 
