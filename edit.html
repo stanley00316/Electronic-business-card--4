@@ -2316,6 +2316,8 @@ function loadCardToUI(card) {
     try { pj = JSON.parse(pj); } catch (e) { pj = {}; }
   }
   pj = (pj && typeof pj === 'object') ? pj : {};
+  // 供 saveCard() 參考（避免 pj 作用域問題）
+  window.__uvacoLoadedProfileJson = pj;
 
   const setHtmlLikeName = (id, raw) => {
     const el = document.getElementById(id);
@@ -2370,6 +2372,19 @@ function loadCardToUI(card) {
     try {
       const logo = document.getElementById('previewLogo');
       const avatar = document.getElementById('previewAvatar');
+      // 若載入失敗（常見：signed URL 過期/路徑錯誤），回退到預設圖，避免一直刷 400
+      if (logo && !logo.__uvacoOnErrorBound) {
+        logo.__uvacoOnErrorBound = true;
+        logo.addEventListener('error', () => {
+          try { logo.setAttribute('src', 'uvaco-logo.svg'); } catch (e) {}
+        });
+      }
+      if (avatar && !avatar.__uvacoOnErrorBound) {
+        avatar.__uvacoOnErrorBound = true;
+        avatar.addEventListener('error', () => {
+          try { avatar.setAttribute('src', 'default-avatar.svg'); } catch (e) {}
+        });
+      }
       if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
         if (logo) {
           if (pj.logoPath) {
@@ -4394,6 +4409,14 @@ async function saveCard() {
     const avatar = document.getElementById('previewAvatar');
     const contacts = document.getElementById('previewContacts');
     const companyInfo = document.getElementById('companyInfoSection');
+    const prevPj = (window.__uvacoLoadedProfileJson && typeof window.__uvacoLoadedProfileJson === 'object')
+      ? window.__uvacoLoadedProfileJson
+      : {};
+    const logoSrcRaw = String(logo?.getAttribute('src') || '');
+    const avatarSrcRaw = String(avatar?.getAttribute('src') || '');
+    // 不要把會過期的 signed URL 存進 DB：只保留 blob/data 作為「尚未儲存」的暫存預覽
+    const logoSrcSafe = (logoSrcRaw.startsWith('blob:') || logoSrcRaw.startsWith('data:')) ? logoSrcRaw : '';
+    const avatarSrcSafe = (avatarSrcRaw.startsWith('blob:') || avatarSrcRaw.startsWith('data:')) ? avatarSrcRaw : '';
     return {
       lang: currentLang,
       contactLayout: (window.__uvacoContactLayout === 'grid') ? 'grid' : 'list',
@@ -4403,7 +4426,7 @@ async function saveCard() {
       titleEn: titleEnRaw,
       // 公司資訊：儲存「粗體標語」的完整字串以保持原版型
       companyCanonical: companyCanonical,
-      companyLocked: !adminModeForCompany ? true : (pj.companyLocked === true),
+      companyLocked: !adminModeForCompany ? true : (prevPj.companyLocked === true),
       companyZh: (function () {
         const s = getSloganStrong('zh');
         return s ? String(s.textContent || '').trim() : '';
@@ -4415,8 +4438,8 @@ async function saveCard() {
       theme: theme,
       // 圖片：改用 Storage path（避免把 base64 存進 DB）
       // 若尚未上傳（離線/尚未儲存），仍可能是 blob: 或 data:，僅作為暫存預覽用
-      logoSrc: String(logo?.getAttribute('src') || ''),
-      avatarSrc: String(avatar?.getAttribute('src') || ''),
+      logoSrc: logoSrcSafe,
+      avatarSrc: avatarSrcSafe,
       previewCardHtml: card ? card.innerHTML : '',
       contactsHtml: contacts ? contacts.innerHTML : '',
       companyInfoHtml: companyInfo ? companyInfo.innerHTML : '',
