@@ -98,19 +98,13 @@ BEGIN
   END LOOP;
 END $$;
 
--- cards：使用者自己的資料
-CREATE POLICY "cards_own_select"
+-- cards：所有人都能讀取（包含未登入訪客，名片才能公開分享）
+CREATE POLICY "cards_public_select"
 ON public.cards
 FOR SELECT
-TO authenticated
-USING (user_id::text = auth.uid()::text);
-
-CREATE POLICY "cards_directory_select"
-ON public.cards
-FOR SELECT
-TO authenticated
 USING (true);
 
+-- cards：使用者自己的資料（僅限寫入/更新/刪除）
 CREATE POLICY "cards_own_insert"
 ON public.cards
 FOR INSERT
