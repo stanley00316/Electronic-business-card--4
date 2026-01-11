@@ -71,12 +71,23 @@
   </div>
 
   <!-- 提示文字 -->
-  <div class="hint lang-zh">
-    若您透過 <strong>NFC 名片</strong> 或分享連結開啟此頁，我會盡快回覆您。
-  </div>
-  <div class="hint lang-en">
-    If you opened this page via <strong>NFC card</strong> or shared link, I will respond as soon as possible.
-  </div>
+    <div class="hint lang-zh">
+      若您透過 <strong>NFC 名片</strong> 或分享連結開啟此頁，我會盡快回覆您。
+    </div>
+    <div class="hint lang-en">
+      If you opened this page via <strong>NFC card</strong> or shared link, I will respond as soon as possible.
+    </div>
+    
+    <!-- 分享名片功能 -->
+    <div style="margin-top: 20px; text-align: center;">
+      <button class="btn btn-primary" onclick="shareMyCard()" style="background-color: var(--uvaco-green); color: white; display: inline-flex; align-items: center; gap: 8px; width: auto; min-width: 160px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+        </svg>
+        <span class="lang-zh">分享名片</span>
+        <span class="lang-en">Share Card</span>
+      </button>
+    </div>
 
 </div>
 
@@ -309,6 +320,29 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   })();
 });
+
+function shareMyCard() {
+  const url = window.location.href;
+  const title = document.title;
+  const text = '這是我的電子名片，請惠賜指教！';
+
+  if (navigator.share) {
+    navigator.share({
+      title: title,
+      text: text,
+      url: url,
+    })
+    .catch((error) => console.log('Error sharing', error));
+  } else {
+    // Fallback for browsers that don't support Web Share API
+    navigator.clipboard.writeText(url).then(function() {
+      alert('名片連結已複製到剪貼簿！');
+    }, function(err) {
+      console.error('Could not copy text: ', err);
+      prompt('請手動複製連結：', url);
+    });
+  }
+}
 </script>
 
 </body>
