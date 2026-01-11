@@ -4112,13 +4112,14 @@ body.theme-light .add-friend-btn-submit:disabled {
 
 .info-item {
   display: flex;
+  flex-direction: column; /* 改為垂直排列：標籤在上，內容在下 */
   align-items: flex-start;
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 12px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border-radius: 8px;
   transition: all 0.2s;
-  position: relative;
+  position: relative; /* 讓刪除按鈕絕對定位 */
 }
 
 .info-item:hover {
@@ -4132,10 +4133,13 @@ body.theme-light .info-item:hover {
 .info-label {
   font-weight: 600;
   color: var(--uvaco-green);
-  flex-shrink: 0;
-  min-width: 100px;
+  width: 100%; /* 標籤佔滿整行 */
+  margin-bottom: 2px;
   /* 提高亮度，確保清楚可見 */
   filter: brightness(1.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 body.theme-dark .info-label {
@@ -4147,12 +4151,24 @@ body.theme-light .info-label {
 }
 
 .info-value {
-  flex: 1;
+  width: 100%; /* 內容佔滿整行 */
   color: #ffffff; /* 深色主題下使用純白色 */
   word-break: break-word;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  font-size: 15px; /* 預設字體 */
+}
+
+/* 自動調整字體：若內容過長或螢幕過小，自動縮小字體以容納 */
+@container (min-width: 0px) {
+  .info-value {
+    font-size: clamp(13px, 4cqi, 16px);
+  }
+}
+/* Fallback using viewport width if container queries not fully supported or structured */
+.info-value {
+  font-size: clamp(13px, 4vw, 16px);
 }
 
 body.theme-dark .info-value {
@@ -4166,6 +4182,7 @@ body.theme-light .info-value {
 .address-text {
   flex: 1;
   color: inherit; /* 繼承父元素的顏色 */
+  line-height: 1.5;
 }
 
 body.theme-dark .address-text {
@@ -4183,6 +4200,7 @@ body.theme-light .address-text {
   text-decoration: underline;
   margin-top: 4px;
   transition: opacity 0.2s;
+  display: inline-block;
 }
 
 .address-map-link:hover {
@@ -4204,6 +4222,11 @@ body.theme-light .address-text {
   display: flex;
   align-items: center;
   justify-content: center;
+  
+  /* 絕對定位到右上角，與 Label 同行但靠右 */
+  position: absolute;
+  top: 10px;
+  right: 12px;
 }
 
 .info-delete-btn:hover {
