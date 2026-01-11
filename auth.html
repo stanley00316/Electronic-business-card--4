@@ -57,6 +57,14 @@
       <button type="button" class="auth-btn secondary" onclick="diagLine()">診斷（不會顯示密鑰）</button>
       <button type="button" class="auth-btn secondary" onclick="explainLineAuth()">部署/設定教學</button>
 
+      <!-- 開發者登入區塊（僅 Localhost 顯示） -->
+      <div id="devLoginArea" style="display:none; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+        <div style="font-size:13px; color:#f59e0b; margin-bottom:8px; font-weight:bold;">⚠️ 開發者模式 (Localhost Only)</div>
+        <div style="font-size:12px; color:#9ca3af; margin-bottom:8px;">無法使用 LINE 登入時，請貼上 Access Token 強制登入。</div>
+        <input type="text" id="devJwtInput" class="auth-input" placeholder="Paste JWT here..." style="font-family:monospace; font-size:12px;">
+        <button type="button" class="auth-btn" style="background:#f59e0b; margin-top:8px;" onclick="doDevLogin()">開發者強制登入</button>
+      </div>
+
       <div id="statusBox" class="auth-status"></div>
       <div class="auth-note">
         隱私權政策：<a href="privacy.html" target="_blank" rel="noopener">查看</a>
@@ -141,7 +149,51 @@
       );
     }
 
+    function checkDevMode() {
+      const h = window.location.hostname;
+      // 允許 localhost, 127.0.0.1, 192.168.*, 172.*, 10.* 等區域網路 IP
+      if (h === 'localhost' || h === '127.0.0.1' || 
+          h.startsWith('192.168.') || h.startsWith('172.') || h.startsWith('10.')) {
+        const el = document.getElementById('devLoginArea');
+        if (el) el.style.display = 'block';
+      }
+    }
+
+    async function doDevLogin() {
+      const input = document.getElementById('devJwtInput');
+      const token = (input.value || '').trim();
+      if (!token) {
+        alert('請輸入 Token');
+        return;
+      }
+      // 簡單格式檢查
+      if (!token.includes('.')) {
+        alert('Token 格式看起來不正確 (不是 JWT)');
+        return;
+      }
+      
+      if (UVACO_CLOUD.setCustomJwt(token)) {
+        // 立即驗證 Token 是否有效
+        try {
+          const s = await UVACO_CLOUD.getSession();
+          if (s && s.session && s.session.user && s.session.user.id) {
+            alert('Token 驗證成功 (User ID: ' + s.session.user.id + ')，即將跳轉...');
+            window.location.replace(getNext());
+          } else {
+            alert('Token 設定成功但無法取得 Session (無效或過期)。\n請檢查 Token 是否正確。');
+            UVACO_CLOUD.clearCustomJwt();
+          }
+        } catch (e) {
+          alert('Token 驗證發生錯誤：' + e.message);
+          UVACO_CLOUD.clearCustomJwt();
+        }
+      } else {
+        alert('設定失敗');
+      }
+    }
+
     bootstrap();
+    checkDevMode();
   </script>
 </body>
 </html>

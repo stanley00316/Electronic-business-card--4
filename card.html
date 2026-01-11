@@ -7,13 +7,13 @@
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<meta name="robots" content="noindex" />
-<title>電子名片 | Business Card</title>
-<link rel="stylesheet" href="styles.css?v=20260105">
+  <meta name="robots" content="noindex" />
+  <title>電子名片 | Business Card</title>
+  <link rel="stylesheet" href="styles.css?v=20260105">
 <!-- Supabase JS（CDN） -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cloud.js?v=20260106"></script>
-<script src="common.js?v=20260105"></script>
+  <script src="common.js?v=20260105"></script>
 </head>
 
 <body class="theme-dark lang-zh">
@@ -26,8 +26,8 @@
 <div class="hero">
   <div class="hero-frame">
     <img src="uvaco-logo.svg" class="hero-logo" alt="UVACO" id="viewerLogo">
-  </div>
-</div>
+          </div>
+        </div>
 
 <!-- 資料卡（與 yuyuko.html 完全一致的結構） -->
 <div class="card" id="previewCard">
@@ -43,12 +43,16 @@
   <div class="tagline lang-zh" id="viewerTitleZh">-</div>
   <div class="tagline lang-en" id="viewerTitleEn">-</div>
 
-  <!-- 標語（固定佔位，實際以公司名稱為主） -->
-  <div class="tagline lang-zh">健康・事業・未來</div>
-  <div class="tagline lang-zh"><strong id="viewerCompanyStrongZh">-</strong></div>
+  <!-- 標語（由 JS 動態填入，或 fallback 到預設） -->
+  <div id="viewerSlogansZh">
+    <div class="tagline lang-zh">健康・事業・未來</div>
+    <div class="tagline lang-zh"><strong id="viewerCompanyStrongZh">-</strong></div>
+  </div>
 
-  <div class="tagline lang-en">Health • Business • Future</div>
-  <div class="tagline lang-en"><strong id="viewerCompanyStrongEn">-</strong></div>
+  <div id="viewerSlogansEn">
+    <div class="tagline lang-en">Health • Business • Future</div>
+    <div class="tagline lang-en"><strong id="viewerCompanyStrongEn">-</strong></div>
+  </div>
 
   <div class="divider"></div>
 
@@ -161,7 +165,7 @@ function applyContacts(pj, card) {
   const group = document.getElementById('viewerContacts');
   if (!group) return;
   group.innerHTML = '';
-
+  
   const html = String(pj.contactsHtml || '').trim();
   if (html) {
     group.innerHTML = html;
@@ -220,7 +224,7 @@ function openMap(addressType, event) {
     const encodedAddress = encodeURIComponent(address);
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
     window.open(mapUrl, '_blank');
-  }
+}
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -235,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
       alert('尚未設定 Supabase（請先設定 cloud.js）');
       return;
-    }
+}
 
     let ownerTheme = 1;
     try {
@@ -253,13 +257,13 @@ document.addEventListener('DOMContentLoaded', function () {
         try { pj = JSON.parse(pj); } catch (e) { pj = null; }
       }
       pj = (pj && typeof pj === 'object') ? pj : {};
-
-      const nameZh = safeText(pj.nameZh) || safeText(card.name);
-      const nameEn = safeText(pj.nameEn) || safeText(card.name);
-      const titleZh = safeText(pj.titleZh) || safeText(card.title);
-      const titleEn = safeText(pj.titleEn) || safeText(card.title);
-      const companyZh = safeText(pj.companyZh) || safeText(card.company);
-      const companyEn = safeText(pj.companyEn) || safeText(card.company);
+  
+      const nameZh = (pj.nameZh !== undefined) ? safeText(pj.nameZh) : safeText(card.name);
+      const nameEn = (pj.nameEn !== undefined) ? safeText(pj.nameEn) : safeText(card.name);
+      const titleZh = (pj.titleZh !== undefined) ? safeText(pj.titleZh) : safeText(card.title);
+      const titleEn = (pj.titleEn !== undefined) ? safeText(pj.titleEn) : safeText(card.title);
+      const companyZh = (pj.companyZh !== undefined) ? safeText(pj.companyZh) : safeText(card.company);
+      const companyEn = (pj.companyEn !== undefined) ? safeText(pj.companyEn) : safeText(card.company);
 
       renderBilingualName('viewerNameZh', nameZh);
       renderBilingualName('viewerNameEn', nameEn);
@@ -267,6 +271,27 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('viewerTitleEn').textContent = titleEn || '-';
       document.getElementById('viewerCompanyStrongZh').textContent = companyZh || '-';
       document.getElementById('viewerCompanyStrongEn').textContent = companyEn || '-';
+
+      // 恢復自定義標語（若有）
+      if (pj.slogansZhHtml) {
+        const container = document.getElementById('viewerSlogansZh');
+        if (container) {
+          container.innerHTML = pj.slogansZhHtml;
+          // 清除編輯模式可能帶來的屬性
+          container.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+          container.querySelectorAll('.slogan-delete-btn').forEach(el => el.remove());
+          container.querySelectorAll('.edit-clickable').forEach(el => el.classList.remove('edit-clickable'));
+        }
+      }
+      if (pj.slogansEnHtml) {
+        const container = document.getElementById('viewerSlogansEn');
+        if (container) {
+          container.innerHTML = pj.slogansEnHtml;
+          container.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+          container.querySelectorAll('.slogan-delete-btn').forEach(el => el.remove());
+          container.querySelectorAll('.edit-clickable').forEach(el => el.classList.remove('edit-clickable'));
+        }
+      }
 
       await applyAssets(pj);
       applyCompanyInfo(pj);
@@ -280,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function () {
         initViewerPage(ownerTheme);
       } else if (typeof setTheme === 'function') {
         setTheme(ownerTheme);
-      }
+}
     }
   })();
 });

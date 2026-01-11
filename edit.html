@@ -2323,20 +2323,22 @@ function loadCardToUI(card) {
     const el = document.getElementById(id);
     if (!el) return;
     const s = safeText(raw);
-    if (!s) return;
+    // 即使是空字串也應該更新，除非 raw 為 null/undefined 代表沒資料
+    if (raw === null || raw === undefined) return;
+    
     const parts = s.split(/\s*｜\s*/);
     if (parts.length >= 2) {
       el.innerHTML = `${parts[0]} ｜ <span class="en">${parts.slice(1).join(' ｜ ')}</span>`;
     } else {
-      el.textContent = s;
+      el.textContent = s || (id === 'previewNameZh' ? '姓名' : '');
     }
   };
 
   const setText = (id, raw) => {
     const el = document.getElementById(id);
     if (!el) return;
+    if (raw === null || raw === undefined) return;
     const s = safeText(raw);
-    if (!s) return;
     el.textContent = s;
   };
 
@@ -2426,7 +2428,33 @@ function loadCardToUI(card) {
     if (typeof applyContactLayout === 'function') applyContactLayout(layout);
   } catch (e) {}
 
-  // 7) 同步標語預覽（避免事件遺失）
+  // 7) 標語（直接回填 HTML，維持原版型與可編輯事件）
+  try {
+    const zhSlogans = document.getElementById('previewSlogansZh');
+    // 優先使用資料庫中的 HTML (pj.slogansZhHtml)
+    // 但若 pj.slogansZhHtml 為空，且是第一次編輯（沒有 savedAt），則保留預設的 HTML（不覆蓋為空）
+    // 避免新用戶一進來標語就被清空
+    if (zhSlogans) {
+      if (pj.slogansZhHtml) {
+        zhSlogans.innerHTML = String(pj.slogansZhHtml);
+      } else if (pj.savedAt) {
+        // 若有儲存過但 html 為空，代表用戶可能真的清空了，這裡應該要清空？
+        // 為了安全起見，若真的為空，給一個預設結構，方便用戶點擊編輯
+        zhSlogans.innerHTML = `<div class="slogan-item"><div class="tagline lang-zh edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)">健康・事業・未來</div><button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="刪除標語">✕</button></div>`;
+      }
+    }
+
+    const enSlogans = document.getElementById('previewSlogansEn');
+    if (enSlogans) {
+      if (pj.slogansEnHtml) {
+        enSlogans.innerHTML = String(pj.slogansEnHtml);
+      } else if (pj.savedAt) {
+        enSlogans.innerHTML = `<div class="slogan-item"><div class="tagline lang-en edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)">Health • Business • Future</div><button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="Delete slogan">✕</button></div>`;
+      }
+    }
+  } catch (e) {}
+
+  // 8) 同步標語預覽（確保事件繫結與整理）
   try { if (typeof updateSlogansPreview === 'function') updateSlogansPreview(); } catch (e) {}
 }
 
@@ -2451,6 +2479,7 @@ function focusEdit(element) {
 }
 
 // 修正：contenteditable 貼上時一律以「純文字」插入，避免插入 HTML 造成結構變動與游標跑位
+// 並在貼上後強制觸發 input/blur 事件以同步資料
 document.addEventListener('paste', function (e) {
   try {
     const t = e.target;
@@ -2467,17 +2496,19 @@ document.addEventListener('paste', function (e) {
     // 優先用 execCommand（相容性好），不行再用 Range
     if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
       document.execCommand('insertText', false, text);
-      return;
+    } else {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      sel.deleteFromDocument();
+      const range = sel.getRangeAt(0);
+      range.insertNode(document.createTextNode(text));
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
-
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    sel.deleteFromDocument();
-    const range = sel.getRangeAt(0);
-    range.insertNode(document.createTextNode(text));
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
+    
+    // 強制觸發同步
+    if (el.onblur) el.onblur();
   } catch (_e) {}
 });
 
@@ -2541,7 +2572,7 @@ function getSloganStrong(lang) {
     const containerId = (lang === 'zh') ? 'previewSlogansZh' : 'previewSlogansEn';
     const container = document.getElementById(containerId);
     if (!container) return null;
-    const strong = container.querySelector('.slogan-item strong');
+    const strong = container.querySelector('strong');
     return strong || null;
   } catch (e) { return null; }
 }
@@ -2557,22 +2588,45 @@ function applyCompanyToUI(canonical) {
   const c = String(canonical || '').trim();
   if (!c) return false;
 
-  // 中文 strong：保留右半邊（若存在）
+  // 中文 strong：保留右半邊（若存在），若無則建立
   const zhStrong = getSloganStrong('zh');
   if (zhStrong) {
     const old = String(zhStrong.textContent || '').trim();
     const parts = old.split(/\s*｜\s*/);
     const suffix = (parts.length >= 2) ? parts.slice(1).join('｜').trim() : '專業陪伴';
     zhStrong.textContent = c + '｜' + (suffix || '專業陪伴');
+  } else {
+    // 建立一個帶 strong 的 slogan
+    const container = document.getElementById('previewSlogansZh');
+    if (container) {
+      const div = document.createElement('div');
+      div.className = 'slogan-item';
+      div.innerHTML = `
+        <div class="tagline lang-zh edit-clickable" contenteditable="true"><strong>${c}｜專業陪伴</strong></div>
+        <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="刪除">✕</button>
+      `;
+      container.insertBefore(div, container.firstChild);
+    }
   }
 
-  // 英文 strong：保留右半邊（若存在）
+  // 英文 strong：保留右半邊（若存在），若無則建立
   const enStrong = getSloganStrong('en');
   if (enStrong) {
     const old = String(enStrong.textContent || '').trim();
     const parts = old.split(/\s*\|\s*/);
     const suffix = (parts.length >= 2) ? parts.slice(1).join('|').trim() : 'Professional Support';
     enStrong.textContent = c + ' | ' + (suffix || 'Professional Support');
+  } else {
+    const container = document.getElementById('previewSlogansEn');
+    if (container) {
+      const div = document.createElement('div');
+      div.className = 'slogan-item';
+      div.innerHTML = `
+        <div class="tagline lang-en edit-clickable" contenteditable="true"><strong>${c} | Professional Support</strong></div>
+        <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="Delete">✕</button>
+      `;
+      container.insertBefore(div, container.firstChild);
+    }
   }
 
   window.__uvacoSelectedCompany = c;
@@ -2819,8 +2873,14 @@ function injectCompanyPickerButtons() {
 // 從預覽更新姓名
 function updateNameFromPreview() {
   const nameZhEl = document.getElementById('previewNameZh');
-  const nameZhText = nameZhEl.textContent.trim();
+  if (!nameZhEl) return;
+  const nameZhText = String(nameZhEl.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!nameZhText) return;
   
+  // 同步到隱藏的 input 欄位（若未來表單需要）
+  const nameInp = document.getElementById('nameZh');
+  if (nameInp) nameInp.value = nameZhText;
+
   // 解析姓名（格式：中文名 ｜ 英文名）
   const zhMatch = nameZhText.match(/^(.+?)\s*｜\s*(.+)$/);
 
@@ -2828,9 +2888,11 @@ function updateNameFromPreview() {
   const zhParen = nameZhText.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
   
   if (zhMatch) {
-    nameZhEl.innerHTML = zhMatch[1] + ' ｜ <span class="en">' + zhMatch[2] + '</span>';
+    nameZhEl.innerHTML = zhMatch[1].trim() + ' ｜ <span class="en">' + zhMatch[2].trim() + '</span>';
   } else if (zhParen) {
     nameZhEl.innerHTML = zhParen[1].trim() + ' ｜ <span class="en">' + zhParen[2].trim() + '</span>';
+  } else {
+    nameZhEl.textContent = nameZhText;
   }
 
   // 套用自動縮字，確保單行水平顯示
@@ -2844,7 +2906,20 @@ function updateNameFromPreview() {
 function updateTitleFromPreview() {
   const titleZhEl = document.getElementById('previewTitleZh');
   const titleEnEl = document.getElementById('previewTitleEn');
-  // 職務已經直接編輯，不需要額外處理
+  
+  // 取得純文字並清理多餘空白
+  const zhText = String(titleZhEl?.textContent || '').replace(/\s+/g, ' ').trim();
+  const enText = String(titleEnEl?.textContent || '').replace(/\s+/g, ' ').trim();
+
+  // 更新回 DOM 確保一致性
+  if (titleZhEl) titleZhEl.textContent = zhText;
+  if (titleEnEl) titleEnEl.textContent = enText;
+
+  // 同步到隱藏的 input 欄位（若未來表單需要）
+  const zhInp = document.getElementById('titleZh');
+  const enInp = document.getElementById('titleEn');
+  if (zhInp) zhInp.value = zhText;
+  if (enInp) enInp.value = enText;
 }
 
 // ===== 自動縮字：讓元素文字保持單行水平呈現（超出就縮小到 minPx）=====
@@ -2889,12 +2964,55 @@ function updateSlogansPreview() {
   const enContainer = document.getElementById('previewSlogansEn');
   if (!zhContainer || !enContainer) return;
 
-  // 只做最小化整理：清理空白、確保 class/事件存在，不重建 DOM
+  // 記錄目前的焦點位置，避免 normalizeContainer 重建內容時游標跳掉
+  const selection = window.getSelection();
+  let focusedEl = null;
+  let offset = 0;
+  if (selection && selection.rangeCount > 0) {
+    focusedEl = selection.focusNode;
+    offset = selection.focusOffset;
+  }
+
+  // 只做最小化整理：清理空白、確保 class/事件存在，並修復結構
   const normalizeContainer = (container, lang) => {
+    // 1. 先修復結構：找出所有沒有被 .slogan-item 包裹的 .tagline，將其包裹並加上刪除按鈕
+    const orphanedTaglines = Array.from(container.children).filter(el => 
+      el.classList.contains('tagline') && !el.closest('.slogan-item')
+    );
+    
+    orphanedTaglines.forEach(tagline => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'slogan-item';
+      
+      // 插入 wrapper 到 tagline 原本的位置
+      container.insertBefore(wrapper, tagline);
+      
+      // 移動 tagline 到 wrapper 內
+      wrapper.appendChild(tagline);
+      
+      // 加入刪除按鈕
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'slogan-delete-btn';
+      deleteBtn.textContent = '✕';
+      deleteBtn.title = lang === 'zh' ? '刪除標語' : 'Delete slogan';
+      deleteBtn.onclick = function(e) {
+         e.stopPropagation();
+         deleteSloganFromPreview(this);
+      };
+      wrapper.appendChild(deleteBtn);
+    });
+
+    // 2. 針對所有 .slogan-item 進行正規化
     const items = Array.from(container.querySelectorAll('.slogan-item'));
     items.forEach(item => {
-      const tagline = item.querySelector('.tagline');
-      if (!tagline) return;
+      let tagline = item.querySelector('.tagline');
+      
+      // 如果 .slogan-item 裡面沒有 .tagline（罕見），補一個
+      if (!tagline) {
+         tagline = document.createElement('div');
+         tagline.className = 'tagline';
+         item.insertBefore(tagline, item.firstChild);
+      }
 
       // 確保語系 class 正確
       tagline.classList.add('tagline');
@@ -2904,32 +3022,56 @@ function updateSlogansPreview() {
 
       // 確保可編輯與事件存在
       tagline.contentEditable = 'true';
-      tagline.onblur = function () { updateSlogansPreview(); };
-      tagline.onclick = function () { focusEdit(this); };
+      
+      // 使用閉包綁定事件，避免全域污染
+      // 防止重複綁定
+      tagline.onblur = function() {
+        // 重要：這裡不呼叫 normalizeContainer，也不遞迴呼叫 updateSlogansPreview
+        // 只做資料同步
+        updateCompanyFromSlogans();
+      };
+      
+      tagline.onclick = function() { focusEdit(this); };
+
+      // 確保有刪除按鈕
+      if (!item.querySelector('.slogan-delete-btn')) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'slogan-delete-btn';
+        deleteBtn.textContent = '✕';
+        deleteBtn.title = lang === 'zh' ? '刪除標語' : 'Delete slogan';
+        deleteBtn.onclick = function(e) {
+            e.stopPropagation();
+            deleteSloganFromPreview(this);
+        };
+        item.appendChild(deleteBtn);
+      }
 
       // 若使用者把內容清空，給一個最小提示字避免整個消失
       const html = String(tagline.innerHTML || '').trim();
       const text = String(tagline.textContent || '').trim();
-      if (!html && !text) {
+      // 只有當真的什麼都沒有時才給預設值，且不要在用戶正在編輯時干擾
+      if (!html && !text && document.activeElement !== tagline) {
         tagline.textContent = (lang === 'zh') ? '新標語' : 'New Slogan';
       }
     });
   };
 
+  // 只有在非編輯狀態下才執行 normalize，避免干擾輸入法
+  // 但為了確保按鈕事件綁定，這裡還是得執行，只是要小心不要動到 activeElement
   normalizeContainer(zhContainer, 'zh');
   normalizeContainer(enContainer, 'en');
 
-  // 若舊版存在 input 清單，則同步回去（避免混用時資料不同步）
-  try {
-    const zhInputs = Array.from(document.querySelectorAll('#slogansZhList .edit-slogan-input'));
-    const zhTaglines = Array.from(zhContainer.querySelectorAll('.slogan-item .tagline'));
-    zhInputs.forEach((inp, i) => { if (zhTaglines[i]) inp.value = String(zhTaglines[i].textContent || '').trim(); });
-  } catch (e) {}
-  try {
-    const enInputs = Array.from(document.querySelectorAll('#slogansEnList .edit-slogan-input'));
-    const enTaglines = Array.from(enContainer.querySelectorAll('.slogan-item .tagline'));
-    enInputs.forEach((inp, i) => { if (enTaglines[i]) inp.value = String(enTaglines[i].textContent || '').trim(); });
-  } catch (e) {}
+  // 立即更新公司名稱
+  updateCompanyFromSlogans();
+}
+
+function updateCompanyFromSlogans() {
+  const zhStrong = getSloganStrong('zh');
+  const enStrong = getSloganStrong('en');
+  const currentCompany = getCanonicalCompanyFromStrongText(zhStrong ? zhStrong.textContent : (enStrong ? enStrong.textContent : ''));
+  if (currentCompany) {
+    window.__uvacoSelectedCompany = currentCompany;
+  }
 }
 
 // ===== 圖片處理（壓縮/裁切/上傳 Storage）=====
@@ -4285,138 +4427,151 @@ function deleteContactButton(contactBtn) {
 }
 
 // 儲存名片（雲端：Supabase）
+
+function getCleanSloganHtml(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return '';
+  
+  // 複製一份，避免改到畫面
+  const clone = container.cloneNode(true);
+  
+  // 移除所有編輯屬性與事件
+  const editables = clone.querySelectorAll('[contenteditable]');
+  editables.forEach(el => el.removeAttribute('contenteditable'));
+  
+  const clickables = clone.querySelectorAll('.edit-clickable');
+  clickables.forEach(el => {
+    el.classList.remove('edit-clickable');
+    el.removeAttribute('onclick');
+    el.removeAttribute('onblur');
+  });
+  
+  const buttons = clone.querySelectorAll('button, .slogan-delete-btn');
+  buttons.forEach(el => el.remove());
+  
+  // 移除所有 script/onclick/onblur 屬性（再次檢查）
+  const all = clone.querySelectorAll('*');
+  all.forEach(el => {
+    // 移除所有 on 開頭的屬性
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.startsWith('on')) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+
+  return clone.innerHTML;
+}
+
 async function saveCard() {
+  console.log('saveCard started...');
   const zhElements = document.querySelectorAll('.lang-zh');
   const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+
+  // 1. 強制讓目前聚焦的元素失去焦點，觸發 onblur 以同步最新編輯內容
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    try { document.activeElement.blur(); } catch(e) {}
+  }
+
+  // 2. 額外強制同步：手動觸發所有 contenteditable 的更新函式
+  try { if (typeof updateNameFromPreview === 'function') updateNameFromPreview(); } catch (e) {}
+  try { if (typeof updateTitleFromPreview === 'function') updateTitleFromPreview(); } catch (e) {}
+  try { if (typeof updateSlogansPreview === 'function') updateSlogansPreview(); } catch (e) {}
+  try { if (typeof updateCompanyFromSlogans === 'function') updateCompanyFromSlogans(); } catch (e) {}
 
   function textOf(id) {
     const el = document.getElementById(id);
     return String(el?.textContent || '').replace(/\s+/g, ' ').trim();
   }
-
-  function primaryPart(text) {
-    const s = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!s) return '';
-    // 常見格式：中文名 ｜ 英文名、Company | Slogan
-    // 只取「左半邊」作為 cards.name / cards.company 的主要值
-    return s.split(/\s*[｜|]\s*/)[0].trim();
+  
+  function srcOf(id) {
+    const el = document.getElementById(id);
+    const src = el?.getAttribute('src') || '';
+    if (src.startsWith('blob:') || src.startsWith('data:')) return src;
+    if (src.includes('default-avatar.svg')) return '';
+    if (src.includes('uvaco-logo.svg')) return '';
+    return src;
   }
 
-  function englishPartFromNameZh(text) {
-    const s = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!s) return '';
-    // 1) 中文 ｜ 英文
-    const bar = s.match(/^(.+?)\s*｜\s*(.+)$/);
-    if (bar) return String(bar[2] || '').trim();
-    // 2) 中文（英文）/中文(英文)
-    const paren = s.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
-    if (paren) return String(paren[2] || '').trim();
-    return '';
-  }
-
-  function companyFromSlogans(lang) {
-    const sel = lang === 'zh' ? '#previewSlogansZh strong' : '#previewSlogansEn strong';
-    const strong = document.querySelector(sel);
-    return strong ? primaryPart(strong.textContent || '') : '';
-  }
-
-  // 基本欄位：符合你要匯出的欄位（name/phone/email/company/title/theme/created_at/updated_at）
+  // 3. 擷取資料
   const nameZhRaw = textOf('previewNameZh');
   const nameEnRaw = englishPartFromNameZh(nameZhRaw);
   const titleZhRaw = textOf('previewTitleZh');
   const titleEnRaw = textOf('previewTitleEn');
 
-  // name/title：依目前語言只存中文或英文（避免「中英混在同一欄」）
-  const name =
-    (currentLang === 'zh' ? primaryPart(nameZhRaw) : primaryPart(nameEnRaw)) ||
-    primaryPart(nameZhRaw) ||
-    primaryPart(nameEnRaw) ||
-    '';
+  const name = primaryPart(nameZhRaw) || 'Name';
+  const title = primaryPart(titleZhRaw) || 'Title';
 
-  const title =
-    (currentLang === 'zh' ? primaryPart(titleZhRaw) : primaryPart(titleEnRaw)) ||
-    primaryPart(titleZhRaw) ||
-    primaryPart(titleEnRaw) ||
-    '';
-  const theme = (function () {
-    // 優先：body.card-theme-*
-    const cls = Array.from(document.body.classList || []);
-    const hit = cls.find(c => /^card-theme-\d+$/.test(c));
-    if (hit) return parseInt(hit.replace('card-theme-', ''), 10) || 1;
-    // 次選：localStorage cardTheme
-    try { return parseInt(localStorage.getItem('cardTheme') || '1', 10) || 1; } catch (e) { return 1; }
-  })();
+  const theme = parseInt(window.currentCardTheme || 1, 10);
+  const phone = window.__uvacoCardPhone || '';
+  const email = window.__uvacoCardEmail || '';
 
-  const phone = (function () {
-    const a = document.querySelector('a[href^="tel:"]');
-    return a ? String(a.getAttribute('href') || '').replace(/^tel:/i, '').trim() : '';
-  })();
-
-  const email = (function () {
-    const a = document.querySelector('a[href^="mailto:"]');
-    return a ? String(a.getAttribute('href') || '').replace(/^mailto:/i, '').trim() : '';
-  })();
-
-  // 公司（企業管理用）：必選下拉/關鍵字匹配；cards.company 存 canonical（不含「｜專業陪伴」）
+  // 偵測公司名稱 (Canonical)
+  // 優先從 Slogan DOM 抓取，若無則用選擇器的
   const companyCanonical = (function () {
-    // 優先：公司選擇器帶入
-    const picked = String(window.__uvacoSelectedCompany || '').trim();
-    if (picked) return picked;
-
-    // 次選：從粗體標語解析（相容舊資料）
     const zhStrong = getSloganStrong('zh');
     const enStrong = getSloganStrong('en');
-    const fromZh = getCanonicalCompanyFromStrongText(zhStrong ? zhStrong.textContent : '');
-    const fromEn = getCanonicalCompanyFromStrongText(enStrong ? enStrong.textContent : '');
-    return fromZh || fromEn || '';
+    const fromDomZh = getCanonicalCompanyFromStrongText(zhStrong ? zhStrong.textContent : '');
+    const fromDomEn = getCanonicalCompanyFromStrongText(enStrong ? enStrong.textContent : '');
+    const fromDom = fromDomZh || fromDomEn || '';
+    
+    if (fromDom) return fromDom;
+    
+    const picked = String(window.__uvacoSelectedCompany || '').trim();
+    if (picked) return picked;
+    
+    return '';
   })();
+  
+  const company = companyCanonical || 'Personal'; // Allow empty company, default to 'Personal'
+  console.log('Company detection:', { company, companyCanonical });
 
-  // 公司必選：若沒有公司，拒絕儲存（避免企業管理權限失效）
-  if (!companyCanonical) {
-    alert(currentLang === 'zh'
-      ? '請先選擇公司（公司為必選）。\n提示：點「🏢 選擇公司」可用關鍵字帶入。'
-      : 'Please select a company first (Company is required).\nTip: click “🏢 Select Company” and search by keyword.'
-    );
-    return;
-  }
-
-  // 公司鎖定：一般使用者第一次儲存後鎖定，後續不可更改（管理員可改）
+  // Company lock logic temporarily commented out
+  /*
   const adminModeForCompany = isAdminModeFromUrl() || (function () {
-    try {
-      const p = new URLSearchParams(window.location.search || '');
-      return p.get('adminMode') === 'true';
-    } catch (e) { return false; }
+    const params = new URLSearchParams(window.location.search || '');
+    const targetUserId = params.get('targetUserId') || params.get('uid') || params.get('id');
+    const myUserId = (window.__uvacoLoadedProfileJson && window.__uvacoLoadedProfileJson.user_id) || ''; // Need verify
+    return (targetUserId && myUserId && targetUserId !== myUserId);
   })();
-  if (window.__uvacoCompanyLocked && !adminModeForCompany) {
+  const isActuallyLocked = window.__uvacoCompanyLocked && !adminModeForCompany && params.get('mode') !== 'onboarding';
+  
+  if (isActuallyLocked) {
+    // 檢查公司是否被更改
     const original = String(window.__uvacoOriginalCompanyCanonical || '').trim();
-    if (original && String(companyCanonical) !== String(original)) {
-      alert(currentLang === 'zh'
-        ? '公司已鎖定，無法更改（如需更改請聯絡管理員）。'
-        : 'Company is locked and cannot be changed. Please contact admin.'
-      );
-      // 回復 UI
+    if (original && companyCanonical !== original) {
+      alert('您的公司已鎖定為「' + original + '」，無法變更。\n如需更改請聯絡管理員。');
+      // 還原
+      window.__uvacoSelectedCompany = original;
       applyCompanyToUI(original);
-      return;
+      return; 
     }
   }
+  */
 
-  const company = companyCanonical;
-
-  // 完整資料：先用 profile_json 保存目前預覽區內容（不改 UI 結構）
+  // 4. 準備 JSON (profile_json)
   const profile_json = (function () {
     const card = document.getElementById('previewCard');
     const logo = document.getElementById('previewLogo');
     const avatar = document.getElementById('previewAvatar');
     const contacts = document.getElementById('previewContacts');
     const companyInfo = document.getElementById('companyInfoSection');
-    const prevPj = (window.__uvacoLoadedProfileJson && typeof window.__uvacoLoadedProfileJson === 'object')
-      ? window.__uvacoLoadedProfileJson
+    const slogansZh = document.getElementById('previewSlogansZh');
+    const slogansEn = document.getElementById('previewSlogansEn');
+
+    // 取得乾淨的 HTML 字串（移除編輯屬性）
+    const slogansZhClean = getCleanSloganHtml('previewSlogansZh');
+    const slogansEnClean = getCleanSloganHtml('previewSlogansEn');
+
+    const prevPj = (window.__uvacoLoadedProfileJson && typeof window.__uvacoLoadedProfileJson === 'object') 
+      ? window.__uvacoLoadedProfileJson 
       : {};
+
     const logoSrcRaw = String(logo?.getAttribute('src') || '');
     const avatarSrcRaw = String(avatar?.getAttribute('src') || '');
-    // 不要把會過期的 signed URL 存進 DB：只保留 blob/data 作為「尚未儲存」的暫存預覽
     const logoSrcSafe = (logoSrcRaw.startsWith('blob:') || logoSrcRaw.startsWith('data:')) ? logoSrcRaw : '';
     const avatarSrcSafe = (avatarSrcRaw.startsWith('blob:') || avatarSrcRaw.startsWith('data:')) ? avatarSrcRaw : '';
+    
     return {
       lang: currentLang,
       contactLayout: (window.__uvacoContactLayout === 'grid') ? 'grid' : 'list',
@@ -4424,9 +4579,8 @@ async function saveCard() {
       nameEn: nameEnRaw,
       titleZh: titleZhRaw,
       titleEn: titleEnRaw,
-      // 公司資訊：儲存「粗體標語」的完整字串以保持原版型
       companyCanonical: companyCanonical,
-      companyLocked: !adminModeForCompany ? true : (prevPj.companyLocked === true),
+      companyLocked: !adminModeForCompany ? true : (prevPj.companyLocked === true), // 第一次儲存後鎖定
       companyZh: (function () {
         const s = getSloganStrong('zh');
         return s ? String(s.textContent || '').trim() : '';
@@ -4436,16 +4590,23 @@ async function saveCard() {
         return s ? String(s.textContent || '').trim() : '';
       })(),
       theme: theme,
-      // 圖片：改用 Storage path（避免把 base64 存進 DB）
-      // 若尚未上傳（離線/尚未儲存），仍可能是 blob: 或 data:，僅作為暫存預覽用
-      logoSrc: logoSrcSafe,
+      logoSrc: logoSrcSafe, // base64 (若太大建議改用 uploadMyAsset)
       avatarSrc: avatarSrcSafe,
+      // 保留 storage path (若本次沒變更圖片，沿用舊的 path)
+      logoPath: logoSrcSafe ? '' : (prevPj.logoPath || ''),
+      avatarPath: avatarSrcSafe ? '' : (prevPj.avatarPath || ''),
+      
+      // HTML Fragments (Cleaned)
       previewCardHtml: card ? card.innerHTML : '',
       contactsHtml: contacts ? contacts.innerHTML : '',
       companyInfoHtml: companyInfo ? companyInfo.innerHTML : '',
+      slogansZhHtml: slogansZhClean,
+      slogansEnHtml: slogansEnClean,
+      
       savedAt: new Date().toISOString()
     };
   })();
+  console.log('Profile JSON prepared:', profile_json);
 
   // 雲端儲存：若未設定 Supabase，仍允許離線儲存提示
   if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
@@ -4548,12 +4709,21 @@ async function saveCard() {
     }
 
     try {
+      // DEBUG: 顯示即將儲存的關鍵資料，協助排查問題
+      const debugMsg = `正在儲存...\n\n姓名: ${name}\n公司: ${company}\n標語(中)長度: ${profile_json.slogansZhHtml.length}\n標語(英)長度: ${profile_json.slogansEnHtml.length}`;
+      console.log(debugMsg);
+      // 若需要開啟 debug 模式可取消註解下一行
+      // alert(debugMsg);
+
       if (adminMode && targetUserId) {
         // 管理員更新他人名片
+        console.log('Calling adminUpdateCard...', targetUserId);
         await UVACO_CLOUD.adminUpdateCard(targetUserId, { name, phone, email, company, title, theme, profile_json });
       } else {
+        console.log('Calling upsertMyCard...');
         await UVACO_CLOUD.upsertMyCard({ name, phone, email, company, title, theme, profile_json });
       }
+      console.log('Database write successful.');
     } catch (e) {
       console.error('Card upsert failed', e);
       const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
@@ -4580,7 +4750,8 @@ async function saveCard() {
             const s = await UVACO_CLOUD.getSession();
             const uid = s && s.session && s.session.user ? s.session.user.id : '';
             if (uid) {
-              window.location.href = 'card.html?id=' + encodeURIComponent(uid);
+              // 加入時間戳記強制刷新，避免 card.html 讀到快取
+              window.location.href = 'card.html?id=' + encodeURIComponent(uid) + '&t=' + Date.now();
               return;
             }
           } catch (e) {}

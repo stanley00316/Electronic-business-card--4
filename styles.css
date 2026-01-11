@@ -171,29 +171,25 @@ body.theme-light .theme-btn {
   width: 90%;
   max-width: 480px;
   border-radius: 40px;
-  padding: 14px 18px;
+  padding: 12px 16px; /* 稍微縮小 padding，讓邊框更精緻 */
 
-  background: linear-gradient(
-    135deg,
-    #faf3dd,
-    #f7ddaa,
-    #f4c978,
-    #f7ddaa,
-    #faf3dd
-  );
+  /* 更鮮明的金屬感金色漸層 */
+  background: linear-gradient(135deg, rgba(242, 208, 140, 1) 100%, rgba(250, 243, 221, 1) 65%);
   background-size: 300% 300%;
 
+  /* 強化邊緣清晰度，減少模糊感 */
   box-shadow:
-    0 0 25px rgba(255,215,125,0.55),
-    0 18px 40px rgba(0,0,0,0.3),
-    inset 0 0 10px rgba(255,255,255,0.45);
+    0 8px 25px rgba(0, 0, 0, 0.3),            /* 外部深色投影（提升立體感） */
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4), /* 內部細亮邊（增加邊緣銳利度） */
+    inset 0 0 10px rgba(0, 0, 0, 0.1);        /* 內部微陰影 */
 
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(212, 175, 55, 0.5); /* 實體邊框增加清晰度 */
 
   /* 金色波光 + 微浮動呼吸 */
   animation:
-    goldFlow 10s ease-in-out infinite,
+    goldFlow 6s ease-in-out infinite,
     heroFloat 6s ease-in-out infinite;
 }
 
