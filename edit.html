@@ -1974,6 +1974,12 @@ body.theme-light .link-input-cancel:hover {
         <span class="company-info-type-label lang-zh">公司住址</span>
         <span class="company-info-type-label lang-en">Company Address</span>
       </button>
+
+      <button class="company-info-type-btn" onclick="selectCompanyInfoType('custom')">
+        <span class="company-info-type-icon">➕</span>
+        <span class="company-info-type-label lang-zh">自訂欄位</span>
+        <span class="company-info-type-label lang-en">Custom</span>
+      </button>
     </div>
     
     <div class="company-info-type-actions">
@@ -3867,12 +3873,51 @@ function closeCompanyInfoTypeModal(event) {
 function selectCompanyInfoType(type) {
   closeCompanyInfoTypeModal();
   
-  if (type === 'taxId') {
+  if (type === 'custom') {
+    // 自訂類型：建立一個新的 info-item，標題可編輯
+    addCustomCompanyInfoItem();
+  } else if (type === 'taxId') {
     // 統一編號：直接顯示輸入框
     showTaxIdInput();
   } else {
     // 地址類型：顯示地址編輯彈窗
     showAddressEditModal(type);
+  }
+}
+
+// 新增自訂公司資訊項目
+function addCustomCompanyInfoItem() {
+  const container = document.getElementById('companyInfoSection');
+  const addBtn = container.querySelector('.edit-add-btn'); // 插入在按鈕之前
+  
+  const div = document.createElement('div');
+  div.className = 'info-item info-item-custom';
+  
+  // 隨機 ID 避免衝突
+  const id = 'customInfo_' + Date.now();
+  div.id = id;
+  
+  div.innerHTML = `
+    <span class="info-label lang-zh" contenteditable="true" onclick="focusEdit(this)">自訂標題：</span>
+    <span class="info-label lang-en" contenteditable="true" onclick="focusEdit(this)">Custom Title:</span>
+    <span class="info-value lang-zh edit-clickable" contenteditable="true" onclick="focusEdit(this)">請輸入內容</span>
+    <span class="info-value lang-en edit-clickable" contenteditable="true" onclick="focusEdit(this)">Enter content</span>
+    <button class="info-delete-btn" onclick="this.closest('.info-item').remove()" title="刪除">×</button>
+  `;
+  
+  if (addBtn) {
+    container.insertBefore(div, addBtn);
+  } else {
+    container.appendChild(div);
+  }
+  
+  // 自動聚焦到第一個可編輯的標題
+  const firstEdit = div.querySelector('.info-label.lang-zh');
+  if (firstEdit) {
+    setTimeout(() => {
+      firstEdit.focus();
+      focusEdit(firstEdit); // 輔助選取文字
+    }, 100);
   }
 }
 
