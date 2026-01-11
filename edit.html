@@ -4463,6 +4463,25 @@ function getCleanSloganHtml(containerId) {
   return clone.innerHTML;
 }
 
+// Helper functions for name parsing
+function primaryPart(raw) {
+  if (!raw) return '';
+  const parts = raw.split(/\s*[｜|]\s*/);
+  return parts[0].trim();
+}
+
+function englishPartFromNameZh(raw) {
+  if (!raw) return '';
+  const parts = raw.split(/\s*[｜|]\s*/);
+  if (parts.length > 1) {
+    return parts[1].trim();
+  }
+  // Fallback: check for parentheses
+  const match = raw.match(/[（(](.+?)[)）]/);
+  if (match) return match[1].trim();
+  return '';
+}
+
 async function saveCard() {
   console.log('saveCard started...');
   const zhElements = document.querySelectorAll('.lang-zh');
