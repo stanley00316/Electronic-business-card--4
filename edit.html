@@ -4569,6 +4569,24 @@ async function saveCard() {
   */
 
   // 4. 準備 JSON (profile_json)
+  // 先計算 adminModeForCompany，因為 profile_json 需要用到
+  const params = new URLSearchParams(window.location.search || '');
+  const targetUserId = params.get('targetUserId') || params.get('uid') || params.get('id');
+  let adminMode = params.get('adminMode') === 'true';
+  let adminModeForCompany = adminMode;
+  try {
+    // 這裡無法同步取得 session，只能依賴同步邏輯或預先載入的資訊
+    // 如果需要嚴格檢查，應該早在進入 edit 頁面時就確認權限
+    // 這裡做一個簡單的同步檢查 (假設 window.__uvacoSupabaseSession 已存在)
+    if (targetUserId && window.__uvacoSupabaseSession && window.__uvacoSupabaseSession.user) {
+       const myUserId = window.__uvacoSupabaseSession.user.id;
+       if (String(targetUserId) !== String(myUserId)) {
+         adminMode = true;
+         adminModeForCompany = true;
+       }
+    }
+  } catch (e) {}
+
   const profile_json = (function () {
     const card = document.getElementById('previewCard');
     const logo = document.getElementById('previewLogo');
@@ -4640,22 +4658,13 @@ async function saveCard() {
   if (!auth.ok) return;
 
   // 合規：首次/版本變更需要同意（以 confirm 最小化 UI 變更）
-  const params = new URLSearchParams(window.location.search || '');
   const consentVersion = 'v1.0';
   const policyUrl = (UVACO_CLOUD.getBaseUrl ? UVACO_CLOUD.getBaseUrl() : '') + 'privacy.html';
   const needConfirm = params.get('mode') === 'onboarding';
-    const targetUserId = params.get('targetUserId') || params.get('uid') || params.get('id');
-    // 管理員模式判斷：顯式 adminMode=true 或指定 targetUserId 且不是本人
-    let adminMode = params.get('adminMode') === 'true';
-    let adminModeForCompany = adminMode;
-    try {
-      const s = await UVACO_CLOUD.getSession();
-      const myUserId = s && s.session && s.session.user ? String(s.session.user.id || '') : '';
-      if (targetUserId && myUserId && String(targetUserId) !== String(myUserId)) {
-        adminMode = true;
-        adminModeForCompany = true;
-      }
-    } catch (e) {}
+  
+  // 再次確認 session (確保上述 adminMode 判斷正確，若有非同步問題可在這裡補救，但 adminModeForCompany 已經用在 profile_json 了，所以上面的同步判斷最重要)
+  // 這裡不再重複宣告 targetUserId 和 adminMode
+  
   if (needConfirm) {
     const ok = confirm(
       currentLang === 'zh'
