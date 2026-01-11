@@ -4644,16 +4644,18 @@ async function saveCard() {
   const consentVersion = 'v1.0';
   const policyUrl = (UVACO_CLOUD.getBaseUrl ? UVACO_CLOUD.getBaseUrl() : '') + 'privacy.html';
   const needConfirm = params.get('mode') === 'onboarding';
-  const targetUserId = params.get('targetUserId') || params.get('uid') || params.get('id');
-  // 管理員模式判斷：顯式 adminMode=true 或指定 targetUserId 且不是本人
-  let adminMode = params.get('adminMode') === 'true';
-  try {
-    const s = await UVACO_CLOUD.getSession();
-    const myUserId = s && s.session && s.session.user ? String(s.session.user.id || '') : '';
-    if (targetUserId && myUserId && String(targetUserId) !== String(myUserId)) {
-      adminMode = true;
-    }
-  } catch (e) {}
+    const targetUserId = params.get('targetUserId') || params.get('uid') || params.get('id');
+    // 管理員模式判斷：顯式 adminMode=true 或指定 targetUserId 且不是本人
+    let adminMode = params.get('adminMode') === 'true';
+    let adminModeForCompany = adminMode;
+    try {
+      const s = await UVACO_CLOUD.getSession();
+      const myUserId = s && s.session && s.session.user ? String(s.session.user.id || '') : '';
+      if (targetUserId && myUserId && String(targetUserId) !== String(myUserId)) {
+        adminMode = true;
+        adminModeForCompany = true;
+      }
+    } catch (e) {}
   if (needConfirm) {
     const ok = confirm(
       currentLang === 'zh'
