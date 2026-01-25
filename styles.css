@@ -1016,12 +1016,12 @@ body.theme-light .directory-page {
 
 .directory-header {
   position: fixed;
-  top: 47px; /* top-bar 的高度（約 10px padding-top + 33px content + 4px padding-bottom） */
+  top: 0; /* 置於視窗最頂部 */
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  z-index: 200; /* 提高層級確保置頂 */
+  z-index: 300; /* 高於 top-bar (101) */
   padding: 16px 20px;
   display: flex;
   align-items: center;

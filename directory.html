@@ -64,6 +64,12 @@
   .my-card-actions a {
     text-decoration: none;
   }
+  
+  /* 通訊錄頁面：top-bar 移到 header 下方 */
+  body:has(.directory-page) .top-bar {
+    top: 69px !important; /* header 高度 */
+    z-index: 250; /* 低於 header (300) 但高於其他元素 */
+  }
 </style>
 </head>
 
