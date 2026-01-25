@@ -67,7 +67,7 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="cloud.js?v=20260107"></script>
+  <script src="cloud.js?v=20260126"></script>
 </head>
 <body>
 
@@ -227,31 +227,35 @@ async function init() {
   // 顯示管理員提示（超級管理員 / 企業管理員）
   const hint = document.getElementById('adminHint');
   if (hint) {
-    hint.textContent = adminStatus.managedCompany
-      ? `目前身分：企業管理員（只顯示公司包含「${adminStatus.managedCompany}」的名片）`
-      : '目前身分：超級管理員（可管理全部名片與管理員名單）';
+    if (adminStatus.canManageAdmins) {
+      hint.textContent = '目前身分：超級管理員（可管理全部名片與管理員名單）';
+    } else if (!adminStatus.managedCompany) {
+      hint.textContent = '目前身分：超級管理員（可管理全部名片）';
+    } else {
+      hint.textContent = `目前身分：企業管理員（只顯示公司包含「${adminStatus.managedCompany}」的名片）`;
+    }
   }
 
-  // Super Admin 才顯示管理員管理區
+  // 只有 canManageAdmins 為 true 才顯示管理員管理區（需在 admin_allowlist 中）
   const mgmt = document.getElementById('adminMgmt');
   if (mgmt) {
-    mgmt.style.display = (!adminStatus.managedCompany) ? 'block' : 'none';
+    mgmt.style.display = adminStatus.canManageAdmins ? 'block' : 'none';
   }
   
-  // Super Admin 才顯示「管理企業管理員」按鈕
+  // 只有 canManageAdmins 為 true 才顯示「管理企業管理員」按鈕
   const companyAdminBtn = document.getElementById('companyAdminBtn');
   if (companyAdminBtn) {
-    companyAdminBtn.style.display = (!adminStatus.managedCompany) ? 'inline-block' : 'none';
+    companyAdminBtn.style.display = adminStatus.canManageAdmins ? 'inline-block' : 'none';
   }
   
-  // Super Admin 才顯示「訂閱管理」按鈕
+  // Super Admin（無 managedCompany）才顯示「訂閱管理」按鈕
   const subscriptionAdminBtn = document.getElementById('subscriptionAdminBtn');
   if (subscriptionAdminBtn) {
     subscriptionAdminBtn.style.display = (!adminStatus.managedCompany) ? 'inline-block' : 'none';
   }
 
   await reloadData();
-  if (!adminStatus.managedCompany) {
+  if (adminStatus.canManageAdmins) {
     await loadAdmins();
   }
 }

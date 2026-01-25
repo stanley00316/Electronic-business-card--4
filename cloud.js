@@ -1401,11 +1401,31 @@ window.UVACO_CLOUD = (function () {
       
     if (error || !data) return false;
     
-    // 回傳物件：{ isAdmin: true, managedCompany: 'Tesla' or null }
+    // 檢查 admin_allowlist 表（用於判斷是否有權管理其他管理員）
+    // RLS 政策要求必須在 admin_allowlist 中才能修改 admin_users 表
+    let canManageAdmins = false;
+    try {
+      const { data: allowlistData, error: allowlistError } = await client
+        .from('admin_allowlist')
+        .select('email, enabled')
+        .eq('enabled', true)
+        .maybeSingle();
+      
+      // 如果能讀取到 admin_allowlist 且 enabled = true，代表用戶有權管理管理員
+      if (!allowlistError && allowlistData) {
+        canManageAdmins = true;
+      }
+    } catch (e) {
+      // admin_allowlist 可能不存在或無權讀取，忽略錯誤
+    }
+    
+    // 回傳物件：{ isAdmin: true, managedCompany: 'Tesla' or null, canManageAdmins: boolean }
     // managedCompany: null 代表 Super Admin；有值代表 Company Admin
+    // canManageAdmins: 是否有權管理其他管理員（需在 admin_allowlist 中）
     return { 
       isAdmin: true, 
-      managedCompany: data.managed_company || null 
+      managedCompany: data.managed_company || null,
+      canManageAdmins: canManageAdmins
     };
   }
 

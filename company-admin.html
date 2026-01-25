@@ -177,7 +177,7 @@
     .access-denied-text { color: #9ca3af; font-size: 14px; margin-bottom: 24px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cloud.js?v=20260107"></script>
+  <script src="cloud.js?v=20260126"></script>
 </head>
 <body>
 
@@ -262,7 +262,7 @@ async function init() {
     return;
   }
   
-  // 檢查是否為超級管理員
+  // 檢查是否為超級管理員（需在 admin_allowlist 中才有權管理管理員）
   try {
     const adminStatus = await UVACO_CLOUD.isAdmin();
     if (!adminStatus || !adminStatus.isAdmin) {
@@ -270,8 +270,8 @@ async function init() {
       return;
     }
     
-    // 檢查是否為超級管理員（非企業管理員）
-    if (adminStatus.managedCompany) {
+    // 檢查是否有權管理管理員（需在 admin_allowlist 中）
+    if (!adminStatus.canManageAdmins) {
       document.getElementById('accessDenied').style.display = 'block';
       return;
     }
