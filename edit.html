@@ -844,6 +844,18 @@ body.theme-light .theme-selector-close {
   outline-offset: 4px;
 }
 
+/* 移除編輯頁 LOGO 區的金色外框 */
+.edit-preview-section .hero-frame {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.edit-preview-section .hero-frame::before {
+  display: none;
+}
+
 /* 確保頭像保持絕對定位 */
 .avatar.edit-clickable {
   position: absolute !important;
