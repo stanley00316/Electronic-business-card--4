@@ -123,8 +123,8 @@ body {
         <div class="settings-item-arrow">→</div>
       </a>
       
-      <!-- 管理後台 -->
-      <a href="admin.html" class="settings-item">
+      <!-- 管理後台（只對管理員顯示） -->
+      <a href="admin.html" class="settings-item" id="adminBackendLink" style="display: none;">
         <div class="settings-item-icon">⚙️</div>
         <div class="settings-item-content">
           <div class="settings-item-title lang-zh">管理後台</div>
@@ -157,14 +157,24 @@ body {
       </div>
 
       <!-- 系統資訊 (User ID) -->
-      <div class="settings-item" onclick="copyMyUserId()">
+      <div class="settings-item" onclick="copyMyUserId()" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);">
         <div class="settings-item-icon">🆔</div>
         <div class="settings-item-content">
-          <div class="settings-item-title lang-zh">使用者 ID</div>
-          <div class="settings-item-title lang-en">User ID</div>
-          <div class="settings-item-subtitle" id="myUserIdDisplay">...</div>
+          <div class="settings-item-title lang-zh">使用者 ID（點擊複製）</div>
+          <div class="settings-item-title lang-en">User ID (Click to copy)</div>
+          <div class="settings-item-subtitle" id="myUserIdDisplay" style="font-family: monospace; font-size: 11px; word-break: break-all; color: #22c55e;">載入中...</div>
         </div>
         <div class="settings-item-arrow">📋</div>
+      </div>
+      
+      <!-- 管理員狀態檢查 -->
+      <div class="settings-item" id="adminStatusItem" style="display: none;">
+        <div class="settings-item-icon">👑</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">管理員狀態</div>
+          <div class="settings-item-title lang-en">Admin Status</div>
+          <div class="settings-item-subtitle" id="adminStatusDisplay">檢查中...</div>
+        </div>
       </div>
 
       <!-- 登出 -->
@@ -208,9 +218,36 @@ async function initUserId() {
       const s = await UVACO_CLOUD.getSession();
       const uid = s.session ? s.session.user.id : '尚未登入';
       document.getElementById('myUserIdDisplay').textContent = uid;
+      
+      // 檢查管理員狀態
+      if (s.session && UVACO_CLOUD.isAdmin) {
+        const adminStatus = await UVACO_CLOUD.isAdmin();
+        const statusItem = document.getElementById('adminStatusItem');
+        const statusDisplay = document.getElementById('adminStatusDisplay');
+        const adminLink = document.getElementById('adminBackendLink');
+        
+        if (statusItem && statusDisplay) {
+          statusItem.style.display = 'flex';
+          if (adminStatus && adminStatus.isAdmin) {
+            // 顯示管理後台連結
+            if (adminLink) adminLink.style.display = 'flex';
+            
+            if (adminStatus.managedCompany) {
+              statusDisplay.innerHTML = '<span style="color:#22c55e;">✓ 企業管理員</span><br><small>管理公司：' + adminStatus.managedCompany + '</small>';
+            } else {
+              statusDisplay.innerHTML = '<span style="color:#22c55e;">✓ 超級管理員</span>';
+            }
+          } else {
+            // 隱藏管理後台連結
+            if (adminLink) adminLink.style.display = 'none';
+            statusDisplay.innerHTML = '<span style="color:#9ca3af;">✗ 非管理員</span><br><small>如需管理員權限，請聯繫系統管理員</small>';
+          }
+        }
+      }
     }
   } catch (e) {
     document.getElementById('myUserIdDisplay').textContent = 'Error';
+    console.error('initUserId error:', e);
   }
 }
 
