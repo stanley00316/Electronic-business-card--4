@@ -61,3 +61,27 @@ jobs:
         env:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
+      - name: "Deploy function: check-subscriptions"
+        run: supabase functions deploy check-subscriptions --project-ref "${SUPABASE_PROJECT_REF}"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: "Deploy function: stripe-checkout"
+        run: supabase functions deploy stripe-checkout --project-ref "${SUPABASE_PROJECT_REF}"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: "Deploy function: stripe-webhook"
+        run: supabase functions deploy stripe-webhook --project-ref "${SUPABASE_PROJECT_REF}"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: "Deploy function: linepay-checkout"
+        run: supabase functions deploy linepay-checkout --project-ref "${SUPABASE_PROJECT_REF}"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: "Deploy function: linepay-confirm"
+        run: supabase functions deploy linepay-confirm --project-ref "${SUPABASE_PROJECT_REF}"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}

@@ -79,6 +79,7 @@
     <button class="btn btn-outline" onclick="location.href='directory.html'">返回通訊錄</button>
     <button class="btn btn-outline" onclick="location.href='settings.html'">前往設定</button>
     <button class="btn btn-outline" id="companyAdminBtn" onclick="location.href='company-admin.html'" style="display:none;">⚙️ 管理企業管理員</button>
+    <button class="btn btn-outline" id="subscriptionAdminBtn" onclick="toggleSubscriptionView()" style="display:none;">💎 訂閱管理</button>
   </div>
   <input type="text" id="searchInput" placeholder="搜尋姓名、公司..." onkeyup="filterTable()">
 </div>
@@ -163,6 +164,37 @@
   </div>
 </div>
 
+<!-- 訂閱延長彈窗 -->
+<div id="subscriptionModal" class="qr-modal" onclick="this.style.display='none'">
+  <div class="qr-box" onclick="event.stopPropagation()" style="max-width:450px;">
+    <h3 id="subModalTitle">延長訂閱</h3>
+    <div id="subUserInfo" style="color:#9ca3af;font-size:13px;margin-bottom:16px;"></div>
+    
+    <div style="margin-bottom:16px;">
+      <label style="display:block;color:#9ca3af;font-size:13px;margin-bottom:6px;">延長天數</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-outline" onclick="setExtendDays(30)">30 天</button>
+        <button class="btn btn-outline" onclick="setExtendDays(90)">90 天</button>
+        <button class="btn btn-outline" onclick="setExtendDays(180)">半年</button>
+        <button class="btn btn-outline" onclick="setExtendDays(365)">一年</button>
+      </div>
+      <input type="number" id="extendDaysInput" placeholder="自訂天數" min="1" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1b1b1b;color:#fff;font-size:14px;box-sizing:border-box;margin-top:10px;">
+    </div>
+    
+    <div style="margin-bottom:16px;">
+      <label style="display:block;color:#9ca3af;font-size:13px;margin-bottom:6px;">延長原因（選填）</label>
+      <input type="text" id="extendReasonInput" placeholder="例如：VIP 客戶優惠" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1b1b1b;color:#fff;font-size:14px;box-sizing:border-box;">
+    </div>
+    
+    <input type="hidden" id="subTargetUserId">
+    
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;">
+      <button class="btn btn-green" onclick="confirmExtendSubscription()">確認延長</button>
+      <button class="btn btn-outline" onclick="document.getElementById('subscriptionModal').style.display='none'">取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let allData = [];
 let adminStatus = null;
@@ -210,6 +242,12 @@ async function init() {
   const companyAdminBtn = document.getElementById('companyAdminBtn');
   if (companyAdminBtn) {
     companyAdminBtn.style.display = (!adminStatus.managedCompany) ? 'inline-block' : 'none';
+  }
+  
+  // Super Admin 才顯示「訂閱管理」按鈕
+  const subscriptionAdminBtn = document.getElementById('subscriptionAdminBtn');
+  if (subscriptionAdminBtn) {
+    subscriptionAdminBtn.style.display = (!adminStatus.managedCompany) ? 'inline-block' : 'none';
   }
 
   await reloadData();
@@ -446,6 +484,159 @@ async function removeAdminUser() {
     alert('移除失敗：' + String(e?.message || e || ''));
   }
 }
+
+// ===== 訂閱管理功能 =====
+let showSubscriptionView = false;
+let subscriptionData = [];
+
+function toggleSubscriptionView() {
+  showSubscriptionView = !showSubscriptionView;
+  const btn = document.getElementById('subscriptionAdminBtn');
+  if (btn) {
+    btn.textContent = showSubscriptionView ? '📋 名片管理' : '💎 訂閱管理';
+  }
+  
+  if (showSubscriptionView) {
+    loadSubscriptions();
+  } else {
+    reloadData();
+  }
+}
+
+async function loadSubscriptions() {
+  const tbody = document.querySelector('#userTable tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">載入訂閱資料中...</td></tr>';
+  
+  try {
+    const result = await UVACO_CLOUD.getAllSubscriptionsAdmin();
+    subscriptionData = result.rows || [];
+    renderSubscriptionTable(subscriptionData);
+  } catch (e) {
+    console.error('載入訂閱失敗:', e);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444">載入失敗</td></tr>';
+  }
+}
+
+function renderSubscriptionTable(data) {
+  const thead = document.querySelector('#userTable thead tr');
+  thead.innerHTML = `
+    <th>姓名</th>
+    <th>公司</th>
+    <th>狀態</th>
+    <th>剩餘天數</th>
+    <th>到期日</th>
+    <th>操作</th>
+  `;
+  
+  const tbody = document.querySelector('#userTable tbody');
+  tbody.innerHTML = '';
+  
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">目前沒有訂閱資料</td></tr>';
+    return;
+  }
+  
+  data.forEach(row => {
+    const statusColors = {
+      trial: '#3b82f6',
+      active: '#22c55e',
+      expired: '#ef4444',
+      cancelled: '#9ca3af'
+    };
+    const statusLabels = {
+      trial: '試用中',
+      active: '訂閱中',
+      expired: '已過期',
+      cancelled: '已取消'
+    };
+    
+    const statusColor = statusColors[row.status] || '#9ca3af';
+    const statusLabel = statusLabels[row.status] || row.status;
+    const endDate = row.endDate ? new Date(row.endDate).toLocaleDateString('zh-TW') : '-';
+    
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td data-label="姓名">${row.userName || '未命名'}</td>
+      <td data-label="公司">${row.userCompany || '-'}</td>
+      <td data-label="狀態"><span style="color:${statusColor};font-weight:600;">${statusLabel}</span></td>
+      <td data-label="剩餘天數"><span style="font-size:18px;font-weight:700;color:${row.daysLeft > 7 ? '#22c55e' : '#ef4444'}">${row.daysLeft}</span> 天</td>
+      <td data-label="到期日">${endDate}</td>
+      <td class="actions-cell">
+        <div class="actions-wrap">
+          <button class="btn btn-green" onclick="openExtendModal('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}', ${row.daysLeft}, '${endDate}')">延長訂閱</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function openExtendModal(userId, userName, daysLeft, endDate) {
+  document.getElementById('subModalTitle').textContent = (userName || '用戶') + ' - 延長訂閱';
+  document.getElementById('subUserInfo').innerHTML = `
+    目前剩餘：<strong style="color:#22c55e;">${daysLeft}</strong> 天<br>
+    到期日：${endDate}
+  `;
+  document.getElementById('subTargetUserId').value = userId;
+  document.getElementById('extendDaysInput').value = '';
+  document.getElementById('extendReasonInput').value = '';
+  document.getElementById('subscriptionModal').style.display = 'flex';
+}
+
+function setExtendDays(days) {
+  document.getElementById('extendDaysInput').value = days;
+}
+
+async function confirmExtendSubscription() {
+  const userId = document.getElementById('subTargetUserId').value;
+  const days = parseInt(document.getElementById('extendDaysInput').value);
+  const reason = document.getElementById('extendReasonInput').value.trim();
+  
+  if (!userId) {
+    alert('錯誤：找不到用戶 ID');
+    return;
+  }
+  
+  if (!days || days < 1) {
+    alert('請輸入有效的延長天數');
+    return;
+  }
+  
+  try {
+    const result = await UVACO_CLOUD.extendSubscription(userId, days, reason);
+    if (result.success) {
+      const newEnd = new Date(result.newEndDate).toLocaleDateString('zh-TW');
+      alert(`訂閱已延長 ${days} 天\n新到期日：${newEnd}`);
+      document.getElementById('subscriptionModal').style.display = 'none';
+      loadSubscriptions();
+    } else {
+      alert('延長失敗：' + (result.error || '未知錯誤'));
+    }
+  } catch (e) {
+    console.error('延長訂閱錯誤:', e);
+    alert('延長失敗：' + (e.message || e));
+  }
+}
+
+// 修改原本的 reloadData 函數
+const originalReloadData = reloadData;
+reloadData = async function() {
+  if (showSubscriptionView) {
+    await loadSubscriptions();
+  } else {
+    // 恢復原本的表頭
+    const thead = document.querySelector('#userTable thead tr');
+    thead.innerHTML = `
+      <th>姓名</th>
+      <th>公司/職稱</th>
+      <th>NFC 卡片 ID</th>
+      <th>更新時間</th>
+      <th>NFC 網址</th>
+      <th>操作</th>
+    `;
+    await originalReloadData();
+  }
+};
 
 init();
 </script>

@@ -1479,6 +1479,422 @@ window.UVACO_CLOUD = (function () {
   }
 
   /* =========================================================================
+   * 15. 訂閱系統 (Subscription System)
+   * ========================================================================= */
+
+  // 取得目前用戶的訂閱狀態
+  async function getMySubscription() {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { subscription: null, error: 'NO_SESSION' };
+    
+    try {
+      const { data, error } = await ctx.client
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', ctx.userId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('[Subscription] 取得訂閱失敗:', error);
+        return { subscription: null, error };
+      }
+      
+      // 如果沒有訂閱記錄，建立一個（新用戶試用）
+      if (!data) {
+        return await createMySubscription();
+      }
+      
+      // 計算剩餘天數
+      const subscription = data;
+      const endDate = await getSubscriptionEndDate(ctx.userId);
+      const now = new Date();
+      const daysLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate) - now) / (1000 * 60 * 60 * 24))) : 0;
+      const isActive = daysLeft > 0;
+      
+      return { 
+        subscription: {
+          ...subscription,
+          endDate,
+          daysLeft,
+          isActive
+        }, 
+        error: null 
+      };
+    } catch (e) {
+      return { subscription: null, error: e };
+    }
+  }
+
+  // 建立新用戶訂閱（自動獲得 30 天試用）
+  async function createMySubscription(referrerId = null) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { subscription: null, error: 'NO_SESSION' };
+    
+    try {
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 30);
+      
+      const { data, error } = await ctx.client
+        .from('subscriptions')
+        .insert({
+          user_id: ctx.userId,
+          status: 'trial',
+          trial_start_at: new Date().toISOString(),
+          trial_end_at: trialEnd.toISOString()
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        // 可能已存在，嘗試取得
+        if (error.code === '23505') {
+          return await getMySubscription();
+        }
+        return { subscription: null, error };
+      }
+      
+      // 如果有推薦人，記錄推薦關係
+      if (referrerId && referrerId !== ctx.userId) {
+        await recordReferral(referrerId);
+      }
+      
+      return { 
+        subscription: {
+          ...data,
+          endDate: trialEnd.toISOString(),
+          daysLeft: 30,
+          isActive: true
+        }, 
+        error: null 
+      };
+    } catch (e) {
+      return { subscription: null, error: e };
+    }
+  }
+
+  // 取得用戶訂閱結束日期
+  async function getSubscriptionEndDate(userId) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return null;
+    
+    try {
+      const { data, error } = await ctx.client
+        .from('subscriptions')
+        .select('trial_start_at, trial_end_at, subscription_start_at, subscription_end_at, referral_bonus_days')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (error || !data) return null;
+      
+      let endDate;
+      if (data.subscription_end_at) {
+        endDate = new Date(data.subscription_end_at);
+      } else if (data.trial_end_at) {
+        endDate = new Date(data.trial_end_at);
+      } else {
+        const trialStart = new Date(data.trial_start_at || Date.now());
+        endDate = new Date(trialStart);
+        endDate.setDate(endDate.getDate() + 30);
+      }
+      
+      // 加上推薦獎勵天數
+      if (data.referral_bonus_days > 0) {
+        endDate.setDate(endDate.getDate() + data.referral_bonus_days);
+      }
+      
+      return endDate.toISOString();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 檢查訂閱是否有效
+  async function isSubscriptionActive(userId) {
+    const endDate = await getSubscriptionEndDate(userId);
+    if (!endDate) return false;
+    return new Date(endDate) > new Date();
+  }
+
+  // 取得所有訂閱（管理員用）
+  async function getAllSubscriptionsAdmin() {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { rows: [] };
+    
+    const adminStatus = await isAdmin();
+    if (!adminStatus || !adminStatus.isAdmin) return { rows: [] };
+    
+    try {
+      // 聯結 cards 表取得用戶資訊
+      const { data, error } = await ctx.client
+        .from('subscriptions')
+        .select(`
+          *,
+          cards:user_id (name, company, email)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('[Subscription] 取得所有訂閱失敗:', error);
+        return { rows: [] };
+      }
+      
+      // 計算每個用戶的剩餘天數
+      const rows = (data || []).map(sub => {
+        let endDate;
+        if (sub.subscription_end_at) {
+          endDate = new Date(sub.subscription_end_at);
+        } else if (sub.trial_end_at) {
+          endDate = new Date(sub.trial_end_at);
+        } else {
+          const trialStart = new Date(sub.trial_start_at || Date.now());
+          endDate = new Date(trialStart);
+          endDate.setDate(endDate.getDate() + 30);
+        }
+        
+        if (sub.referral_bonus_days > 0) {
+          endDate.setDate(endDate.getDate() + sub.referral_bonus_days);
+        }
+        
+        const now = new Date();
+        const daysLeft = Math.max(0, Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)));
+        
+        return {
+          ...sub,
+          endDate: endDate.toISOString(),
+          daysLeft,
+          isActive: daysLeft > 0,
+          userName: sub.cards?.name || '-',
+          userCompany: sub.cards?.company || '-',
+          userEmail: sub.cards?.email || '-'
+        };
+      });
+      
+      return { rows };
+    } catch (e) {
+      return { rows: [] };
+    }
+  }
+
+  // 管理員延長訂閱
+  async function extendSubscription(targetUserId, days, reason) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) throw new Error('NO_SESSION');
+    
+    const adminStatus = await isAdmin();
+    if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
+    
+    try {
+      // 取得目前訂閱
+      const { data: sub } = await ctx.client
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+      
+      // 計算目前結束日期
+      let currentEnd;
+      if (sub) {
+        if (sub.subscription_end_at) {
+          currentEnd = new Date(sub.subscription_end_at);
+        } else if (sub.trial_end_at) {
+          currentEnd = new Date(sub.trial_end_at);
+        } else {
+          currentEnd = new Date();
+        }
+        
+        if (sub.referral_bonus_days > 0) {
+          currentEnd.setDate(currentEnd.getDate() + sub.referral_bonus_days);
+        }
+      } else {
+        currentEnd = new Date();
+      }
+      
+      // 如果已過期，從現在開始計算
+      if (currentEnd < new Date()) {
+        currentEnd = new Date();
+      }
+      
+      // 計算新結束日期
+      const newEnd = new Date(currentEnd);
+      newEnd.setDate(newEnd.getDate() + days);
+      
+      if (sub) {
+        // 更新現有訂閱
+        const { error } = await ctx.client
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            subscription_start_at: sub.subscription_start_at || new Date().toISOString(),
+            subscription_end_at: newEnd.toISOString(),
+            extended_by: ctx.userId,
+            extend_reason: reason,
+            extended_at: new Date().toISOString()
+          })
+          .eq('user_id', targetUserId);
+        
+        if (error) throw error;
+      } else {
+        // 建立新訂閱
+        const { error } = await ctx.client
+          .from('subscriptions')
+          .insert({
+            user_id: targetUserId,
+            status: 'active',
+            subscription_start_at: new Date().toISOString(),
+            subscription_end_at: newEnd.toISOString(),
+            extended_by: ctx.userId,
+            extend_reason: reason,
+            extended_at: new Date().toISOString()
+          });
+        
+        if (error) throw error;
+      }
+      
+      // 確保名片可見
+      await ctx.client
+        .from('cards')
+        .update({ is_visible: true })
+        .eq('user_id', targetUserId);
+      
+      return { success: true, newEndDate: newEnd.toISOString() };
+    } catch (e) {
+      console.error('[Subscription] 延長訂閱失敗:', e);
+      throw e;
+    }
+  }
+
+  // 取得價格方案
+  async function getPricingPlans() {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { plans: [] };
+    
+    try {
+      const { data, error } = await ctx.client
+        .from('pricing_plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      
+      if (error) {
+        console.error('[Subscription] 取得價格方案失敗:', error);
+        return { plans: [] };
+      }
+      
+      return { plans: data || [] };
+    } catch (e) {
+      return { plans: [] };
+    }
+  }
+
+  // 更新推薦獎勵（檢查推薦人數並更新獎勵天數）
+  async function updateMyReferralBonus() {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { success: false };
+    
+    try {
+      // 取得推薦人數
+      const count = await getMyReferralCount();
+      
+      // 計算獎勵天數（每 3 人 = 180 天）
+      const bonusDays = Math.floor(count / 3) * 180;
+      
+      // 更新訂閱記錄
+      const { error } = await ctx.client
+        .from('subscriptions')
+        .update({
+          referral_bonus_days: bonusDays,
+          last_referral_check: count
+        })
+        .eq('user_id', ctx.userId);
+      
+      if (error) {
+        console.error('[Subscription] 更新推薦獎勵失敗:', error);
+        return { success: false, error };
+      }
+      
+      return { success: true, bonusDays, referralCount: count };
+    } catch (e) {
+      return { success: false, error: e };
+    }
+  }
+
+  // 建立 Stripe Checkout Session
+  async function createStripeCheckout(planId) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+    
+    try {
+      const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/stripe-checkout';
+      
+      const resp = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({
+          user_id: ctx.userId,
+          plan_id: planId
+        })
+      }, 15000);
+      
+      const data = await resp.json();
+      
+      if (!resp.ok || !data.success) {
+        return { success: false, error: data.error || 'Checkout failed' };
+      }
+      
+      return {
+        success: true,
+        checkoutUrl: data.checkout_url,
+        sessionId: data.session_id
+      };
+    } catch (e) {
+      console.error('[Stripe] Checkout error:', e);
+      return { success: false, error: e.message || e };
+    }
+  }
+
+  // 建立 LINE Pay 付款
+  async function createLinePayCheckout(planId) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+    
+    try {
+      const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/linepay-checkout';
+      
+      const resp = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({
+          user_id: ctx.userId,
+          plan_id: planId
+        })
+      }, 15000);
+      
+      const data = await resp.json();
+      
+      if (!resp.ok || !data.success) {
+        return { success: false, error: data.error || 'Checkout failed' };
+      }
+      
+      return {
+        success: true,
+        paymentUrl: data.payment_url,
+        transactionId: data.transaction_id
+      };
+    } catch (e) {
+      console.error('[LINE Pay] Checkout error:', e);
+      return { success: false, error: e.message || e };
+    }
+  }
+
+  /* =========================================================================
    * 16. 公開 API (Public API)
    * ========================================================================= */
 
@@ -1560,7 +1976,21 @@ window.UVACO_CLOUD = (function () {
     
     // 診斷與匯出
     r2Diag,
-    exportCardsCsv
+    exportCardsCsv,
+    
+    // 訂閱系統
+    getMySubscription,
+    createMySubscription,
+    getSubscriptionEndDate,
+    isSubscriptionActive,
+    getAllSubscriptionsAdmin,
+    extendSubscription,
+    getPricingPlans,
+    updateMyReferralBonus,
+    
+    // 金流
+    createStripeCheckout,
+    createLinePayCheckout
   };
 })();
 

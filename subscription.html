@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- Sentry 錯誤監控 SDK -->
+<script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
+<title>訂閱管理 | Subscription - 數位身分平台</title>
+<link rel="stylesheet" href="styles.css?v=20260125">
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#22c55e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="數位身分">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<style>
+body {
+  padding-bottom: 0;
+}
+.subscription-page {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 20px;
+  padding-top: 80px;
+  padding-bottom: 100px;
+}
+
+.subscription-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.subscription-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--uvaco-green);
+}
+
+.subscription-back {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  text-decoration: none;
+  color: var(--uvaco-green);
+  transition: all 0.2s;
+}
+
+.subscription-back:hover {
+  background: rgba(var(--uvaco-green-rgb), 0.1);
+}
+
+/* 訂閱狀態卡片 */
+.subscription-status-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.status-badge.active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.status-badge.trial {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.status-badge.expired {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.days-left {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--uvaco-green);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.days-label {
+  font-size: 16px;
+  color: #9ca3af;
+  margin-bottom: 16px;
+}
+
+.end-date {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* 推薦獎勵區塊 */
+.referral-section {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.referral-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e5e7eb;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.referral-progress {
+  margin-bottom: 16px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--uvaco-green);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+.referral-count {
+  font-weight: 700;
+  color: var(--uvaco-green);
+}
+
+.referral-bonus {
+  padding: 12px 16px;
+  background: rgba(var(--uvaco-green-rgb), 0.1);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.bonus-text {
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.bonus-days {
+  font-weight: 700;
+  color: var(--uvaco-green);
+}
+
+.invite-link-section {
+  margin-top: 16px;
+}
+
+.invite-link-label {
+  font-size: 14px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.invite-link-box {
+  display: flex;
+  gap: 8px;
+}
+
+.invite-link-input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e5e7eb;
+  font-size: 14px;
+}
+
+.invite-link-btn {
+  padding: 12px 20px;
+  border-radius: 10px;
+  background: var(--uvaco-green);
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.invite-link-btn:hover {
+  background: #1a9a47;
+}
+
+/* 價格方案 */
+.pricing-section {
+  margin-bottom: 24px;
+}
+
+.pricing-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.pricing-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pricing-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pricing-card:hover {
+  border-color: var(--uvaco-green);
+  background: rgba(var(--uvaco-green-rgb), 0.05);
+}
+
+.pricing-card.popular {
+  border-color: var(--uvaco-green);
+  position: relative;
+}
+
+.pricing-card.popular::before {
+  content: '推薦';
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  background: var(--uvaco-green);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pricing-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e5e7eb;
+  margin-bottom: 4px;
+}
+
+.pricing-desc {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.pricing-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.price-amount {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--uvaco-green);
+}
+
+.price-unit {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* 付款按鈕 */
+.payment-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.payment-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.payment-btn.stripe {
+  background: #635bff;
+  color: white;
+}
+
+.payment-btn.stripe:hover {
+  background: #5148e6;
+}
+
+.payment-btn.linepay {
+  background: #00C300;
+  color: white;
+}
+
+.payment-btn.linepay:hover {
+  background: #00a000;
+}
+
+.payment-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 提示文字 */
+.subscription-note {
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 12px;
+  font-size: 14px;
+  color: #93c5fd;
+  line-height: 1.6;
+}
+
+/* Light theme */
+body.theme-light .subscription-status-card,
+body.theme-light .referral-section,
+body.theme-light .pricing-card {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+body.theme-light .days-left,
+body.theme-light .subscription-title {
+  color: var(--uvaco-green);
+}
+
+body.theme-light .days-label,
+body.theme-light .progress-text,
+body.theme-light .invite-link-label {
+  color: #6b7280;
+}
+
+body.theme-light .referral-title,
+body.theme-light .pricing-title,
+body.theme-light .pricing-name {
+  color: #111827;
+}
+
+body.theme-light .invite-link-input {
+  background: white;
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #111827;
+}
+</style>
+</head>
+
+<body class="theme-dark lang-zh">
+
+<!-- 背景泡泡 -->
+<div class="bg-blob blob1"></div>
+<div class="bg-blob blob2"></div>
+
+<!-- 訂閱管理頁面 -->
+<div class="subscription-page">
+  <div class="subscription-header">
+    <a href="settings.html" class="subscription-back">←</a>
+    <h1 class="subscription-title lang-zh">訂閱管理</h1>
+    <h1 class="subscription-title lang-en">Subscription</h1>
+    <div style="width: 40px;"></div>
+  </div>
+
+  <!-- 訂閱狀態 -->
+  <div class="subscription-status-card">
+    <div class="status-badge trial" id="statusBadge">
+      <span class="lang-zh">試用中</span>
+      <span class="lang-en">Trial</span>
+    </div>
+    <div class="days-left" id="daysLeft">--</div>
+    <div class="days-label">
+      <span class="lang-zh">剩餘天數</span>
+      <span class="lang-en">Days Left</span>
+    </div>
+    <div class="end-date" id="endDate">
+      <span class="lang-zh">到期日：--</span>
+      <span class="lang-en">Expires: --</span>
+    </div>
+  </div>
+
+  <!-- 推薦獎勵 -->
+  <div class="referral-section">
+    <div class="referral-title">
+      <span>🎁</span>
+      <span class="lang-zh">推薦獎勵</span>
+      <span class="lang-en">Referral Rewards</span>
+    </div>
+    
+    <div class="referral-progress">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="progress-text">
+        <span class="lang-zh">已推薦 <span class="referral-count" id="referralCount">0</span> 人，再推薦 <span id="referralNeeded">3</span> 人可獲得半年免費</span>
+        <span class="lang-en">Referred <span class="referral-count" id="referralCountEn">0</span> people, <span id="referralNeededEn">3</span> more for 6 months free</span>
+      </div>
+    </div>
+
+    <div class="referral-bonus" id="referralBonus" style="display: none;">
+      <div class="bonus-text">
+        <span class="lang-zh">已獲得推薦獎勵：<span class="bonus-days" id="bonusDays">0</span> 天</span>
+        <span class="lang-en">Referral bonus earned: <span class="bonus-days" id="bonusDaysEn">0</span> days</span>
+      </div>
+    </div>
+
+    <div class="invite-link-section">
+      <div class="invite-link-label">
+        <span class="lang-zh">你的專屬邀請連結</span>
+        <span class="lang-en">Your invite link</span>
+      </div>
+      <div class="invite-link-box">
+        <input type="text" class="invite-link-input" id="inviteLink" readonly>
+        <button class="invite-link-btn" onclick="copyInviteLink()">
+          <span class="lang-zh">複製</span>
+          <span class="lang-en">Copy</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 價格方案 -->
+  <div class="pricing-section" id="pricingSection">
+    <div class="pricing-title">
+      <span class="lang-zh">升級方案</span>
+      <span class="lang-en">Upgrade Plans</span>
+    </div>
+    <div class="pricing-cards" id="pricingCards">
+      <!-- 動態載入 -->
+    </div>
+    
+    <div class="payment-buttons" id="paymentButtons" style="display: none;">
+      <button class="payment-btn stripe" onclick="payWithStripe()" disabled>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.594-7.305h.003z"/>
+        </svg>
+        <span class="lang-zh">信用卡付款</span>
+        <span class="lang-en">Pay with Card</span>
+      </button>
+      <button class="payment-btn linepay" onclick="payWithLinePay()" disabled>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+          <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+        </svg>
+        <span class="lang-zh">LINE Pay</span>
+        <span class="lang-en">LINE Pay</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 提示 -->
+  <div class="subscription-note">
+    <span class="lang-zh">
+      💡 推薦好友使用平台，每推薦 3 人即可獲得半年免費使用！推薦越多，免費越久。
+    </span>
+    <span class="lang-en">
+      💡 Refer friends to the platform! Every 3 referrals earns you 6 months free. The more you refer, the longer you can use for free!
+    </span>
+  </div>
+</div>
+
+<!-- 底部導航欄 -->
+<nav class="bottom-nav">
+  <a href="#" class="nav-item primary" id="navMyCard" onclick="gotoMyCard(event)">
+    <span class="nav-icon">👤</span>
+    <span class="nav-label lang-zh">我的名片</span>
+    <span class="nav-label lang-en">My Card</span>
+  </a>
+  <a href="directory.html" class="nav-item">
+    <span class="nav-icon">📋</span>
+    <span class="nav-label lang-zh">通訊錄</span>
+    <span class="nav-label lang-en">Directory</span>
+  </a>
+  <a href="settings.html" class="nav-item">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label lang-zh">設定</span>
+    <span class="nav-label lang-en">Settings</span>
+  </a>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloud.js?v=20260125"></script>
+<script src="common.js?v=20260125"></script>
+<script>
+// 前往「我的名片」頁面
+async function gotoMyCard(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  try {
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+      window.location.href = 'auth.html?next=subscription.html';
+      return false;
+    }
+    const s = await UVACO_CLOUD.getSession();
+    const uid = s && s.session && s.session.user ? String(s.session.user.id || '').trim() : '';
+    if (!uid) {
+      window.location.href = 'auth.html?next=subscription.html';
+      return false;
+    }
+    window.location.href = 'card.html?id=' + encodeURIComponent(uid);
+    return false;
+  } catch (e) {
+    window.location.href = 'auth.html?next=subscription.html';
+    return false;
+  }
+}
+
+// 選中的方案
+let selectedPlan = null;
+
+// 載入訂閱狀態
+async function loadSubscription() {
+  try {
+    const result = await UVACO_CLOUD.getMySubscription();
+    if (result.error) {
+      console.error('載入訂閱失敗:', result.error);
+      return;
+    }
+    
+    const sub = result.subscription;
+    if (!sub) return;
+    
+    // 更新狀態徽章
+    const badge = document.getElementById('statusBadge');
+    badge.className = 'status-badge ' + sub.status;
+    
+    const statusText = {
+      trial: { zh: '試用中', en: 'Trial' },
+      active: { zh: '訂閱中', en: 'Active' },
+      expired: { zh: '已過期', en: 'Expired' }
+    };
+    
+    badge.innerHTML = `
+      <span class="lang-zh">${statusText[sub.status]?.zh || sub.status}</span>
+      <span class="lang-en">${statusText[sub.status]?.en || sub.status}</span>
+    `;
+    
+    // 更新剩餘天數
+    document.getElementById('daysLeft').textContent = sub.daysLeft;
+    
+    // 更新到期日
+    if (sub.endDate) {
+      const endDate = new Date(sub.endDate);
+      const dateStr = endDate.toLocaleDateString('zh-TW');
+      document.getElementById('endDate').innerHTML = `
+        <span class="lang-zh">到期日：${dateStr}</span>
+        <span class="lang-en">Expires: ${dateStr}</span>
+      `;
+    }
+    
+    // 更新推薦獎勵
+    if (sub.referral_bonus_days > 0) {
+      document.getElementById('referralBonus').style.display = 'block';
+      document.getElementById('bonusDays').textContent = sub.referral_bonus_days;
+      document.getElementById('bonusDaysEn').textContent = sub.referral_bonus_days;
+    }
+    
+    // 如果已過期，顯示付款按鈕
+    if (sub.status === 'expired' || sub.daysLeft <= 7) {
+      document.getElementById('paymentButtons').style.display = 'flex';
+    }
+    
+  } catch (e) {
+    console.error('載入訂閱失敗:', e);
+  }
+}
+
+// 載入推薦資訊
+async function loadReferralInfo() {
+  try {
+    const count = await UVACO_CLOUD.getMyReferralCount();
+    document.getElementById('referralCount').textContent = count;
+    document.getElementById('referralCountEn').textContent = count;
+    
+    // 計算進度
+    const progress = (count % 3) / 3 * 100;
+    document.getElementById('progressFill').style.width = progress + '%';
+    
+    // 計算還需要幾人
+    const needed = 3 - (count % 3);
+    document.getElementById('referralNeeded').textContent = needed;
+    document.getElementById('referralNeededEn').textContent = needed;
+    
+    // 載入邀請連結
+    const s = await UVACO_CLOUD.getSession();
+    const uid = s?.session?.user?.id || '';
+    if (uid) {
+      const link = UVACO_CLOUD.generateInviteLink(uid);
+      document.getElementById('inviteLink').value = link;
+    }
+    
+    // 更新推薦獎勵
+    await UVACO_CLOUD.updateMyReferralBonus();
+    
+  } catch (e) {
+    console.error('載入推薦資訊失敗:', e);
+  }
+}
+
+// 複製邀請連結
+function copyInviteLink() {
+  const input = document.getElementById('inviteLink');
+  input.select();
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = input.nextElementSibling;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="lang-zh">已複製</span><span class="lang-en">Copied</span>';
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+    }, 2000);
+  });
+}
+
+// 載入價格方案
+async function loadPricingPlans() {
+  try {
+    const result = await UVACO_CLOUD.getPricingPlans();
+    const plans = result.plans || [];
+    
+    const container = document.getElementById('pricingCards');
+    container.innerHTML = plans.map((plan, index) => `
+      <div class="pricing-card ${index === 2 ? 'popular' : ''}" onclick="selectPlan('${plan.id}', ${plan.price})">
+        <div class="pricing-name">
+          <span class="lang-zh">${plan.name}</span>
+          <span class="lang-en">${plan.name_en || plan.name}</span>
+        </div>
+        <div class="pricing-desc">
+          <span class="lang-zh">${plan.description || ''}</span>
+          <span class="lang-en">${plan.description_en || plan.description || ''}</span>
+        </div>
+        <div class="pricing-price">
+          <span class="price-amount">NT$ ${Math.round(plan.price / 100)}</span>
+          <span class="price-unit">/ ${plan.duration_days} 天</span>
+        </div>
+      </div>
+    `).join('');
+    
+  } catch (e) {
+    console.error('載入價格方案失敗:', e);
+  }
+}
+
+// 選擇方案
+function selectPlan(planId, price) {
+  selectedPlan = { id: planId, price };
+  
+  // 更新選中狀態
+  document.querySelectorAll('.pricing-card').forEach(card => {
+    card.style.borderColor = '';
+  });
+  event.currentTarget.style.borderColor = 'var(--uvaco-green)';
+  
+  // 顯示付款按鈕
+  document.getElementById('paymentButtons').style.display = 'flex';
+  
+  // 啟用按鈕
+  document.querySelectorAll('.payment-btn').forEach(btn => {
+    btn.disabled = false;
+  });
+}
+
+// Stripe 付款
+async function payWithStripe() {
+  if (!selectedPlan) {
+    alert('請先選擇方案');
+    return;
+  }
+  
+  const btn = document.querySelector('.payment-btn.stripe');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span class="lang-zh">處理中...</span><span class="lang-en">Processing...</span>';
+  btn.disabled = true;
+  
+  try {
+    const result = await UVACO_CLOUD.createStripeCheckout(selectedPlan.id);
+    
+    if (result.success && result.checkoutUrl) {
+      // 重導向到 Stripe Checkout 頁面
+      window.location.href = result.checkoutUrl;
+    } else {
+      alert('付款失敗：' + (result.error || '未知錯誤'));
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  } catch (e) {
+    console.error('Stripe 付款錯誤:', e);
+    alert('付款失敗：' + (e.message || e));
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// LINE Pay 付款
+async function payWithLinePay() {
+  if (!selectedPlan) {
+    alert('請先選擇方案');
+    return;
+  }
+  
+  const btn = document.querySelector('.payment-btn.linepay');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span class="lang-zh">處理中...</span><span class="lang-en">Processing...</span>';
+  btn.disabled = true;
+  
+  try {
+    const result = await UVACO_CLOUD.createLinePayCheckout(selectedPlan.id);
+    
+    if (result.success && result.paymentUrl) {
+      // 重導向到 LINE Pay 頁面
+      window.location.href = result.paymentUrl;
+    } else {
+      alert('付款失敗：' + (result.error || '未知錯誤'));
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  } catch (e) {
+    console.error('LINE Pay 付款錯誤:', e);
+    alert('付款失敗：' + (e.message || e));
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// 檢查付款結果
+async function checkPaymentResult() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentStatus = urlParams.get('payment');
+  const linePayConfirm = urlParams.get('linepay');
+  const orderId = urlParams.get('orderId');
+  const transactionId = urlParams.get('transactionId');
+  
+  // 處理 LINE Pay 確認
+  if (linePayConfirm === 'confirm' && orderId && transactionId) {
+    try {
+      // 呼叫 LINE Pay 確認 API
+      const endpoint = window.UVACO_CLOUD?.getBaseUrl 
+        ? window.UVACO_CLOUD.getBaseUrl().replace(/\/$/, '').replace(/\/[^\/]*\.html$/, '') + '/functions/v1/linepay-confirm'
+        : '/functions/v1/linepay-confirm';
+      
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          transaction_id: transactionId,
+          order_id: orderId
+        })
+      });
+      
+      const data = await resp.json();
+      
+      if (data.success) {
+        setTimeout(() => {
+          alert('付款成功！您的訂閱已更新。');
+        }, 500);
+      } else {
+        alert('付款確認失敗：' + (data.error || '未知錯誤'));
+      }
+    } catch (e) {
+      console.error('LINE Pay 確認錯誤:', e);
+      alert('付款確認失敗：' + (e.message || e));
+    }
+    
+    window.history.replaceState({}, document.title, 'subscription.html');
+    return;
+  }
+  
+  if (paymentStatus === 'success') {
+    // 顯示成功訊息
+    setTimeout(() => {
+      alert('付款成功！您的訂閱已更新。');
+    }, 500);
+    // 清除 URL 參數
+    window.history.replaceState({}, document.title, 'subscription.html');
+  } else if (paymentStatus === 'cancelled') {
+    setTimeout(() => {
+      alert('付款已取消。');
+    }, 500);
+    window.history.replaceState({}, document.title, 'subscription.html');
+  }
+}
+
+// 頁面初始化
+document.addEventListener('DOMContentLoaded', async function() {
+  try {
+    // 檢查付款結果
+    await checkPaymentResult();
+    
+    if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
+      const r = await UVACO_CLOUD.requireAuth('subscription.html');
+      if (!r.ok) return;
+      
+      await loadSubscription();
+      await loadReferralInfo();
+      await loadPricingPlans();
+    }
+  } catch (e) {
+    console.error('頁面初始化失敗:', e);
+  }
+});
+</script>
+</body>
+</html>
