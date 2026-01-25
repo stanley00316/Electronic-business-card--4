@@ -41,6 +41,17 @@
       from { opacity: 1; transform: translateX(-50%) translateY(0); }
       to { opacity: 0; transform: translateX(-50%) translateY(20px); }
     }
+    
+    /* 移除 LOGO 區的黃色外框 */
+    .hero-frame {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      animation: none !important;
+    }
+    .hero-frame::before {
+      display: none !important;
+    }
   </style>
 </head>
 
