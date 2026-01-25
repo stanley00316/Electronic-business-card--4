@@ -4587,12 +4587,64 @@ function deleteContactButton(contactBtn) {
 
 // 儲存名片（雲端：Supabase）
 
+// 清理 HTML 片段（移除編輯元素和系統提示文字）
+function getCleanHtmlFragment(element) {
+  if (!element) return '';
+  
+  const clone = element.cloneNode(true);
+  
+  // 移除編輯相關元素
+  const editElements = clone.querySelectorAll('button, .edit-add-btn, .contact-delete-btn, .slogan-delete-btn, .uvaco-company-picker-wrap, .uvaco-company-picker-badge');
+  editElements.forEach(el => el.remove());
+  
+  // 移除編輯屬性
+  const editables = clone.querySelectorAll('[contenteditable]');
+  editables.forEach(el => el.removeAttribute('contenteditable'));
+  
+  const clickables = clone.querySelectorAll('.edit-clickable');
+  clickables.forEach(el => {
+    el.classList.remove('edit-clickable');
+    el.removeAttribute('onclick');
+    el.removeAttribute('onblur');
+  });
+  
+  // 移除所有 on 開頭的屬性
+  const all = clone.querySelectorAll('*');
+  all.forEach(el => {
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.startsWith('on')) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  
+  // 過濾系統提示文字
+  let html = clone.innerHTML;
+  const systemPatterns = [
+    '公司已鎖定（如需更改請聯絡管理員）',
+    '公司：必選下拉（可輸入關鍵字快速帶入）',
+    '🏢 選擇公司',
+    '🏢 Select Company',
+    '請輸入內容',
+    'Enter content'
+  ];
+  systemPatterns.forEach(pattern => {
+    html = html.split(pattern).join('');
+  });
+  
+  return html;
+}
+
 function getCleanSloganHtml(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return '';
   
   // 複製一份，避免改到畫面
   const clone = container.cloneNode(true);
+  
+  // 移除公司選擇器相關元素（避免提示文字被存入資料庫）
+  const companyPickerElements = clone.querySelectorAll('.uvaco-company-picker-wrap, .uvaco-company-picker-badge, #uvacoCompanyPickBtnZh, #uvacoCompanyPickBtnEn, #uvacoCompanyLockBadge');
+  companyPickerElements.forEach(el => el.remove());
   
   // 移除所有編輯屬性與事件
   const editables = clone.querySelectorAll('[contenteditable]');
@@ -4605,7 +4657,7 @@ function getCleanSloganHtml(containerId) {
     el.removeAttribute('onblur');
   });
   
-  const buttons = clone.querySelectorAll('button, .slogan-delete-btn');
+  const buttons = clone.querySelectorAll('button, .slogan-delete-btn, .edit-add-btn');
   buttons.forEach(el => el.remove());
   
   // 移除所有 script/onclick/onblur 屬性（再次檢查）
@@ -4618,8 +4670,20 @@ function getCleanSloganHtml(containerId) {
       }
     });
   });
+  
+  // 過濾系統提示文字
+  let html = clone.innerHTML;
+  const systemPatterns = [
+    '公司已鎖定（如需更改請聯絡管理員）',
+    '公司：必選下拉（可輸入關鍵字快速帶入）',
+    '🏢 選擇公司',
+    '🏢 Select Company'
+  ];
+  systemPatterns.forEach(pattern => {
+    html = html.split(pattern).join('');
+  });
 
-  return clone.innerHTML;
+  return html;
 }
 
 // Helper functions for name parsing
@@ -4794,8 +4858,8 @@ async function saveCard() {
       
       // HTML Fragments (Cleaned)
       previewCardHtml: card ? card.innerHTML : '',
-      contactsHtml: contacts ? contacts.innerHTML : '',
-      companyInfoHtml: companyInfo ? companyInfo.innerHTML : '',
+      contactsHtml: contacts ? getCleanHtmlFragment(contacts) : '',
+      companyInfoHtml: companyInfo ? getCleanHtmlFragment(companyInfo) : '',
       slogansZhHtml: slogansZhClean,
       slogansEnHtml: slogansEnClean,
       
