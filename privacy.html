@@ -28,9 +28,37 @@
     body.theme-light p, body.theme-light li { color: #374151; }
     ul { margin-left: 18px; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+    
+    /* 返回按鈕 */
+    .back-btn {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 100;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      transition: background 0.2s;
+    }
+    .back-btn:hover {
+      background: rgba(0,0,0,0.7);
+    }
   </style>
 </head>
 <body class="theme-dark lang-zh">
+  <!-- 返回按鈕 -->
+  <button class="back-btn" onclick="goBack()" title="返回上一頁">←</button>
+  
   <div class="bg-blob blob1"></div>
   <div class="bg-blob blob2"></div>
 
@@ -64,6 +92,17 @@
       <p>如需刪除/匯出你的資料，請聯絡管理者。</p>
     </div>
   </div>
+
+  <script>
+  // 返回上一頁
+  function goBack() {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = 'index.html';
+    }
+  }
+  </script>
 </body>
 </html>
 

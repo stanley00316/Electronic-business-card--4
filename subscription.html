@@ -431,8 +431,8 @@ body.theme-light .invite-link-input {
         <div class="progress-fill" id="progressFill" style="width: 0%"></div>
       </div>
       <div class="progress-text">
-        <span class="lang-zh">已推薦 <span class="referral-count" id="referralCount">0</span> 人，再推薦 <span id="referralNeeded">3</span> 人可獲得半年免費</span>
-        <span class="lang-en">Referred <span class="referral-count" id="referralCountEn">0</span> people, <span id="referralNeededEn">3</span> more for 6 months free</span>
+        <span class="lang-zh">已推薦 <span class="referral-count" id="referralCount">0</span> 人，再推薦 <span id="referralNeeded">6</span> 人可獲得半年免費</span>
+        <span class="lang-en">Referred <span class="referral-count" id="referralCountEn">0</span> people, <span id="referralNeededEn">6</span> more for 6 months free</span>
       </div>
     </div>
 
@@ -489,10 +489,10 @@ body.theme-light .invite-link-input {
   <!-- 提示 -->
   <div class="subscription-note">
     <span class="lang-zh">
-      💡 推薦好友使用平台，每推薦 3 人即可獲得半年免費使用！推薦越多，免費越久。
+      💡 推薦好友使用平台，每推薦 1 人即可獲得 1 個月免費！推薦 3 人 = 3 個月，推薦 6 人 = 半年免費。推薦越多，免費越久！
     </span>
     <span class="lang-en">
-      💡 Refer friends to the platform! Every 3 referrals earns you 6 months free. The more you refer, the longer you can use for free!
+      💡 Refer friends to the platform! Every referral earns you 1 month free. 3 referrals = 3 months, 6 referrals = 6 months free!
     </span>
   </div>
 </div>
@@ -608,18 +608,22 @@ async function loadSubscription() {
 // 載入推薦資訊
 async function loadReferralInfo() {
   try {
-    const count = await UVACO_CLOUD.getMyReferralCount();
+    const result = await UVACO_CLOUD.getMyReferralCount();
+    const count = result.count || 0;
     document.getElementById('referralCount').textContent = count;
     document.getElementById('referralCountEn').textContent = count;
     
-    // 計算進度
+    // 計算進度（每推薦 3 人為一個週期）
     const progress = (count % 3) / 3 * 100;
     document.getElementById('progressFill').style.width = progress + '%';
     
-    // 計算還需要幾人
-    const needed = 3 - (count % 3);
+    // 計算還需要幾人才能獲得下一個獎勵
+    const needed = count >= 3 ? 0 : (3 - count);
     document.getElementById('referralNeeded').textContent = needed;
     document.getElementById('referralNeededEn').textContent = needed;
+    
+    // 更新提示文字（根據推薦人數）
+    updateReferralText(count);
     
     // 載入邀請連結
     const s = await UVACO_CLOUD.getSession();
@@ -634,6 +638,44 @@ async function loadReferralInfo() {
     
   } catch (e) {
     console.error('載入推薦資訊失敗:', e);
+  }
+}
+
+// 更新推薦獎勵文字
+function updateReferralText(count) {
+  // 計算已獲得的獎勵天數（每人 30 天，3 人 = 90 天）
+  const earnedDays = count * 30;
+  const earnedMonths = count;
+  
+  // 計算還需要幾人獲得半年（6個月 = 6人）
+  const neededFor6Months = Math.max(0, 6 - count);
+  
+  // 更新進度條（以 6 人為滿）
+  const progress = Math.min((count / 6) * 100, 100);
+  document.getElementById('progressFill').style.width = progress + '%';
+  
+  // 更新文字說明
+  const progressTextZh = count >= 6
+    ? `已推薦 <span class="referral-count">${count}</span> 人，已獲得半年免費！`
+    : `已推薦 <span class="referral-count">${count}</span> 人，再推薦 <span id="referralNeeded">${neededFor6Months}</span> 人可獲得半年免費`;
+  
+  const progressTextEn = count >= 6
+    ? `Referred <span class="referral-count">${count}</span> people, earned 6 months free!`
+    : `Referred <span class="referral-count">${count}</span> people, <span id="referralNeededEn">${neededFor6Months}</span> more for 6 months free`;
+  
+  const progressEl = document.querySelector('.progress-text');
+  if (progressEl) {
+    progressEl.innerHTML = `
+      <span class="lang-zh">${progressTextZh}</span>
+      <span class="lang-en">${progressTextEn}</span>
+    `;
+  }
+  
+  // 如果有獎勵，顯示獎勵區塊
+  if (earnedDays > 0) {
+    document.getElementById('referralBonus').style.display = 'block';
+    document.getElementById('bonusDays').textContent = earnedDays;
+    document.getElementById('bonusDaysEn').textContent = earnedDays;
   }
 }
 

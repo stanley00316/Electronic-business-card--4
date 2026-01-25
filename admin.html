@@ -80,6 +80,7 @@
     <button class="btn btn-outline" onclick="location.href='settings.html'">前往設定</button>
     <button class="btn btn-outline" id="companyAdminBtn" onclick="location.href='company-admin.html'" style="display:none;">⚙️ 管理企業管理員</button>
     <button class="btn btn-outline" id="subscriptionAdminBtn" onclick="toggleSubscriptionView()" style="display:none;">💎 訂閱管理</button>
+    <button class="btn btn-outline" id="pricingAdminBtn" onclick="togglePricingSection()" style="display:none;">💰 價格方案</button>
   </div>
   <input type="text" id="searchInput" placeholder="搜尋姓名、公司..." onkeyup="filterTable()">
 </div>
@@ -130,6 +131,37 @@
       <tr><td colspan="2" style="padding:12px;text-align:center;color:#888">載入中...</td></tr>
     </tbody>
   </table>
+  </div>
+</div>
+
+<!-- Super Admin：價格方案管理 -->
+<div id="pricingMgmt" style="display:none;margin-top:26px;background:#1b1b1b;border:1px solid #2b2b2b;border-radius:12px;padding:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+    <div style="font-size:16px;color:var(--uvaco-green);font-weight:700">💰 價格方案管理（超級管理員）</div>
+    <button class="btn btn-outline" onclick="loadPricingPlans()">重新整理方案列表</button>
+  </div>
+  
+  <div id="pricingList" style="margin-bottom:16px;">
+    <div style="text-align:center;color:#888;padding:20px;">載入中...</div>
+  </div>
+  
+  <div style="border-top:1px solid #333;padding-top:16px;margin-top:16px;">
+    <div style="font-size:14px;color:#9ca3af;margin-bottom:12px;">新增/編輯方案</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <input type="hidden" id="pricingPlanId">
+      <input type="text" id="pricingNameInput" placeholder="方案名稱（中文）" style="flex:1;min-width:150px">
+      <input type="text" id="pricingNameEnInput" placeholder="方案名稱（英文）" style="flex:1;min-width:150px">
+      <input type="number" id="pricingPriceInput" placeholder="價格（元）" style="width:120px">
+      <input type="number" id="pricingDaysInput" placeholder="天數" style="width:100px">
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <input type="text" id="pricingDescInput" placeholder="說明（中文）" style="flex:1;min-width:200px">
+      <input type="text" id="pricingDescEnInput" placeholder="說明（英文）" style="flex:1;min-width:200px">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-green" onclick="savePricingPlan()">儲存方案</button>
+      <button class="btn btn-outline" onclick="clearPricingForm()">清除</button>
+    </div>
   </div>
 </div>
 
@@ -248,15 +280,22 @@ async function init() {
     companyAdminBtn.style.display = adminStatus.canManageAdmins ? 'inline-block' : 'none';
   }
   
-  // Super Admin（無 managedCompany）才顯示「訂閱管理」按鈕
+  // Super Admin（canManageAdmins）才顯示「訂閱管理」按鈕
   const subscriptionAdminBtn = document.getElementById('subscriptionAdminBtn');
   if (subscriptionAdminBtn) {
-    subscriptionAdminBtn.style.display = (!adminStatus.managedCompany) ? 'inline-block' : 'none';
+    subscriptionAdminBtn.style.display = adminStatus.canManageAdmins ? 'inline-block' : 'none';
+  }
+  
+  // Super Admin（canManageAdmins）才顯示「價格方案」按鈕
+  const pricingAdminBtn = document.getElementById('pricingAdminBtn');
+  if (pricingAdminBtn) {
+    pricingAdminBtn.style.display = adminStatus.canManageAdmins ? 'inline-block' : 'none';
   }
 
   await reloadData();
   if (adminStatus.canManageAdmins) {
     await loadAdmins();
+    await loadPricingPlans();
   }
 }
 
@@ -486,6 +525,150 @@ async function removeAdminUser() {
     alert('已移除管理員。');
   } catch (e) {
     alert('移除失敗：' + String(e?.message || e || ''));
+  }
+}
+
+// ===== 價格方案管理功能 =====
+let pricingPlans = [];
+
+function togglePricingSection() {
+  const section = document.getElementById('pricingMgmt');
+  if (section) {
+    const isVisible = section.style.display === 'block';
+    section.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) {
+      loadPricingPlans();
+    }
+  }
+}
+
+async function loadPricingPlans() {
+  const container = document.getElementById('pricingList');
+  if (!container) return;
+  
+  container.innerHTML = '<div style="text-align:center;color:#888;padding:20px;">載入中...</div>';
+  
+  try {
+    const result = await UVACO_CLOUD.getPricingPlans();
+    pricingPlans = result.plans || [];
+    renderPricingPlans();
+  } catch (e) {
+    console.error('載入價格方案失敗:', e);
+    container.innerHTML = '<div style="text-align:center;color:#ef4444;padding:20px;">載入失敗</div>';
+  }
+}
+
+function renderPricingPlans() {
+  const container = document.getElementById('pricingList');
+  if (!container) return;
+  
+  if (pricingPlans.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#888;padding:20px;">目前沒有價格方案</div>';
+    return;
+  }
+  
+  container.innerHTML = pricingPlans.map(plan => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:#222;border-radius:8px;margin-bottom:8px;">
+      <div style="flex:1;">
+        <div style="font-weight:600;color:#e5e7eb;">${plan.name}</div>
+        <div style="font-size:12px;color:#9ca3af;">${plan.description || ''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:18px;font-weight:700;color:var(--uvaco-green);">NT$ ${Math.round(plan.price / 100)}</div>
+        <div style="font-size:12px;color:#9ca3af;">${plan.duration_days} 天</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editPricingPlan('${plan.id}')">編輯</button>
+        <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;color:#ef4444;border-color:#ef4444;" onclick="deletePricingPlan('${plan.id}')">刪除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function editPricingPlan(planId) {
+  const plan = pricingPlans.find(p => p.id === planId);
+  if (!plan) return;
+  
+  document.getElementById('pricingPlanId').value = plan.id;
+  document.getElementById('pricingNameInput').value = plan.name || '';
+  document.getElementById('pricingNameEnInput').value = plan.name_en || '';
+  document.getElementById('pricingPriceInput').value = Math.round(plan.price / 100); // 轉換為元
+  document.getElementById('pricingDaysInput').value = plan.duration_days || '';
+  document.getElementById('pricingDescInput').value = plan.description || '';
+  document.getElementById('pricingDescEnInput').value = plan.description_en || '';
+}
+
+function clearPricingForm() {
+  document.getElementById('pricingPlanId').value = '';
+  document.getElementById('pricingNameInput').value = '';
+  document.getElementById('pricingNameEnInput').value = '';
+  document.getElementById('pricingPriceInput').value = '';
+  document.getElementById('pricingDaysInput').value = '';
+  document.getElementById('pricingDescInput').value = '';
+  document.getElementById('pricingDescEnInput').value = '';
+}
+
+async function savePricingPlan() {
+  const id = document.getElementById('pricingPlanId').value.trim();
+  const name = document.getElementById('pricingNameInput').value.trim();
+  const name_en = document.getElementById('pricingNameEnInput').value.trim();
+  const price = parseInt(document.getElementById('pricingPriceInput').value) * 100; // 轉換為分
+  const duration_days = parseInt(document.getElementById('pricingDaysInput').value);
+  const description = document.getElementById('pricingDescInput').value.trim();
+  const description_en = document.getElementById('pricingDescEnInput').value.trim();
+  
+  if (!name) {
+    alert('請輸入方案名稱');
+    return;
+  }
+  if (!price || price < 0) {
+    alert('請輸入有效的價格');
+    return;
+  }
+  if (!duration_days || duration_days < 1) {
+    alert('請輸入有效的天數');
+    return;
+  }
+  
+  try {
+    const result = await UVACO_CLOUD.savePricingPlan({
+      id: id || null,
+      name,
+      name_en,
+      price,
+      duration_days,
+      description,
+      description_en,
+      active: true
+    });
+    
+    if (result.success) {
+      alert(id ? '方案已更新' : '方案已新增');
+      clearPricingForm();
+      await loadPricingPlans();
+    } else {
+      alert('儲存失敗：' + (result.error || '未知錯誤'));
+    }
+  } catch (e) {
+    console.error('儲存價格方案失敗:', e);
+    alert('儲存失敗：' + (e.message || e));
+  }
+}
+
+async function deletePricingPlan(planId) {
+  if (!confirm('確定要刪除此價格方案嗎？')) return;
+  
+  try {
+    const result = await UVACO_CLOUD.deletePricingPlan(planId);
+    if (result.success) {
+      alert('方案已刪除');
+      await loadPricingPlans();
+    } else {
+      alert('刪除失敗：' + (result.error || '未知錯誤'));
+    }
+  } catch (e) {
+    console.error('刪除價格方案失敗:', e);
+    alert('刪除失敗：' + (e.message || e));
   }
 }
 

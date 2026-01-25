@@ -1806,6 +1806,78 @@ window.UVACO_CLOUD = (function () {
     }
   }
 
+  // 儲存/更新價格方案（Super Admin Only）
+  async function savePricingPlan(plan) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+    
+    const me = await isAdmin();
+    if (!me || !me.isAdmin || !me.canManageAdmins) {
+      return { success: false, error: 'NOT_SUPER_ADMIN' };
+    }
+    
+    try {
+      const payload = {
+        name: plan.name,
+        name_en: plan.name_en || plan.name,
+        description: plan.description || '',
+        description_en: plan.description_en || plan.description || '',
+        price: plan.price,
+        duration_days: plan.duration_days,
+        is_active: plan.active !== false
+      };
+      
+      let result;
+      if (plan.id) {
+        // 更新現有方案
+        result = await ctx.client
+          .from('pricing_plans')
+          .update(payload)
+          .eq('id', plan.id);
+      } else {
+        // 新增方案
+        result = await ctx.client
+          .from('pricing_plans')
+          .insert(payload);
+      }
+      
+      if (result.error) {
+        return { success: false, error: result.error.message };
+      }
+      
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || String(e) };
+    }
+  }
+
+  // 刪除價格方案（Super Admin Only）
+  async function deletePricingPlan(planId) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+    
+    const me = await isAdmin();
+    if (!me || !me.isAdmin || !me.canManageAdmins) {
+      return { success: false, error: 'NOT_SUPER_ADMIN' };
+    }
+    
+    try {
+      // 軟刪除：設為非活躍
+      const { error } = await ctx.client
+        .from('pricing_plans')
+        .update({ is_active: false })
+        .eq('id', planId);
+      
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || String(e) };
+    }
+  }
+
   // 更新推薦獎勵（檢查推薦人數並更新獎勵天數）
   async function updateMyReferralBonus() {
     const ctx = await getAuthContext();
@@ -1813,17 +1885,18 @@ window.UVACO_CLOUD = (function () {
     
     try {
       // 取得推薦人數
-      const count = await getMyReferralCount();
+      const result = await getMyReferralCount();
+      const referralCount = result.count || 0;
       
-      // 計算獎勵天數（每 3 人 = 180 天）
-      const bonusDays = Math.floor(count / 3) * 180;
+      // 計算獎勵天數（每人 30 天）
+      const bonusDays = referralCount * 30;
       
       // 更新訂閱記錄
       const { error } = await ctx.client
         .from('subscriptions')
         .update({
           referral_bonus_days: bonusDays,
-          last_referral_check: count
+          last_referral_check: referralCount
         })
         .eq('user_id', ctx.userId);
       
@@ -1832,7 +1905,7 @@ window.UVACO_CLOUD = (function () {
         return { success: false, error };
       }
       
-      return { success: true, bonusDays, referralCount: count };
+      return { success: true, bonusDays, referralCount };
     } catch (e) {
       return { success: false, error: e };
     }
@@ -2006,6 +2079,8 @@ window.UVACO_CLOUD = (function () {
     getAllSubscriptionsAdmin,
     extendSubscription,
     getPricingPlans,
+    savePricingPlan,
+    deletePricingPlan,
     updateMyReferralBonus,
     
     // 金流

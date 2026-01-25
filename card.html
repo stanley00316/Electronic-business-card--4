@@ -52,10 +52,38 @@
     .hero-frame::before {
       display: none !important;
     }
+    
+    /* 返回按鈕 */
+    .back-btn {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 100;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      transition: background 0.2s;
+    }
+    .back-btn:hover {
+      background: rgba(0,0,0,0.7);
+    }
   </style>
 </head>
 
 <body class="theme-dark lang-zh">
+
+<!-- 返回按鈕 -->
+<button class="back-btn" onclick="goBack()" title="返回上一頁">←</button>
 
 <!-- 背景泡泡 -->
 <div class="bg-blob blob1"></div>
@@ -228,6 +256,15 @@
 </nav>
 
 <script>
+// 返回上一頁
+function goBack() {
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.href = 'directory.html';
+  }
+}
+
 // 前往「我的名片」頁面
 async function gotoMyCard(event) {
   if (event) {
