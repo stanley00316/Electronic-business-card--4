@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-label="UVACO">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-label="數位身分平台">
   <defs>
     <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#1faf53"/>
@@ -10,8 +10,8 @@
   </defs>
   <rect x="0" y="0" width="1200" height="420" rx="80" fill="#ffffff" filter="url(#s)"/>
   <g font-family="-apple-system, BlinkMacSystemFont, 'Noto Sans TC', 'Segoe UI', sans-serif" font-weight="800">
-    <text x="90" y="260" font-size="210" fill="url(#g)" letter-spacing="6">UVACO</text>
-    <text x="96" y="330" font-size="40" fill="#111827" opacity="0.7" letter-spacing="1">E-Business Card</text>
+    <text x="90" y="260" font-size="120" fill="url(#g)" letter-spacing="4">數位身分平台</text>
+    <text x="96" y="330" font-size="36" fill="#111827" opacity="0.7" letter-spacing="1">Digital Identity Platform</text>
   </g>
 </svg>
 

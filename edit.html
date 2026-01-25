@@ -1585,6 +1585,23 @@ body.theme-light .link-input-cancel:hover {
   margin-top: 20px;
 }
 
+/* 範例浮水印 */
+.example-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  font-size: 28px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.12);
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 </style>
 </head>
 
@@ -1628,6 +1645,11 @@ body.theme-light .link-input-cancel:hover {
       </div>
 
       <div class="card" id="previewCard" style="position: relative;">
+        <!-- 範例浮水印 -->
+        <div class="example-watermark">
+          <span class="lang-zh">範例呈現</span>
+          <span class="lang-en">Example</span>
+        </div>
         <img class="avatar edit-clickable" id="previewAvatar" src="default-avatar.svg" alt="Avatar" loading="lazy" onclick="editAvatar()" title="點擊編輯頭像">
         
         <div class="name lang-zh edit-clickable" id="previewNameZh" contenteditable="true" onblur="updateNameFromPreview()" onclick="focusEdit(this)">柯宜瀅 ｜ <span class="en">Yuyu Ko</span></div>
