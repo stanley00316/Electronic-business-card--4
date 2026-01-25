@@ -75,7 +75,7 @@
 <div class="directory-page">
   <!-- 頂部標題欄 -->
   <div class="directory-header">
-    <a href="yuyuko.html" class="directory-back-btn">←</a>
+    <a href="index.html" class="directory-back-btn">←</a>
     <h1 class="directory-title lang-zh">平台通訊錄</h1>
     <h1 class="directory-title lang-en">Platform Directory</h1>
     <button class="directory-add-friend-btn" onclick="openAddFriendModal()">
@@ -223,8 +223,8 @@
       <div class="my-card-actions">
         <a class="btn btn-secondary lang-zh" href="edit.html" onclick="return gotoMyEditFromDirectory(event)">✏️ 編輯名片</a>
         <a class="btn btn-secondary lang-en" href="edit.html" onclick="return gotoMyEditFromDirectory(event)">✏️ Edit Card</a>
-        <a class="btn btn-secondary lang-zh" href="yuyuko.html?v=1e6be8e" target="_blank" rel="noopener noreferrer">👀 預覽</a>
-        <a class="btn btn-secondary lang-en" href="yuyuko.html?v=1e6be8e" target="_blank" rel="noopener noreferrer">👀 Preview</a>
+        <a class="btn btn-secondary lang-zh" id="myCardPreviewZh" href="card.html" target="_blank" rel="noopener noreferrer">👀 預覽</a>
+        <a class="btn btn-secondary lang-en" id="myCardPreviewEn" href="card.html" target="_blank" rel="noopener noreferrer">👀 Preview</a>
       </div>
     </div>
     
@@ -602,6 +602,14 @@ function renderMyCardPanel(card) {
   set('myCardCompanyEn', companyEn);
   set('myCardEmail', email || '-');
 
+  // 更新預覽連結
+  const uid = card.user_id || '';
+  const previewUrl = uid ? `card.html?id=${encodeURIComponent(uid)}` : 'card.html';
+  const previewZh = document.getElementById('myCardPreviewZh');
+  const previewEn = document.getElementById('myCardPreviewEn');
+  if (previewZh) previewZh.href = previewUrl;
+  if (previewEn) previewEn.href = previewUrl;
+
   panel.style.display = 'block';
 }
 
@@ -679,7 +687,7 @@ function renderDirectoryResults(rows) {
     const company = escapeHtml(r?.company || '');
     const title = escapeHtml(r?.title || '');
     const uid = encodeURIComponent(r?.user_id || '');
-    const previewUrl = `yuyuko.html?v=1e3c412&uid=${uid}`;
+    const previewUrl = `card.html?id=${uid}`;
     return `
       <div class="directory-card-item" style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,22,24,0.65);margin:10px 0;">
         <div style="min-width:0;">
