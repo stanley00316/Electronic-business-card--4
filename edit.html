@@ -2484,11 +2484,32 @@ function loadCardToUI(card) {
     } catch (e) {}
   })();
 
+  // 過濾系統提示文字（避免顯示被誤存的提示）
+  function filterSystemTextFromHtml(html) {
+    if (!html) return html;
+    const systemPatterns = [
+      '公司已鎖定（如需更改請聯絡管理員）',
+      '公司：必選下拉（可輸入關鍵字快速帶入）',
+      '🏢 選擇公司',
+      '🏢 Select Company',
+      '請輸入內容',
+      'Enter content'
+    ];
+    let result = html;
+    systemPatterns.forEach(pattern => {
+      result = result.split(pattern).join('');
+    });
+    // 移除公司選擇器相關的 HTML 標籤
+    result = result.replace(/<div[^>]*class="[^"]*uvaco-company-picker[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+    result = result.replace(/<button[^>]*id="uvacoCompanyPickBtn[^"]*"[^>]*>[\s\S]*?<\/button>/gi, '');
+    return result;
+  }
+
   // 5) 公司資訊（直接回填 HTML，維持原版型與可編輯事件）
   try {
     const section = document.getElementById('companyInfoSection');
     if (section && pj.companyInfoHtml) {
-      section.innerHTML = String(pj.companyInfoHtml);
+      section.innerHTML = filterSystemTextFromHtml(String(pj.companyInfoHtml));
     }
   } catch (e) {}
 
@@ -2496,7 +2517,7 @@ function loadCardToUI(card) {
   try {
     const contacts = document.getElementById('previewContacts');
     if (contacts && pj.contactsHtml) {
-      contacts.innerHTML = String(pj.contactsHtml);
+      contacts.innerHTML = filterSystemTextFromHtml(String(pj.contactsHtml));
     }
     // 套用顯示方式（grid/list）
     const layout = String(pj.contactLayout || '').toLowerCase() === 'grid' ? 'grid' : 'list';
@@ -2512,7 +2533,7 @@ function loadCardToUI(card) {
     // 避免新用戶一進來標語就被清空
     if (zhSlogans) {
       if (pj.slogansZhHtml) {
-        zhSlogans.innerHTML = String(pj.slogansZhHtml);
+        zhSlogans.innerHTML = filterSystemTextFromHtml(String(pj.slogansZhHtml));
       } else if (pj.savedAt) {
         // 若有儲存過但 html 為空，代表用戶可能真的清空了，這裡應該要清空？
         // 為了安全起見，若真的為空，給一個預設結構，方便用戶點擊編輯
@@ -2523,7 +2544,7 @@ function loadCardToUI(card) {
     const enSlogans = document.getElementById('previewSlogansEn');
     if (enSlogans) {
       if (pj.slogansEnHtml) {
-        enSlogans.innerHTML = String(pj.slogansEnHtml);
+        enSlogans.innerHTML = filterSystemTextFromHtml(String(pj.slogansEnHtml));
       } else if (pj.savedAt) {
         enSlogans.innerHTML = `<div class="slogan-item"><div class="tagline lang-en edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)">Health • Business • Future</div><button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="Delete slogan">✕</button></div>`;
       }
