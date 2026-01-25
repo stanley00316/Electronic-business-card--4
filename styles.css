@@ -992,7 +992,7 @@ body.theme-light .settings-theme-btn {
   position: relative;
   margin: 0 auto;
   animation: slideIn 0.3s ease;
-  overflow: hidden; /* 防止內容超出頁面邊界 */
+  /* 移除 overflow: hidden 以讓 sticky 正常運作 */
 }
 
 @keyframes slideIn {
@@ -1017,8 +1017,10 @@ body.theme-light .directory-page {
 .directory-header {
   position: fixed;
   top: 47px; /* top-bar 的高度（約 10px padding-top + 33px content + 4px padding-bottom） */
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
   z-index: 200; /* 提高層級確保置頂 */
   padding: 16px 20px;
   display: flex;
@@ -1026,8 +1028,7 @@ body.theme-light .directory-page {
   gap: 16px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  max-width: 480px;
-  margin: 0 auto;
+  box-sizing: border-box;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -1098,15 +1099,15 @@ body.theme-light .directory-add-friend-btn:hover {
 .directory-search-wrapper {
   position: fixed;
   top: 116px; /* top-bar (47px) + directory-header (69px) */
-  left: 0;
-  right: 0;
-  z-index: 199; /* 提高層級確保置頂 */
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  margin: 0 auto;
+  z-index: 199; /* 提高層級確保置頂 */
   padding: 12px 20px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  box-sizing: border-box;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
