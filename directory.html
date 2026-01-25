@@ -18,9 +18,14 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cloud.js?v=20260106"></script>
 <style>
+  /* 防止內容超出容器 */
+  .directory-content {
+    overflow: hidden;
+  }
+  
   /* 我的名片（雲端） */
   .my-card-panel {
-    margin: 14px 0 12px;
+    margin: 0 0 12px; /* 移除上方 margin 防止超出 */
     padding: 14px 14px;
     border-radius: 16px;
     border: 1px solid rgba(255,255,255,0.08);
