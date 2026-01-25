@@ -379,12 +379,32 @@ function loadInviteLink(userId) {
   inviteDisplay.textContent = shortLink;
 }
 
-// 複製邀請連結
-function copyInviteLink() {
+// 分享/複製邀請連結
+async function copyInviteLink() {
   if (!myInviteLink) return;
   
+  const savedLang = localStorage.getItem('lang') || 'zh';
+  const shareData = {
+    title: savedLang === 'zh' ? '加入數位身分平台' : 'Join Digital Identity Platform',
+    text: savedLang === 'zh' 
+      ? '我邀請你加入數位身分平台，一起建立專屬電子名片！' 
+      : 'I invite you to join the Digital Identity Platform!',
+    url: myInviteLink
+  };
+  
+  // 優先使用系統分享（支援 LINE、訊息、Email 等）
+  if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+    try {
+      await navigator.share(shareData);
+      return;
+    } catch (err) {
+      // 用戶取消分享或不支援，fallback 到複製
+      if (err.name === 'AbortError') return;
+    }
+  }
+  
+  // Fallback: 複製到剪貼簿
   navigator.clipboard.writeText(myInviteLink).then(() => {
-    const savedLang = localStorage.getItem('lang') || 'zh';
     alert(savedLang === 'zh' 
       ? '邀請連結已複製！\n分享給朋友即可邀請他們加入。' 
       : 'Invite link copied!\nShare with friends to invite them.');
