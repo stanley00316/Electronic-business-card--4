@@ -1098,12 +1098,12 @@ body.theme-light .directory-add-friend-btn:hover {
 /* 搜尋欄容器 */
 .directory-search-wrapper {
   position: fixed;
-  top: 116px; /* top-bar (47px) + directory-header (69px) */
+  top: 71px; /* 直接在 directory-header 下方 */
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  z-index: 199; /* 提高層級確保置頂 */
+  z-index: 299; /* 高於 top-bar (250) */
   padding: 12px 20px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -1114,7 +1114,7 @@ body.theme-light .directory-add-friend-btn:hover {
 .directory-content {
   width: 100%;
   padding: 20px;
-  padding-top: 200px; /* top-bar (47px) + header (69px) + search-wrapper (84px) */
+  padding-top: 160px; /* header (71px) + search-wrapper (73px) + 間距 */
   padding-bottom: 100px; /* 為底部導航欄預留空間 */
   box-sizing: border-box;
 }
