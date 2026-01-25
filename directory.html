@@ -491,6 +491,11 @@
 
 <!-- 底部導航欄 -->
 <nav class="bottom-nav">
+  <a href="#" class="nav-item primary" id="navMyCard" onclick="gotoMyCard(event)">
+    <span class="nav-icon">👤</span>
+    <span class="nav-label lang-zh">我的名片</span>
+    <span class="nav-label lang-en">My Card</span>
+  </a>
   <a href="directory.html" class="nav-item">
     <span class="nav-icon">📋</span>
     <span class="nav-label lang-zh">通訊錄</span>
@@ -527,6 +532,31 @@ async function gotoMyEditFromDirectory(event) {
     return false;
   } catch (e) {
     window.location.href = 'edit.html';
+    return false;
+  }
+}
+
+// 前往「我的名片」頁面
+async function gotoMyCard(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  try {
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+      window.location.href = 'auth.html?next=directory.html';
+      return false;
+    }
+    const s = await UVACO_CLOUD.getSession();
+    const uid = s && s.session && s.session.user ? String(s.session.user.id || '').trim() : '';
+    if (!uid) {
+      window.location.href = 'auth.html?next=directory.html';
+      return false;
+    }
+    window.location.href = 'card.html?id=' + encodeURIComponent(uid);
+    return false;
+  } catch (e) {
+    window.location.href = 'auth.html?next=directory.html';
     return false;
   }
 }
