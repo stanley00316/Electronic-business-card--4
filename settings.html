@@ -146,8 +146,8 @@ body {
         </div>
       </div>
 
-      <!-- 系統資訊 (User ID) -->
-      <div class="settings-item" onclick="copyMyUserId()" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);">
+      <!-- 系統資訊 (User ID) - 僅管理員可見 -->
+      <div class="settings-item" id="userIdItem" onclick="copyMyUserId()" style="display: none; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);">
         <div class="settings-item-icon">🆔</div>
         <div class="settings-item-content">
           <div class="settings-item-title lang-zh">使用者 ID（點擊複製）</div>
@@ -281,30 +281,32 @@ async function initUserId() {
         loadReferralStats();
       }
       
-      // 檢查管理員狀態
+      // 檢查管理員狀態 - 僅管理員可見以下三個項目
       if (s.session && UVACO_CLOUD.isAdmin) {
         const adminStatus = await UVACO_CLOUD.isAdmin();
         const statusItem = document.getElementById('adminStatusItem');
         const statusDisplay = document.getElementById('adminStatusDisplay');
         const adminLink = document.getElementById('adminBackendLink');
+        const userIdItem = document.getElementById('userIdItem');
         
-        if (statusItem && statusDisplay) {
-          statusItem.style.display = 'flex';
-          if (adminStatus && adminStatus.isAdmin) {
-            // 顯示管理後台連結
-            if (adminLink) adminLink.style.display = 'flex';
-            
+        // 只有管理員才顯示這三個項目
+        if (adminStatus && adminStatus.isAdmin) {
+          // 顯示管理後台連結
+          if (adminLink) adminLink.style.display = 'flex';
+          // 顯示使用者 ID
+          if (userIdItem) userIdItem.style.display = 'flex';
+          // 顯示管理員狀態
+          if (statusItem) statusItem.style.display = 'flex';
+          
+          if (statusDisplay) {
             if (adminStatus.managedCompany) {
               statusDisplay.innerHTML = '<span style="color:#22c55e;">✓ 企業管理員</span><br><small>管理公司：' + adminStatus.managedCompany + '</small>';
             } else {
               statusDisplay.innerHTML = '<span style="color:#22c55e;">✓ 超級管理員</span>';
             }
-          } else {
-            // 隱藏管理後台連結
-            if (adminLink) adminLink.style.display = 'none';
-            statusDisplay.innerHTML = '<span style="color:#9ca3af;">✗ 非管理員</span><br><small>如需管理員權限，請聯繫系統管理員</small>';
           }
         }
+        // 非管理員：這三個項目保持隱藏（預設 display: none）
       }
     }
   } catch (e) {
