@@ -1401,22 +1401,18 @@ window.UVACO_CLOUD = (function () {
       
     if (error || !data) return false;
     
-    // 檢查 admin_allowlist 表（用於判斷是否有權管理其他管理員）
-    // RLS 政策要求必須在 admin_allowlist 中才能修改 admin_users 表
+    // 檢查是否為超級管理員（使用資料庫的 is_admin() 函數）
+    // is_admin() 函數會檢查當前用戶的 email 是否在 admin_allowlist 表中且 enabled = true
     let canManageAdmins = false;
     try {
-      const { data: allowlistData, error: allowlistError } = await client
-        .from('admin_allowlist')
-        .select('email, enabled')
-        .eq('enabled', true)
-        .maybeSingle();
+      const { data: isAdminResult, error: rpcError } = await client
+        .rpc('is_admin');
       
-      // 如果能讀取到 admin_allowlist 且 enabled = true，代表用戶有權管理管理員
-      if (!allowlistError && allowlistData) {
+      if (!rpcError && isAdminResult === true) {
         canManageAdmins = true;
       }
     } catch (e) {
-      // admin_allowlist 可能不存在或無權讀取，忽略錯誤
+      // is_admin RPC 可能失敗，忽略錯誤
     }
     
     // 回傳物件：{ isAdmin: true, managedCompany: 'Tesla' or null, canManageAdmins: boolean }
