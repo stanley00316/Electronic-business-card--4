@@ -1,8 +1,74 @@
-// 雲端（Supabase + Cloudflare R2）共用工具（純前端 / GitHub Pages 可用）
-// 注意：Supabase ANON KEY 可公開放在前端（它不是私鑰），真正權限由 RLS 控制。
-// v=20260126 - 新增 Cloudflare R2 儲存支援
+/**
+ * 數位身分平台 - 雲端服務模組
+ * 
+ * 此檔案整合所有雲端服務功能，包含：
+ * - Supabase 資料庫與儲存
+ * - Cloudflare R2 圖片儲存（選用）
+ * - LINE / Google / Apple 登入
+ * 
+ * 注意：Supabase ANON KEY 可公開放在前端（它不是私鑰），真正權限由 RLS 控制。
+ * 
+ * @version 2026.01.26
+ * @module UVACO_CLOUD
+ * 
+ * 模組結構：
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │ 1. 設定區 (Configuration)                                    │
+ * │    - Supabase 設定                                          │
+ * │    - 儲存設定 (Supabase Storage / R2)                        │
+ * │    - OAuth 設定 (LINE / Google / Apple)                      │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 2. 工具函數 (Utilities)                                      │
+ * │    - fetchWithTimeout, hasConfig, getBaseUrl                │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 3. 客戶端管理 (Client Management)                            │
+ * │    - getClient, getCustomClient                             │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 4. JWT 管理 (JWT Management)                                 │
+ * │    - getCustomJwt, setCustomJwt, clearCustomJwt             │
+ * │    - decodeJwtSub, isJwtExpired                             │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 5. 認證與 Session (Authentication)                           │
+ * │    - getAuthContext, getSession, requireAuth                │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 6. LINE 登入 (LINE Login)                                    │
+ * │    - startLineLogin, finishLineLoginFromUrl, lineAuthDiag   │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 7. Google 登入 (Google Login)                                │
+ * │    - startGoogleLogin, finishGoogleLoginFromUrl             │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 8. Apple 登入 (Apple Login)                                  │
+ * │    - startAppleLogin, finishAppleLoginFromUrl               │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 9. 名片操作 (Card Operations)                                │
+ * │    - getMyCard, getCardByUserId, getCardPublic              │
+ * │    - upsertMyCard, deleteCard                               │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 10. 管理員功能 (Admin Functions)                             │
+ * │    - isAdmin, getAdminUsers, adminUpdateCard                │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 11. 搜尋功能 (Search)                                        │
+ * │    - searchCards                                            │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 12. 檔案儲存 (Storage)                                       │
+ * │    - uploadMyAsset, getSignedAssetUrl                       │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 13. 合規功能 (Compliance)                                    │
+ * │    - ensureConsent                                          │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 14. 匯出功能 (Export)                                        │
+ * │    - toCsv, exportCardsCsv                                  │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │ 15. 診斷功能 (Diagnostics)                                   │
+ * │    - r2Diag, getStorageProvider                             │
+ * └─────────────────────────────────────────────────────────────┘
+ */
 
 window.UVACO_CLOUD = (function () {
+  /* =========================================================================
+   * 1. 設定區 (Configuration)
+   * ========================================================================= */
+  
   // ===== Supabase 設定 =====
   // 你需要把這兩個值改成你 Supabase 專案的設定（Project Settings → API）
   // - SUPABASE_URL: https://xxxx.supabase.co
@@ -44,6 +110,87 @@ window.UVACO_CLOUD = (function () {
   
   const CUSTOM_JWT_KEY = 'UVACO_CUSTOM_JWT';
 
+  /* =========================================================================
+   * 錯誤代碼與錯誤類別 (Error Codes & Classes)
+   * ========================================================================= */
+
+  // 標準錯誤代碼
+  const ErrorCodes = {
+    // 認證錯誤
+    NO_CONFIG: 'NO_CONFIG',
+    NO_SESSION: 'NO_SESSION',
+    JWT_EXPIRED: 'JWT_EXPIRED',
+    AUTH_FAILED: 'AUTH_FAILED',
+    
+    // 網路錯誤
+    NETWORK_ERROR: 'NETWORK_ERROR',
+    TIMEOUT: 'TIMEOUT',
+    FETCH_FAILED: 'FETCH_FAILED',
+    
+    // 資料庫錯誤
+    DB_ERROR: 'DB_ERROR',
+    NOT_FOUND: 'NOT_FOUND',
+    PERMISSION_DENIED: 'PERMISSION_DENIED',
+    
+    // 儲存錯誤
+    STORAGE_FAILED: 'STORAGE_FAILED',
+    UPLOAD_FAILED: 'UPLOAD_FAILED',
+    FILE_TOO_LARGE: 'FILE_TOO_LARGE',
+    
+    // OAuth 錯誤
+    LINE_AUTH_FAILED: 'LINE_AUTH_FAILED',
+    GOOGLE_AUTH_FAILED: 'GOOGLE_AUTH_FAILED',
+    APPLE_AUTH_FAILED: 'APPLE_AUTH_FAILED',
+    
+    // 驗證錯誤
+    INVALID_INPUT: 'INVALID_INPUT',
+    VALIDATION_ERROR: 'VALIDATION_ERROR'
+  };
+
+  // 統一錯誤類別
+  class CloudError extends Error {
+    constructor(code, message, details = null) {
+      super(message);
+      this.name = 'CloudError';
+      this.code = code;
+      this.details = details;
+      this.timestamp = new Date().toISOString();
+    }
+
+    toJSON() {
+      return {
+        name: this.name,
+        code: this.code,
+        message: this.message,
+        details: this.details,
+        timestamp: this.timestamp
+      };
+    }
+  }
+
+  // 錯誤處理輔助函數
+  function createError(code, message, details) {
+    return new CloudError(code, message, details);
+  }
+
+  function isAuthError(error) {
+    const authCodes = [ErrorCodes.NO_SESSION, ErrorCodes.JWT_EXPIRED, ErrorCodes.AUTH_FAILED];
+    return authCodes.includes(error?.code) || 
+           error?.code === 'PGRST303' ||
+           (error?.message && error.message.includes('JWT'));
+  }
+
+  function isNetworkError(error) {
+    return error?.code === ErrorCodes.NETWORK_ERROR ||
+           error?.code === ErrorCodes.TIMEOUT ||
+           error?.name === 'AbortError' ||
+           (error?.message && error.message.includes('Load failed'));
+  }
+
+  /* =========================================================================
+   * 2. 工具函數 (Utilities)
+   * ========================================================================= */
+
   async function fetchWithTimeout(url, options, timeoutMs) {
     const ms = Math.max(parseInt(timeoutMs || 0, 10) || 0, 1000);
     const controller = new AbortController();
@@ -66,6 +213,10 @@ window.UVACO_CLOUD = (function () {
     return window.location.origin + path.replace(/[^/]*$/, '');
   }
 
+  /* =========================================================================
+   * 3. 客戶端管理 (Client Management)
+   * ========================================================================= */
+
   function getClient() {
     if (!hasConfig()) return null;
     if (window.__uvacoSupabaseClient) return window.__uvacoSupabaseClient;
@@ -79,6 +230,10 @@ window.UVACO_CLOUD = (function () {
     });
     return window.__uvacoSupabaseClient;
   }
+
+  /* =========================================================================
+   * 4. JWT 管理 (JWT Management)
+   * ========================================================================= */
 
   function getCustomJwt() {
     try { return String(localStorage.getItem(CUSTOM_JWT_KEY) || '').trim(); } catch (e) { return ''; }
@@ -147,6 +302,10 @@ window.UVACO_CLOUD = (function () {
     return cache[token];
   }
 
+  /* =========================================================================
+   * 5. 認證與 Session (Authentication)
+   * ========================================================================= */
+
   async function getAuthContext() {
     // 1) 優先：自訂 JWT（LINE 登入）
     const customJwt = getCustomJwt();
@@ -210,6 +369,10 @@ window.UVACO_CLOUD = (function () {
     if (error) return { ok: false, error };
     return { ok: true, exchanged: true };
   }
+
+  /* =========================================================================
+   * 6. LINE 登入 (LINE Login)
+   * ========================================================================= */
 
   function getLineRedirectUri(nextRelativeUrl) {
     // LINE callback 必須與 LINE Developers 設定完全一致。
@@ -603,6 +766,10 @@ window.UVACO_CLOUD = (function () {
     }
   }
 
+  /* =========================================================================
+   * 9. 名片操作 (Card Operations)
+   * ========================================================================= */
+
   async function getMyCard() {
     const ctx = await getAuthContext();
     if (!ctx.ok) return { card: null };
@@ -642,6 +809,10 @@ window.UVACO_CLOUD = (function () {
     if (error) return { card: null, error };
     return { card: data || null };
   }
+
+  /* =========================================================================
+   * 10. 管理員功能 (Admin Functions)
+   * ========================================================================= */
 
   // 管理員取得所有名片（給 admin.html 用）
   async function getAllCardsAdmin() {
@@ -822,6 +993,10 @@ window.UVACO_CLOUD = (function () {
     return true;
   }
 
+  /* =========================================================================
+   * 11. 搜尋功能 (Search)
+   * ========================================================================= */
+
   async function searchCards(params) {
     const ctx = await getAuthContext();
     if (!ctx.ok) throw new Error('NO_SESSION');
@@ -847,6 +1022,10 @@ window.UVACO_CLOUD = (function () {
     if (error) throw error;
     return { rows: data || [] };
   }
+
+  /* =========================================================================
+   * 12. 檔案儲存 (Storage)
+   * ========================================================================= */
 
   // 上傳到 Supabase Storage
   async function uploadToSupabaseStorage(ctx, kind, blob, opts) {
@@ -968,6 +1147,10 @@ window.UVACO_CLOUD = (function () {
     return data;
   }
 
+  /* =========================================================================
+   * 13. 合規功能 (Compliance)
+   * ========================================================================= */
+
   async function ensureConsent(consentVersion, policyUrl) {
     const ctx = await getAuthContext();
     if (!ctx.ok) throw new Error('NO_SESSION');
@@ -1015,6 +1198,10 @@ window.UVACO_CLOUD = (function () {
     };
   }
 
+  /* =========================================================================
+   * 14. 匯出功能 (Export)
+   * ========================================================================= */
+
   function toCsv(rows, headers) {
     const esc = (v) => {
       const s = String(v ?? '');
@@ -1053,6 +1240,10 @@ window.UVACO_CLOUD = (function () {
     return true;
   }
 
+  /* =========================================================================
+   * 15. 診斷功能 (Diagnostics)
+   * ========================================================================= */
+
   // R2 診斷
   async function r2Diag() {
     const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/upload-r2';
@@ -1076,46 +1267,73 @@ window.UVACO_CLOUD = (function () {
     return STORAGE_PROVIDER;
   }
 
+  /* =========================================================================
+   * 16. 公開 API (Public API)
+   * ========================================================================= */
+
   return {
+    // 錯誤處理
+    ErrorCodes,
+    CloudError,
+    createError,
+    isAuthError,
+    isNetworkError,
+    
+    // 設定與客戶端
     hasConfig,
     getClient,
     getBaseUrl,
     getCustomJwt,
     clearCustomJwt,
+    
+    // 認證
     getSession,
     requireAuth,
     signInWithEmailOtp,
     exchangeCodeForSessionIfNeeded,
+    
     // LINE Login
     startLineLogin,
     finishLineLoginFromUrl,
     lineAuthDiag,
+    
     // Google Login
     hasGoogleConfig,
     startGoogleLogin,
     finishGoogleLoginFromUrl,
     googleAuthDiag,
+    
     // Apple Login
     hasAppleConfig,
     startAppleLogin,
     finishAppleLoginFromUrl,
     appleAuthDiag,
+    
+    // 名片操作
     getMyCard,
     getCardByUserId,
     getCardPublic,
     getAllCardsAdmin,
     searchCards,
     upsertMyCard,
-    ensureConsent,
-    isAdmin,
     deleteCard,
+    
+    // 管理員
+    isAdmin,
     getAdminUsers,
     upsertAdminUser,
     deleteAdminUser,
     adminUpdateCard,
+    
+    // 儲存
     uploadMyAsset,
     getSignedAssetUrl,
     getStorageProvider,
+    
+    // 合規
+    ensureConsent,
+    
+    // 診斷與匯出
     r2Diag,
     exportCardsCsv
   };

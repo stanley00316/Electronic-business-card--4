@@ -2,3 +2,5 @@
 .vscode/
 .cursor/
 
+# Supabase CLI temp artifacts
+supabase/.temp/

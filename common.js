@@ -1,6 +1,173 @@
-// v=20260126
-// 語言和主題管理
-// 優化：CSS 按需載入、主題預載入、效能改進
+/**
+ * 數位身分平台 - 共用模組
+ * @version 2026.01.26
+ * 
+ * 功能：
+ * - 語言切換（中/英）
+ * - 主題管理（9 種主題）
+ * - CSS 按需載入
+ * - 錯誤監控（Sentry）
+ * - 效能優化
+ */
+
+/* =========================================================================
+ * 錯誤監控設定 (Sentry Configuration)
+ * 
+ * 啟用步驟：
+ * 1. 前往 https://sentry.io 註冊免費帳號
+ * 2. 建立新專案，取得 DSN
+ * 3. 將 DSN 填入下方 SENTRY_DSN
+ * 4. 在 HTML 頁面 <head> 加入：
+ *    <script src="https://browser.sentry-cdn.com/7.x/bundle.min.js"></script>
+ * ========================================================================= */
+const SENTRY_DSN = ''; // 填入你的 Sentry DSN，例如：https://xxx@xxx.ingest.sentry.io/xxx
+
+// 初始化 Sentry（如果已配置）
+(function initSentry() {
+  if (!SENTRY_DSN) return;
+  if (typeof Sentry === 'undefined') {
+    console.warn('[Sentry] SDK 未載入，請在 HTML 加入 Sentry script');
+    return;
+  }
+  
+  try {
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      environment: location.hostname.includes('github.io') ? 'production' : 'development',
+      release: '2026.01.26',
+      tracesSampleRate: 0.1, // 10% 的請求追蹤效能
+      beforeSend(event) {
+        // 過濾掉一些不重要的錯誤
+        if (event.exception) {
+          const msg = event.exception.values?.[0]?.value || '';
+          // 忽略網路錯誤（這些通常是用戶端問題）
+          if (msg.includes('Load failed') || msg.includes('NetworkError')) {
+            return null;
+          }
+        }
+        return event;
+      }
+    });
+    console.log('[Sentry] 錯誤監控已啟用');
+  } catch (e) {
+    console.error('[Sentry] 初始化失敗', e);
+  }
+})();
+
+// 全域錯誤捕獲（即使 Sentry 未啟用也會記錄到 console）
+window.onerror = function(message, source, lineno, colno, error) {
+  console.error('[Error]', { message, source, lineno, colno, error });
+  // 如果 Sentry 已初始化，它會自動捕獲這個錯誤
+  return false;
+};
+
+window.onunhandledrejection = function(event) {
+  console.error('[Unhandled Promise Rejection]', event.reason);
+  // 如果 Sentry 已初始化，它會自動捕獲這個錯誤
+};
+
+/* =========================================================================
+ * 流量分析設定 (Analytics Configuration)
+ * 
+ * 支援的分析服務：
+ * - Plausible: 隱私友好，免費自架或 $9/月
+ * - Umami: 開源，可自架免費
+ * - Google Analytics: 免費但較不隱私友好
+ * 
+ * 啟用步驟（以 Plausible 為例）：
+ * 1. 前往 https://plausible.io 註冊
+ * 2. 新增網站，取得追蹤代碼
+ * 3. 在 HTML 頁面 <head> 加入：
+ *    <script defer data-domain="your-domain.com" src="https://plausible.io/js/script.js"></script>
+ * ========================================================================= */
+const ANALYTICS_CONFIG = {
+  enabled: false,
+  provider: 'plausible', // 'plausible', 'umami', 'ga'
+  // Plausible 設定
+  plausible: {
+    domain: '', // 填入你的網域，例如：stanley00316.github.io
+    scriptUrl: 'https://plausible.io/js/script.js'
+  },
+  // Umami 設定
+  umami: {
+    websiteId: '', // 填入你的 Website ID
+    scriptUrl: '' // 填入你的 Umami script URL
+  },
+  // Google Analytics 設定
+  ga: {
+    measurementId: '' // 填入你的 GA4 Measurement ID，例如：G-XXXXXXXXXX
+  }
+};
+
+// 初始化流量分析（如果已配置）
+(function initAnalytics() {
+  if (!ANALYTICS_CONFIG.enabled) return;
+  
+  const provider = ANALYTICS_CONFIG.provider;
+  
+  if (provider === 'plausible' && ANALYTICS_CONFIG.plausible.domain) {
+    // Plausible 通常直接在 HTML 中引入，這裡提供動態載入選項
+    const script = document.createElement('script');
+    script.defer = true;
+    script.setAttribute('data-domain', ANALYTICS_CONFIG.plausible.domain);
+    script.src = ANALYTICS_CONFIG.plausible.scriptUrl;
+    document.head.appendChild(script);
+    console.log('[Analytics] Plausible 已啟用');
+  }
+  
+  if (provider === 'umami' && ANALYTICS_CONFIG.umami.websiteId) {
+    const script = document.createElement('script');
+    script.async = true;
+    script.setAttribute('data-website-id', ANALYTICS_CONFIG.umami.websiteId);
+    script.src = ANALYTICS_CONFIG.umami.scriptUrl;
+    document.head.appendChild(script);
+    console.log('[Analytics] Umami 已啟用');
+  }
+  
+  if (provider === 'ga' && ANALYTICS_CONFIG.ga.measurementId) {
+    // Google Analytics 4
+    const gtagScript = document.createElement('script');
+    gtagScript.async = true;
+    gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS_CONFIG.ga.measurementId}`;
+    document.head.appendChild(gtagScript);
+    
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', ANALYTICS_CONFIG.ga.measurementId);
+    window.gtag = gtag;
+    console.log('[Analytics] Google Analytics 已啟用');
+  }
+})();
+
+// 自訂事件追蹤函數
+function trackEvent(eventName, eventData = {}) {
+  if (!ANALYTICS_CONFIG.enabled) return;
+  
+  const provider = ANALYTICS_CONFIG.provider;
+  
+  if (provider === 'plausible' && window.plausible) {
+    window.plausible(eventName, { props: eventData });
+  }
+  
+  if (provider === 'umami' && window.umami) {
+    window.umami.track(eventName, eventData);
+  }
+  
+  if (provider === 'ga' && window.gtag) {
+    window.gtag('event', eventName, eventData);
+  }
+  
+  console.log('[Analytics] Event:', eventName, eventData);
+}
+
+// 匯出追蹤函數供全域使用
+window.trackEvent = trackEvent;
+
+/* =========================================================================
+ * 語言和主題管理
+ * 優化：CSS 按需載入、主題預載入、效能改進
+ * ========================================================================= */
 function setLang(lang) {
   // 更新 body 的 class，讓 CSS 規則生效
   document.body.classList.remove('lang-zh', 'lang-en');
