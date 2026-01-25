@@ -248,6 +248,50 @@ function safeText(v) {
   return String(v ?? '').replace(/\s+/g, ' ').trim();
 }
 
+// 系統佔位文字過濾 - 過濾被誤存的系統提示文字
+function filterSystemText(text) {
+  if (!text) return text;
+  const systemPatterns = [
+    '如需更改請聯絡管理員',
+    '公司已鎖定',
+    '公司：必選下拉',
+    '可輸入關鍵字快速帶入',
+    '請輸入內容',
+    'Enter content'
+  ];
+  for (const pattern of systemPatterns) {
+    if (text.includes(pattern)) return '';
+  }
+  return text;
+}
+
+// 過濾 HTML 中的系統佔位文字
+function filterSystemHtml(html) {
+  if (!html) return html;
+  const systemPatterns = [
+    '如需更改請聯絡管理員',
+    '公司已鎖定',
+    '公司：必選下拉',
+    '可輸入關鍵字快速帶入',
+    '請輸入內容',
+    'Enter content'
+  ];
+  // 建立 DOM 來處理 HTML
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  // 移除包含系統文字的元素
+  temp.querySelectorAll('*').forEach(el => {
+    const text = el.textContent || '';
+    for (const pattern of systemPatterns) {
+      if (text.includes(pattern)) {
+        el.remove();
+        return;
+      }
+    }
+  });
+  return temp.innerHTML;
+}
+
 function renderBilingualName(htmlTargetId, raw) {
   const el = document.getElementById(htmlTargetId);
   if (!el) return;
@@ -294,8 +338,14 @@ async function applyAssets(pj) {
 function applyCompanyInfo(pj) {
   const section = document.getElementById('companyInfoSection');
   if (!section) return;
-  const html = String(pj.companyInfoHtml || '').trim();
+  let html = String(pj.companyInfoHtml || '').trim();
   if (!html) {
+    section.style.display = 'none';
+    return;
+  }
+  // 過濾系統佔位文字
+  html = filterSystemHtml(html);
+  if (!html.trim()) {
     section.style.display = 'none';
     return;
   }
@@ -315,8 +365,10 @@ function applyContacts(pj, card) {
   if (!group) return;
   group.innerHTML = '';
   
-  const html = String(pj.contactsHtml || '').trim();
+  let html = String(pj.contactsHtml || '').trim();
   if (html) {
+    // 過濾系統佔位文字
+    html = filterSystemHtml(html);
     group.innerHTML = html;
     // 展示頁：移除編輯用的刪除按鈕（避免把 edit.html 的 UI 帶到 card.html）
     try {
@@ -445,11 +497,11 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('viewerCompanyStrongZh').textContent = companyZh || '-';
       document.getElementById('viewerCompanyStrongEn').textContent = companyEn || '-';
 
-      // 恢復自定義標語（若有）
+      // 恢復自定義標語（若有）- 過濾系統佔位文字
       if (pj.slogansZhHtml) {
         const container = document.getElementById('viewerSlogansZh');
         if (container) {
-          container.innerHTML = pj.slogansZhHtml;
+          container.innerHTML = filterSystemHtml(pj.slogansZhHtml);
           // 清除編輯模式可能帶來的屬性
           container.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
           container.querySelectorAll('.slogan-delete-btn').forEach(el => el.remove());
@@ -459,7 +511,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (pj.slogansEnHtml) {
         const container = document.getElementById('viewerSlogansEn');
         if (container) {
-          container.innerHTML = pj.slogansEnHtml;
+          container.innerHTML = filterSystemHtml(pj.slogansEnHtml);
           container.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
           container.querySelectorAll('.slogan-delete-btn').forEach(el => el.remove());
           container.querySelectorAll('.edit-clickable').forEach(el => el.classList.remove('edit-clickable'));
