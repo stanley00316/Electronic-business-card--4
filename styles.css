@@ -1490,6 +1490,37 @@ body.theme-light .directory-empty-text {
   color: #6b7280;
 }
 
+/* 通訊錄卡片響應式 - 小螢幕堆疊排列 */
+@media (max-width: 400px) {
+  .directory-card-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .directory-card-item > div:last-child {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .directory-card-item .btn {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* 管理後台表格響應式 - 允許橫向滾動 */
+@media (max-width: 600px) {
+  .admin-table-wrapper,
+  .admin-users-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .admin-users-table table {
+    min-width: 600px;
+  }
+}
+
 /* ===== 編輯名片頁面 ===== */
 .edit-page-container {
   display: flex;
