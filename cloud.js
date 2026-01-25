@@ -110,6 +110,23 @@ window.UVACO_CLOUD = (function () {
     }
   }
 
+  // 檢查 JWT 是否已過期
+  function isJwtExpired(token) {
+    try {
+      const parts = String(token || '').split('.');
+      if (parts.length < 2) return true;
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
+      const json = atob(b64 + pad);
+      const payload = JSON.parse(json);
+      const exp = payload?.exp || 0;
+      // 提前 5 分鐘視為過期，避免邊界情況
+      return Date.now() / 1000 > exp - 300;
+    } catch (e) {
+      return true;
+    }
+  }
+
   function getCustomClient(customJwt) {
     if (!hasConfig()) return null;
     const token = String(customJwt || '').trim();
@@ -134,6 +151,12 @@ window.UVACO_CLOUD = (function () {
     // 1) 優先：自訂 JWT（LINE 登入）
     const customJwt = getCustomJwt();
     if (customJwt) {
+      // 檢查 JWT 是否已過期
+      if (isJwtExpired(customJwt)) {
+        console.warn('JWT 已過期，清除登入狀態');
+        clearCustomJwt();
+        return { ok: false, reason: 'JWT_EXPIRED' };
+      }
       const userId = decodeJwtSub(customJwt);
       const client = getCustomClient(customJwt);
       if (client && userId) {

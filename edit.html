@@ -4865,6 +4865,23 @@ async function saveCard() {
     if (lastError) {
       const detail = (lastError && (lastError.message || lastError.error_description)) 
         ? (lastError.message || lastError.error_description) : '';
+      const code = lastError?.code || '';
+      
+      // 檢查是否為 JWT 過期錯誤
+      const isAuthError = 
+        code === 'PGRST303' ||
+        (detail && (detail.includes('JWT expired') || detail.includes('JWT')));
+      
+      if (isAuthError) {
+        alert(currentLang === 'zh'
+          ? '登入已過期，請重新登入。'
+          : 'Session expired. Please log in again.'
+        );
+        const returnUrl = encodeURIComponent(location.pathname + location.search);
+        window.location.href = 'auth.html?next=' + returnUrl;
+        return;
+      }
+      
       alert(currentLang === 'zh'
         ? `名片寫入資料庫失敗（已重試 ${maxRetries} 次）：\n${detail}\n\n請檢查網路連線後再試。`
         : `Failed to write card to database (retried ${maxRetries} times):\n${detail}\n\nPlease check your network connection.`
@@ -4901,6 +4918,27 @@ async function saveCard() {
   } catch (e) {
     console.error('saveCard failed', e);
     const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
+    const code = e?.code || '';
+    const reason = e?.reason || '';
+    
+    // 檢查是否為 JWT 過期或登入失效
+    const isAuthError = 
+      reason === 'JWT_EXPIRED' ||
+      reason === 'NO_SESSION' ||
+      code === 'PGRST303' ||
+      (detail && (detail.includes('JWT expired') || detail.includes('JWT')));
+    
+    if (isAuthError) {
+      alert(currentLang === 'zh'
+        ? '登入已過期，請重新登入。'
+        : 'Session expired. Please log in again.'
+      );
+      // 導向登入頁，並帶上返回網址
+      const returnUrl = encodeURIComponent(location.pathname + location.search);
+      window.location.href = 'auth.html?next=' + returnUrl;
+      return;
+    }
+    
     alert(currentLang === 'zh'
       ? `儲存失敗，請稍後再試。\n${detail}`
       : `Save failed. Please try again.\n${detail}`
