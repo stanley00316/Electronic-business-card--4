@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <!-- Sentry 錯誤監控 SDK -->
+  <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
+  <title>企業管理員設定 - 數位身分平台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css?v=20260105">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#22c55e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="數位身分">
+  <link rel="apple-touch-icon" href="icon-192.svg">
+  <style>
+    body { padding: 20px; max-width: 900px; margin: 0 auto; background: #111; color: #fff; }
+    h1 { color: var(--uvaco-green); margin-bottom: 10px; font-size: 24px; }
+    .subtitle { color: #9ca3af; font-size: 14px; margin-bottom: 30px; }
+    
+    .toolbar { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+    .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; }
+    .btn-green { background: var(--uvaco-green); color: #fff; }
+    .btn-green:hover { background: #1ea05a; }
+    .btn-outline { background: transparent; border: 1px solid #444; color: #ccc; }
+    .btn-outline:hover { background: rgba(255,255,255,0.05); border-color: #666; }
+    .btn-red { background: #dc2626; color: #fff; }
+    .btn-red:hover { background: #b91c1c; }
+    
+    /* 統計卡片 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-icon { font-size: 28px; margin-bottom: 8px; }
+    .stat-value { font-size: 32px; font-weight: 800; color: var(--uvaco-green); }
+    .stat-label { font-size: 13px; color: #9ca3af; margin-top: 4px; }
+    
+    /* 區塊 */
+    .section {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* 表單 */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #222;
+      color: #fff;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--uvaco-green);
+    }
+    .form-hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+    
+    /* 管理員列表 */
+    .admin-list { display: flex; flex-direction: column; gap: 12px; }
+    .admin-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 16px;
+      gap: 16px;
+    }
+    .admin-item:hover { border-color: #444; }
+    .admin-info { flex: 1; min-width: 0; }
+    .admin-type {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .admin-type.super { color: #fbbf24; }
+    .admin-type.company { color: #60a5fa; }
+    .admin-userid {
+      font-family: monospace;
+      font-size: 12px;
+      color: #9ca3af;
+      word-break: break-all;
+    }
+    .admin-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .admin-actions .btn { padding: 8px 12px; font-size: 13px; }
+    
+    /* 空狀態 */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+    .empty-state-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+    .empty-state-text { font-size: 14px; }
+    
+    /* 載入中 */
+    .loading { text-align: center; padding: 40px; color: #9ca3af; }
+    
+    /* 錯誤訊息 */
+    .error-msg {
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      color: #ef4444;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    
+    /* 成功訊息 */
+    .success-msg {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: #22c55e;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    
+    /* 權限警告 */
+    .access-denied {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .access-denied-icon { font-size: 64px; margin-bottom: 16px; }
+    .access-denied-title { font-size: 20px; font-weight: 700; color: #ef4444; margin-bottom: 8px; }
+    .access-denied-text { color: #9ca3af; font-size: 14px; margin-bottom: 24px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud.js?v=20260107"></script>
+</head>
+<body>
+
+<h1>⚙️ 企業管理員設定</h1>
+<p class="subtitle">管理各公司的管理員權限，設定誰可以管理哪些公司的名片</p>
+
+<div class="toolbar">
+  <button class="btn btn-outline" onclick="location.href='admin.html'">← 返回管理後台</button>
+  <button class="btn btn-green" onclick="reloadData()">重新整理</button>
+</div>
+
+<!-- 權限不足時顯示 -->
+<div id="accessDenied" class="access-denied" style="display:none;">
+  <div class="access-denied-icon">🔒</div>
+  <div class="access-denied-title">權限不足</div>
+  <div class="access-denied-text">只有超級管理員可以管理企業管理員設定</div>
+  <button class="btn btn-outline" onclick="location.href='admin.html'">返回管理後台</button>
+</div>
+
+<!-- 主要內容 -->
+<div id="mainContent" style="display:none;">
+  
+  <!-- 統計卡片 -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-value" id="statTotal">-</div>
+      <div class="stat-label">總管理員數</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">👑</div>
+      <div class="stat-value" id="statSuper">-</div>
+      <div class="stat-label">超級管理員</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🏢</div>
+      <div class="stat-value" id="statCompany">-</div>
+      <div class="stat-label">企業管理員</div>
+    </div>
+  </div>
+  
+  <!-- 新增管理員 -->
+  <div class="section">
+    <div class="section-title">➕ 新增管理員</div>
+    <div id="addFormMsg"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">用戶 ID *</label>
+        <input type="text" class="form-input" id="newAdminUserId" placeholder="貼上用戶的 User ID">
+        <div class="form-hint">可在用戶的「設定」頁面找到 User ID</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">管理公司</label>
+        <input type="text" class="form-input" id="newAdminCompany" placeholder="例如：葡眾企業">
+        <div class="form-hint">留空 = 超級管理員（可管理所有公司）</div>
+      </div>
+    </div>
+    <button class="btn btn-green" onclick="addAdmin()" style="margin-top:8px;">
+      新增管理員
+    </button>
+  </div>
+  
+  <!-- 現有管理員列表 -->
+  <div class="section">
+    <div class="section-title">📋 現有管理員</div>
+    <div id="adminListMsg"></div>
+    <div id="adminList" class="admin-list">
+      <div class="loading">載入中...</div>
+    </div>
+  </div>
+  
+</div>
+
+<script>
+let allAdmins = [];
+let isSuperAdmin = false;
+
+// 頁面初始化
+async function init() {
+  if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+    showError('系統尚未設定，請先設定 cloud.js');
+    return;
+  }
+  
+  // 檢查是否為超級管理員
+  try {
+    const adminStatus = await UVACO_CLOUD.isAdmin();
+    if (!adminStatus || !adminStatus.isAdmin) {
+      document.getElementById('accessDenied').style.display = 'block';
+      return;
+    }
+    
+    // 檢查是否為超級管理員（非企業管理員）
+    if (adminStatus.managedCompany) {
+      document.getElementById('accessDenied').style.display = 'block';
+      return;
+    }
+    
+    isSuperAdmin = true;
+    document.getElementById('mainContent').style.display = 'block';
+    
+    await reloadData();
+  } catch (e) {
+    console.error('初始化失敗:', e);
+    showError('載入失敗：' + (e.message || e));
+  }
+}
+
+// 重新載入資料
+async function reloadData() {
+  if (!isSuperAdmin) return;
+  
+  try {
+    document.getElementById('adminList').innerHTML = '<div class="loading">載入中...</div>';
+    
+    const result = await UVACO_CLOUD.getAdminUsers();
+    allAdmins = result.admins || [];
+    
+    updateStats();
+    renderAdminList();
+  } catch (e) {
+    console.error('載入管理員列表失敗:', e);
+    showListError('載入失敗：' + (e.message || e));
+  }
+}
+
+// 更新統計數字
+function updateStats() {
+  const total = allAdmins.length;
+  const superCount = allAdmins.filter(a => !a.managed_company).length;
+  const companyCount = allAdmins.filter(a => a.managed_company).length;
+  
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statSuper').textContent = superCount;
+  document.getElementById('statCompany').textContent = companyCount;
+}
+
+// 渲染管理員列表
+function renderAdminList() {
+  const container = document.getElementById('adminList');
+  
+  if (allAdmins.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">👤</div>
+        <div class="empty-state-text">尚未設定任何管理員</div>
+      </div>
+    `;
+    return;
+  }
+  
+  // 排序：超級管理員在前，企業管理員按公司名排序
+  const sorted = [...allAdmins].sort((a, b) => {
+    if (!a.managed_company && b.managed_company) return -1;
+    if (a.managed_company && !b.managed_company) return 1;
+    return (a.managed_company || '').localeCompare(b.managed_company || '');
+  });
+  
+  container.innerHTML = sorted.map(admin => {
+    const isSuper = !admin.managed_company;
+    const typeClass = isSuper ? 'super' : 'company';
+    const typeIcon = isSuper ? '👑' : '🏢';
+    const typeLabel = isSuper ? '超級管理員' : admin.managed_company;
+    const userId = admin.user_id || '';
+    const shortId = userId.length > 20 ? userId.substring(0, 8) + '...' + userId.substring(userId.length - 8) : userId;
+    
+    return `
+      <div class="admin-item">
+        <div class="admin-info">
+          <div class="admin-type ${typeClass}">
+            ${typeIcon} ${typeLabel}
+          </div>
+          <div class="admin-userid" title="${userId}">${shortId}</div>
+        </div>
+        <div class="admin-actions">
+          <button class="btn btn-outline" onclick="editAdmin('${userId}', '${(admin.managed_company || '').replace(/'/g, "\\'")}')">編輯</button>
+          <button class="btn btn-red" onclick="deleteAdmin('${userId}')">刪除</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 新增管理員
+async function addAdmin() {
+  const userId = document.getElementById('newAdminUserId').value.trim();
+  const company = document.getElementById('newAdminCompany').value.trim();
+  
+  if (!userId) {
+    showFormError('請輸入用戶 ID');
+    return;
+  }
+  
+  // 驗證 UUID 格式
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(userId)) {
+    showFormError('用戶 ID 格式不正確，請確認是否為有效的 UUID');
+    return;
+  }
+  
+  // 檢查是否已存在
+  if (allAdmins.some(a => a.user_id === userId)) {
+    showFormError('此用戶已是管理員');
+    return;
+  }
+  
+  try {
+    const result = await UVACO_CLOUD.upsertAdminUser(userId, company || null);
+    if (result.error) {
+      throw new Error(result.error.message || '新增失敗');
+    }
+    
+    showFormSuccess('管理員新增成功！');
+    document.getElementById('newAdminUserId').value = '';
+    document.getElementById('newAdminCompany').value = '';
+    
+    await reloadData();
+  } catch (e) {
+    console.error('新增管理員失敗:', e);
+    showFormError('新增失敗：' + (e.message || e));
+  }
+}
+
+// 編輯管理員
+function editAdmin(userId, currentCompany) {
+  const newCompany = prompt(
+    '編輯管理員權限\n\n' +
+    '輸入要管理的公司名稱：\n' +
+    '（留空 = 超級管理員，可管理所有公司）',
+    currentCompany || ''
+  );
+  
+  if (newCompany === null) return; // 取消
+  
+  updateAdminCompany(userId, newCompany.trim() || null);
+}
+
+// 更新管理員公司
+async function updateAdminCompany(userId, company) {
+  try {
+    const result = await UVACO_CLOUD.upsertAdminUser(userId, company);
+    if (result.error) {
+      throw new Error(result.error.message || '更新失敗');
+    }
+    
+    alert('管理員權限已更新');
+    await reloadData();
+  } catch (e) {
+    console.error('更新管理員失敗:', e);
+    alert('更新失敗：' + (e.message || e));
+  }
+}
+
+// 刪除管理員
+async function deleteAdmin(userId) {
+  if (!confirm('確定要移除此管理員權限？\n\n此操作無法復原。')) {
+    return;
+  }
+  
+  try {
+    const result = await UVACO_CLOUD.deleteAdminUser(userId);
+    if (result.error) {
+      throw new Error(result.error.message || '刪除失敗');
+    }
+    
+    alert('管理員已移除');
+    await reloadData();
+  } catch (e) {
+    console.error('刪除管理員失敗:', e);
+    alert('刪除失敗：' + (e.message || e));
+  }
+}
+
+// 顯示表單錯誤
+function showFormError(msg) {
+  const el = document.getElementById('addFormMsg');
+  el.innerHTML = `<div class="error-msg">${msg}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 5000);
+}
+
+// 顯示表單成功
+function showFormSuccess(msg) {
+  const el = document.getElementById('addFormMsg');
+  el.innerHTML = `<div class="success-msg">${msg}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 3000);
+}
+
+// 顯示列表錯誤
+function showListError(msg) {
+  const el = document.getElementById('adminListMsg');
+  el.innerHTML = `<div class="error-msg">${msg}</div>`;
+}
+
+// 顯示全域錯誤
+function showError(msg) {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="error-msg" style="margin-top: 20px;">${msg}</div>
+    <button class="btn btn-outline" onclick="location.href='admin.html'" style="margin-top: 12px;">返回管理後台</button>
+  `;
+  document.getElementById('mainContent').style.display = 'block';
+}
+
+// 頁面載入
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+
+</body>
+</html>

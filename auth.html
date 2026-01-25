@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Sentry 錯誤監控 SDK -->
+  <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
   <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
@@ -240,6 +242,18 @@
     </div>
     
     <div class="auth-card">
+      <!-- 邀請橫幅（有推薦人時顯示） -->
+      <div id="referralBanner" style="display: none; background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(236,72,153,0.15)); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; text-align: center;">
+        <div style="font-size: 13px; color: #a855f7; margin-bottom: 4px;">
+          <span class="lang-zh">🎉 您的好友邀請您加入！</span>
+          <span class="lang-en">🎉 Your friend invited you to join!</span>
+        </div>
+        <div style="font-size: 12px; color: #9ca3af;">
+          <span class="lang-zh">立即註冊，開始建立您的數位名片</span>
+          <span class="lang-en">Sign up now to create your digital business card</span>
+        </div>
+      </div>
+      
       <!-- 歡迎標題 -->
       <div class="auth-title">
         <span class="lang-zh">歡迎使用數位身分平台</span>
@@ -395,10 +409,49 @@
       }
     }
 
+    // 取得推薦人 ID
+    function getReferrerId() {
+      try {
+        var p = new URLSearchParams(window.location.search || '');
+        var ref = p.get('ref');
+        if (ref) {
+          // 儲存到 localStorage，登入成功後使用
+          localStorage.setItem('UVACO_REFERRER_ID', ref);
+          return ref;
+        }
+        // 如果 URL 沒有，檢查 localStorage
+        return localStorage.getItem('UVACO_REFERRER_ID') || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 記錄推薦關係（登入成功後呼叫）
+    async function recordReferralIfNeeded() {
+      const referrerId = localStorage.getItem('UVACO_REFERRER_ID');
+      if (!referrerId) return;
+      
+      try {
+        if (UVACO_CLOUD.recordReferral) {
+          await UVACO_CLOUD.recordReferral(referrerId);
+          // 記錄後清除，避免重複記錄
+          localStorage.removeItem('UVACO_REFERRER_ID');
+        }
+      } catch (e) {
+        console.log('[Referral] 記錄推薦失敗:', e);
+      }
+    }
+
     async function bootstrap() {
       // 初始化語言按鈕狀態
       const savedLang = localStorage.getItem('lang') || 'zh';
       updateLangButtons(savedLang);
+
+      // 檢查是否有推薦人
+      const referrerId = getReferrerId();
+      if (referrerId) {
+        document.getElementById('referralBanner').style.display = 'block';
+      }
 
       if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
         setStatus('err', '尚未設定 Supabase（請在 cloud.js 填入 SUPABASE_URL / SUPABASE_ANON_KEY）。');
@@ -457,6 +510,8 @@
 
       var s = await UVACO_CLOUD.getSession();
       if (s.session) {
+        // 記錄推薦關係（如果有）
+        await recordReferralIfNeeded();
         window.location.replace(getNext());
       }
     }

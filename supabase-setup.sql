@@ -247,3 +247,81 @@ create table if not exists public.line_identities (
 alter table public.cards drop constraint if exists cards_user_id_fkey;
 alter table public.directory_contacts drop constraint if exists directory_contacts_owner_user_id_fkey;
 alter table public.consents drop constraint if exists consents_user_id_fkey;
+
+-- ===== 名片瀏覽統計表 =====
+-- 用途：追蹤每張名片的瀏覽次數與來源
+create table if not exists public.card_views (
+  id uuid primary key default gen_random_uuid(),
+  card_user_id uuid not null,
+  viewed_at timestamptz not null default now(),
+  referrer text,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+-- 建立索引以加速查詢
+create index if not exists idx_card_views_user_id on public.card_views(card_user_id);
+create index if not exists idx_card_views_viewed_at on public.card_views(viewed_at);
+
+-- RLS：允許匿名寫入（記錄瀏覽）、登入用戶可查看自己的統計
+alter table public.card_views enable row level security;
+
+-- 任何人（包含匿名）都可以插入瀏覽記錄
+drop policy if exists "card_views_anon_insert" on public.card_views;
+create policy "card_views_anon_insert" on public.card_views
+for insert to anon, authenticated
+with check (true);
+
+-- 登入用戶可以查看自己名片的瀏覽記錄
+drop policy if exists "card_views_own_select" on public.card_views;
+create policy "card_views_own_select" on public.card_views
+for select to authenticated
+using (card_user_id = auth.uid());
+
+-- 管理員可以查看所有瀏覽記錄
+drop policy if exists "card_views_admin_select" on public.card_views;
+create policy "card_views_admin_select" on public.card_views
+for select to authenticated
+using (public.is_admin());
+
+-- ===== NFC 卡片綁定 =====
+-- 在 cards 表新增 NFC 卡片 ID 欄位（用於實體 NFC 卡綁定）
+alter table public.cards add column if not exists nfc_card_id text unique;
+
+-- 建立索引以加速 NFC ID 查詢
+create index if not exists idx_cards_nfc_card_id on public.cards(nfc_card_id);
+
+-- ===== 推薦系統 =====
+-- 用途：追蹤用戶推薦關係
+create table if not exists public.referrals (
+  id uuid primary key default gen_random_uuid(),
+  referrer_user_id uuid not null,      -- 推薦人
+  referred_user_id uuid not null,      -- 被推薦人
+  created_at timestamptz not null default now(),
+  unique(referred_user_id)             -- 每個用戶只能被推薦一次
+);
+
+-- 建立索引
+create index if not exists idx_referrals_referrer on public.referrals(referrer_user_id);
+create index if not exists idx_referrals_referred on public.referrals(referred_user_id);
+
+-- RLS
+alter table public.referrals enable row level security;
+
+-- 登入用戶可以查看自己推薦的人
+drop policy if exists "referrals_own_select" on public.referrals;
+create policy "referrals_own_select" on public.referrals
+for select to authenticated
+using (referrer_user_id = auth.uid());
+
+-- 任何登入用戶都可以建立推薦記錄（註冊時自動記錄）
+drop policy if exists "referrals_insert" on public.referrals;
+create policy "referrals_insert" on public.referrals
+for insert to authenticated
+with check (true);
+
+-- 管理員可以查看所有推薦記錄
+drop policy if exists "referrals_admin_select" on public.referrals;
+create policy "referrals_admin_select" on public.referrals
+for select to authenticated
+using (public.is_admin());

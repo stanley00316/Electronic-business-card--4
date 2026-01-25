@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- Sentry 錯誤監控 SDK -->
+<script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
 <title>設定 | Settings - 數位身分平台</title>
 <link rel="stylesheet" href="styles.css?v=20260105">
 <!-- PWA -->
@@ -167,6 +169,37 @@ body {
         <div class="settings-item-arrow">📋</div>
       </div>
       
+      <!-- 名片瀏覽統計 -->
+      <div class="settings-item" id="viewStatsItem" style="display: none; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3);">
+        <div class="settings-item-icon">📊</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">名片瀏覽統計</div>
+          <div class="settings-item-title lang-en">Card View Statistics</div>
+          <div class="settings-item-subtitle" id="viewStatsDisplay" style="color: #3b82f6;">載入中...</div>
+        </div>
+      </div>
+      
+      <!-- 邀請好友 -->
+      <div class="settings-item" onclick="copyInviteLink()" id="inviteLinkItem" style="display: none; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3);">
+        <div class="settings-item-icon">🔗</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">邀請好友（點擊複製連結）</div>
+          <div class="settings-item-title lang-en">Invite Friends (Click to copy)</div>
+          <div class="settings-item-subtitle" id="inviteLinkDisplay" style="color: #a855f7; font-size: 11px;">載入中...</div>
+        </div>
+        <div class="settings-item-arrow">📋</div>
+      </div>
+      
+      <!-- 推薦統計 -->
+      <div class="settings-item" id="referralStatsItem" style="display: none; background: rgba(236,72,153,0.1); border: 1px solid rgba(236,72,153,0.3);">
+        <div class="settings-item-icon">👥</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">推薦成果</div>
+          <div class="settings-item-title lang-en">Referral Results</div>
+          <div class="settings-item-subtitle" id="referralStatsDisplay" style="color: #ec4899;">載入中...</div>
+        </div>
+      </div>
+      
       <!-- 管理員狀態檢查 -->
       <div class="settings-item" id="adminStatusItem" style="display: none;">
         <div class="settings-item-icon">👑</div>
@@ -219,6 +252,17 @@ async function initUserId() {
       const uid = s.session ? s.session.user.id : '尚未登入';
       document.getElementById('myUserIdDisplay').textContent = uid;
       
+      // 載入瀏覽統計
+      if (s.session && uid && UVACO_CLOUD.getCardViewStats) {
+        loadViewStats(uid);
+      }
+      
+      // 載入邀請連結
+      if (s.session && uid) {
+        loadInviteLink(uid);
+        loadReferralStats();
+      }
+      
       // 檢查管理員狀態
       if (s.session && UVACO_CLOUD.isAdmin) {
         const adminStatus = await UVACO_CLOUD.isAdmin();
@@ -257,6 +301,90 @@ function copyMyUserId() {
     navigator.clipboard.writeText(uid).then(() => {
       alert('User ID 已複製：' + uid);
     });
+  }
+}
+
+// 載入瀏覽統計
+async function loadViewStats(userId) {
+  const statsItem = document.getElementById('viewStatsItem');
+  const statsDisplay = document.getElementById('viewStatsDisplay');
+  
+  try {
+    const stats = await UVACO_CLOUD.getCardViewStats(userId);
+    if (stats && stats.count !== undefined) {
+      statsItem.style.display = 'flex';
+      
+      // 計算最近 7 天的瀏覽數
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const recentViews = (stats.views || []).filter(v => new Date(v.viewed_at) > sevenDaysAgo).length;
+      
+      const savedLang = localStorage.getItem('lang') || 'zh';
+      if (savedLang === 'zh') {
+        statsDisplay.innerHTML = `<strong>${stats.count}</strong> 次總瀏覽<br><small>近 7 天：${recentViews} 次</small>`;
+      } else {
+        statsDisplay.innerHTML = `<strong>${stats.count}</strong> total views<br><small>Last 7 days: ${recentViews}</small>`;
+      }
+    }
+  } catch (e) {
+    console.log('[ViewStats] 無法載入瀏覽統計（card_views 表可能尚未建立）');
+    // 不顯示錯誤，只是隱藏統計區塊
+    statsItem.style.display = 'none';
+  }
+}
+
+// 載入邀請連結
+let myInviteLink = '';
+function loadInviteLink(userId) {
+  if (!UVACO_CLOUD.generateInviteLink) return;
+  
+  const inviteItem = document.getElementById('inviteLinkItem');
+  const inviteDisplay = document.getElementById('inviteLinkDisplay');
+  
+  myInviteLink = UVACO_CLOUD.generateInviteLink(userId);
+  inviteItem.style.display = 'flex';
+  
+  // 顯示縮短版的連結
+  const shortLink = myInviteLink.length > 50 ? myInviteLink.substring(0, 47) + '...' : myInviteLink;
+  inviteDisplay.textContent = shortLink;
+}
+
+// 複製邀請連結
+function copyInviteLink() {
+  if (!myInviteLink) return;
+  
+  navigator.clipboard.writeText(myInviteLink).then(() => {
+    const savedLang = localStorage.getItem('lang') || 'zh';
+    alert(savedLang === 'zh' 
+      ? '邀請連結已複製！\n分享給朋友即可邀請他們加入。' 
+      : 'Invite link copied!\nShare with friends to invite them.');
+  }).catch(err => {
+    prompt('請手動複製連結：', myInviteLink);
+  });
+}
+
+// 載入推薦統計
+async function loadReferralStats() {
+  if (!UVACO_CLOUD.getMyReferralCount) return;
+  
+  const statsItem = document.getElementById('referralStatsItem');
+  const statsDisplay = document.getElementById('referralStatsDisplay');
+  
+  try {
+    const result = await UVACO_CLOUD.getMyReferralCount();
+    const count = result.count || 0;
+    
+    statsItem.style.display = 'flex';
+    
+    const savedLang = localStorage.getItem('lang') || 'zh';
+    if (savedLang === 'zh') {
+      statsDisplay.innerHTML = `已成功邀請 <strong>${count}</strong> 位好友加入`;
+    } else {
+      statsDisplay.innerHTML = `Successfully invited <strong>${count}</strong> friends`;
+    }
+  } catch (e) {
+    console.log('[Referral] 無法載入推薦統計');
+    statsItem.style.display = 'none';
   }
 }
 

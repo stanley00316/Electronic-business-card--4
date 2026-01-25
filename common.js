@@ -81,11 +81,11 @@ window.onunhandledrejection = function(event) {
  *    <script defer data-domain="your-domain.com" src="https://plausible.io/js/script.js"></script>
  * ========================================================================= */
 const ANALYTICS_CONFIG = {
-  enabled: false,
+  enabled: true, // 已啟用流量分析
   provider: 'plausible', // 'plausible', 'umami', 'ga'
   // Plausible 設定
   plausible: {
-    domain: '', // 填入你的網域，例如：stanley00316.github.io
+    domain: 'stanley00316.github.io', // 您的 GitHub Pages 網域
     scriptUrl: 'https://plausible.io/js/script.js'
   },
   // Umami 設定

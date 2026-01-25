@@ -2,6 +2,8 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
+  <!-- Sentry 錯誤監控 SDK -->
+  <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
   <title>NFC 名片管理後台</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="styles.css?v=20260105">
@@ -76,6 +78,7 @@
     <button class="btn btn-green" onclick="reloadData()">重新整理</button>
     <button class="btn btn-outline" onclick="location.href='directory.html'">返回通訊錄</button>
     <button class="btn btn-outline" onclick="location.href='settings.html'">前往設定</button>
+    <button class="btn btn-outline" id="companyAdminBtn" onclick="location.href='company-admin.html'" style="display:none;">⚙️ 管理企業管理員</button>
   </div>
   <input type="text" id="searchInput" placeholder="搜尋姓名、公司..." onkeyup="filterTable()">
 </div>
@@ -88,13 +91,14 @@
     <tr>
       <th>姓名</th>
       <th>公司/職稱</th>
+      <th>NFC 卡片 ID</th>
       <th>更新時間</th>
       <th>NFC 網址</th>
       <th>操作</th>
     </tr>
   </thead>
   <tbody>
-    <tr><td colspan="5" style="text-align:center">載入中...</td></tr>
+    <tr><td colspan="6" style="text-align:center">載入中...</td></tr>
   </tbody>
 </table>
 </div>
@@ -133,7 +137,29 @@
     <h3 id="qrName"></h3>
     <div id="qrcode"></div>
     <p>請掃描或截圖提供給印刷廠</p>
-    <button class="btn btn-outline" onclick="document.getElementById('qrModal').style.display='none'">關閉</button>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:15px;">
+      <button class="btn btn-green" onclick="downloadQR()">下載 QR Code</button>
+      <button class="btn btn-outline" onclick="document.getElementById('qrModal').style.display='none'">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- NFC 卡片 ID 編輯彈窗 -->
+<div id="nfcModal" class="qr-modal" onclick="this.style.display='none'">
+  <div class="qr-box" onclick="event.stopPropagation()" style="max-width:400px;">
+    <h3 id="nfcModalTitle">綁定 NFC 卡片</h3>
+    <p style="color:#9ca3af;font-size:13px;margin-bottom:16px;">輸入實體 NFC 卡片上的編號，用於識別此用戶</p>
+    <input type="text" id="nfcIdInput" placeholder="例如：NFC001" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1b1b1b;color:#fff;font-family:monospace;font-size:14px;box-sizing:border-box;">
+    <input type="hidden" id="nfcTargetUserId">
+    <p style="color:#6b7280;font-size:12px;margin-top:12px;">
+      NFC 卡片連結格式：<br>
+      <code style="color:#22c55e;">card.html?nfc=NFC001</code>
+    </p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;">
+      <button class="btn btn-green" onclick="saveNfcId()">儲存</button>
+      <button class="btn btn-outline" onclick="clearNfcId()">清除綁定</button>
+      <button class="btn btn-outline" onclick="document.getElementById('nfcModal').style.display='none'">取消</button>
+    </div>
   </div>
 </div>
 
@@ -179,6 +205,12 @@ async function init() {
   if (mgmt) {
     mgmt.style.display = (!adminStatus.managedCompany) ? 'block' : 'none';
   }
+  
+  // Super Admin 才顯示「管理企業管理員」按鈕
+  const companyAdminBtn = document.getElementById('companyAdminBtn');
+  if (companyAdminBtn) {
+    companyAdminBtn.style.display = (!adminStatus.managedCompany) ? 'inline-block' : 'none';
+  }
 
   await reloadData();
   if (!adminStatus.managedCompany) {
@@ -197,18 +229,26 @@ function renderTable(data) {
   tbody.innerHTML = '';
   
   if (data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">目前沒有資料</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">目前沒有資料</td></tr>';
     return;
   }
 
   data.forEach(row => {
     const url = `${window.location.origin}${window.location.pathname.replace('admin.html', '')}card.html?id=${row.user_id}`;
     const urlLabel = `card.html?id=${row.user_id}`;
+    const nfcId = row.nfc_card_id || '';
+    const nfcDisplay = nfcId ? `<span style="color:#22c55e;font-family:monospace;">${nfcId}</span>` : '<span style="color:#6b7280;">未綁定</span>';
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td data-label="姓名">${row.name || '未命名'}</td>
       <td data-label="公司/職稱">${row.company || '-'} <br> <small style="color:#9ca3af">${row.title || '-'}</small></td>
+      <td data-label="NFC 卡片 ID">
+        ${nfcDisplay}
+        <button class="btn btn-outline" style="padding:4px 8px;font-size:11px;margin-left:8px;" onclick="editNfcId('${row.user_id}', '${nfcId}', '${(row.name || '').replace(/'/g, "\\'")}')">
+          ${nfcId ? '修改' : '綁定'}
+        </button>
+      </td>
       <td data-label="更新時間">${new Date(row.updated_at).toLocaleDateString()}</td>
       <td data-label="NFC 網址" class="nfc-url-cell"><a href="${url}" target="_blank" rel="noopener noreferrer">${urlLabel}</a></td>
       <td class="actions-cell">
@@ -237,7 +277,10 @@ function copyLink(url) {
   navigator.clipboard.writeText(url).then(() => alert('已複製連結：\n' + url));
 }
 
+let currentQRName = '';
+
 function showQR(name, url) {
+  currentQRName = name;
   document.getElementById('qrModal').style.display = 'flex';
   document.getElementById('qrName').textContent = name + ' 的名片';
   document.getElementById('qrcode').innerHTML = '';
@@ -246,6 +289,70 @@ function showQR(name, url) {
     width: 200,
     height: 200
   });
+}
+
+function downloadQR() {
+  const qrContainer = document.getElementById('qrcode');
+  const canvas = qrContainer.querySelector('canvas');
+  if (canvas) {
+    const link = document.createElement('a');
+    link.download = `${currentQRName || 'QRCode'}_名片.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } else {
+    // 如果是 img 元素
+    const img = qrContainer.querySelector('img');
+    if (img) {
+      const link = document.createElement('a');
+      link.download = `${currentQRName || 'QRCode'}_名片.png`;
+      link.href = img.src;
+      link.click();
+    }
+  }
+}
+
+// NFC 卡片 ID 管理
+function editNfcId(userId, currentNfcId, userName) {
+  document.getElementById('nfcModalTitle').textContent = (userName || '用戶') + ' - NFC 卡片綁定';
+  document.getElementById('nfcIdInput').value = currentNfcId || '';
+  document.getElementById('nfcTargetUserId').value = userId;
+  document.getElementById('nfcModal').style.display = 'flex';
+  document.getElementById('nfcIdInput').focus();
+}
+
+async function saveNfcId() {
+  const userId = document.getElementById('nfcTargetUserId').value;
+  const nfcId = document.getElementById('nfcIdInput').value.trim();
+  
+  if (!userId) {
+    alert('錯誤：找不到用戶 ID');
+    return;
+  }
+  
+  try {
+    if (UVACO_CLOUD.setNfcCardId) {
+      const result = await UVACO_CLOUD.setNfcCardId(userId, nfcId || null);
+      if (result.success) {
+        alert(nfcId ? `NFC 卡片 ID 已設定為：${nfcId}` : 'NFC 卡片綁定已清除');
+        document.getElementById('nfcModal').style.display = 'none';
+        reloadData(); // 重新載入表格
+      } else {
+        alert('設定失敗：' + (result.error?.message || '未知錯誤'));
+      }
+    } else {
+      alert('功能尚未啟用，請確認 cloud.js 版本');
+    }
+  } catch (e) {
+    console.error('NFC 設定錯誤:', e);
+    alert('設定失敗：' + (e.message || e));
+  }
+}
+
+async function clearNfcId() {
+  if (!confirm('確定要清除此用戶的 NFC 卡片綁定？')) return;
+  
+  document.getElementById('nfcIdInput').value = '';
+  await saveNfcId();
 }
 
 function editCard(userId) {

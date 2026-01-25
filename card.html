@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- Sentry 錯誤監控 SDK -->
+<script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
 <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -19,8 +21,17 @@
   <link rel="apple-touch-icon" href="icon-192.svg">
 <!-- Supabase JS（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- QR Code 生成器 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="cloud.js?v=20260106"></script>
   <script src="common.js?v=20260126"></script>
+  <style>
+    .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
+    .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; max-width:90%; }
+    .qr-box h3 { margin: 0 0 15px 0; font-size: 1.2em; }
+    #qrcode { margin: 20px auto; }
+    #qrcode canvas { border-radius: 8px; }
+  </style>
 </head>
 
 <body class="theme-dark lang-zh">
@@ -86,7 +97,7 @@
     </div>
     
     <!-- 分享名片功能 -->
-    <div style="margin-top: 20px; text-align: center;">
+    <div style="margin-top: 20px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center;">
       <button class="btn btn-primary" onclick="shareMyCard()" style="background-color: var(--uvaco-green); color: white; display: inline-flex; align-items: center; gap: 8px; width: auto; min-width: 160px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
@@ -94,8 +105,40 @@
         <span class="lang-zh">分享名片</span>
         <span class="lang-en">Share Card</span>
       </button>
+      <button class="btn btn-secondary" onclick="showQRCode()" style="display: inline-flex; align-items: center; gap: 8px; width: auto; min-width: 160px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M0 .5A.5.5 0 0 1 .5 0h3a.5.5 0 0 1 0 1H1v2.5a.5.5 0 0 1-1 0v-3Zm12 0a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0V1h-2.5a.5.5 0 0 1-.5-.5ZM.5 12a.5.5 0 0 1 .5.5V15h2.5a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5Zm15 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1H15v-2.5a.5.5 0 0 1 .5-.5ZM4 4h1v1H4V4Z"/>
+          <path d="M7 2H2v5h5V2ZM3 3h3v3H3V3Zm2 8H4v1h1v-1Z"/>
+          <path d="M7 9H2v5h5V9Zm-4 1h3v3H3v-3Zm8-6h1v1h-1V4Z"/>
+          <path d="M9 2h5v5H9V2Zm1 1v3h3V3h-3ZM8 8v2h1v1H8v1h2v-2h1v2h1v-1h2v-1h-3V8H8Zm2 2H9V9h1v1Zm4 2h-1v1h-2v1h3v-2Zm-4 2v-1H8v1h2Z"/>
+          <path d="M12 9h2V8h-2v1Z"/>
+        </svg>
+        <span class="lang-zh">QR Code</span>
+        <span class="lang-en">QR Code</span>
+      </button>
     </div>
 
+</div>
+
+<!-- QR Code 彈窗 -->
+<div id="qrModal" class="qr-modal" onclick="closeQRModal()">
+  <div class="qr-box" onclick="event.stopPropagation()">
+    <h3 class="lang-zh">我的名片 QR Code</h3>
+    <h3 class="lang-en">My Card QR Code</h3>
+    <div id="qrcode"></div>
+    <p class="lang-zh" style="color:#666;font-size:0.9em;">掃描此 QR Code 可直接開啟名片</p>
+    <p class="lang-en" style="color:#666;font-size:0.9em;">Scan to open this business card</p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:15px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="downloadQRCode()" style="background-color: var(--uvaco-green); color: white;">
+        <span class="lang-zh">下載 QR Code</span>
+        <span class="lang-en">Download</span>
+      </button>
+      <button class="btn btn-secondary" onclick="closeQRModal()">
+        <span class="lang-zh">關閉</span>
+        <span class="lang-en">Close</span>
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- 底部導航欄 -->
@@ -248,20 +291,44 @@ function openMap(addressType, event) {
 document.addEventListener('DOMContentLoaded', function () {
   (async function () {
     const params = new URLSearchParams(window.location.search || '');
-    const userId = params.get('id');
+    let userId = params.get('id');
+    const nfcCardId = params.get('nfc');
+    
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+      alert('尚未設定 Supabase（請先設定 cloud.js）');
+      return;
+    }
+    
+    // 如果是 NFC 卡片連結，先查詢對應的用戶 ID
+    if (nfcCardId && !userId) {
+      try {
+        const nfcRes = await UVACO_CLOUD.getCardByNfcId(nfcCardId);
+        if (nfcRes?.card?.user_id) {
+          userId = nfcRes.card.user_id;
+          // 更新 URL（不重新載入頁面）
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('id', userId);
+          newUrl.searchParams.delete('nfc');
+          window.history.replaceState({}, '', newUrl);
+        } else {
+          alert('此 NFC 卡片尚未綁定用戶');
+          return;
+        }
+      } catch (e) {
+        console.error('NFC 查詢失敗:', e);
+        alert('NFC 卡片查詢失敗');
+        return;
+      }
+    }
+    
     if (!userId) {
       alert('網址無效（缺少 id）');
       return;
     }
 
-    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
-      alert('尚未設定 Supabase（請先設定 cloud.js）');
-      return;
-}
-
     let ownerTheme = 1;
     try {
-      const res = await UVACO_CLOUD.getCardPublic(userId);
+      const res = await UVACO_CLOUD.getCardPublic(userId, { trackView: true });
       const card = res?.card || null;
       if (!card) {
         alert('找不到名片資料');
@@ -348,6 +415,70 @@ function shareMyCard() {
       console.error('Could not copy text: ', err);
       prompt('請手動複製連結：', url);
     });
+  }
+}
+
+// QR Code 功能
+let qrCodeInstance = null;
+
+function showQRCode() {
+  const modal = document.getElementById('qrModal');
+  const qrcodeContainer = document.getElementById('qrcode');
+  const url = window.location.href;
+  
+  // 清除舊的 QR Code
+  qrcodeContainer.innerHTML = '';
+  
+  // 生成新的 QR Code
+  qrCodeInstance = new QRCode(qrcodeContainer, {
+    text: url,
+    width: 220,
+    height: 220,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  
+  modal.style.display = 'flex';
+}
+
+function closeQRModal() {
+  document.getElementById('qrModal').style.display = 'none';
+}
+
+function downloadQRCode() {
+  const qrcodeContainer = document.getElementById('qrcode');
+  const canvas = qrcodeContainer.querySelector('canvas');
+  const nameEl = document.getElementById('viewerNameZh');
+  const cardName = nameEl?.textContent || '名片';
+  
+  if (canvas) {
+    // 創建一個新的 canvas 來添加邊距和背景
+    const newCanvas = document.createElement('canvas');
+    const padding = 40;
+    newCanvas.width = canvas.width + padding * 2;
+    newCanvas.height = canvas.height + padding * 2;
+    
+    const ctx = newCanvas.getContext('2d');
+    // 白色背景
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+    // 繪製 QR Code
+    ctx.drawImage(canvas, padding, padding);
+    
+    const link = document.createElement('a');
+    link.download = `${cardName}_QRCode.png`;
+    link.href = newCanvas.toDataURL('image/png');
+    link.click();
+  } else {
+    // 如果是 img 元素
+    const img = qrcodeContainer.querySelector('img');
+    if (img) {
+      const link = document.createElement('a');
+      link.download = `${cardName}_QRCode.png`;
+      link.href = img.src;
+      link.click();
+    }
   }
 }
 </script>

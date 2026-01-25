@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Sentry 錯誤監控 SDK -->
+  <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
 <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -4947,7 +4949,188 @@ async function saveCard() {
 }
 
 
+// ============= 首次使用教學 (Onboarding) =============
+function checkOnboarding() {
+  try {
+    // 如果已經完成過教學，不再顯示
+    if (localStorage.getItem('UVACO_ONBOARDED') === '1') return;
+    
+    // 檢查是否為新用戶（名片尚未填寫）
+    const nameZh = document.getElementById('previewNameZh')?.textContent?.trim();
+    const nameEn = document.getElementById('previewNameEn')?.textContent?.trim();
+    
+    // 如果名字是預設值或為空，視為新用戶
+    if (!nameZh || nameZh === '-' || nameZh === '您的姓名') {
+      setTimeout(showOnboardingModal, 800);
+    }
+  } catch (e) {
+    console.log('[Onboarding] 檢查失敗:', e);
+  }
+}
+
+function showOnboardingModal() {
+  const modal = document.getElementById('onboardingModal');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+}
+
+function closeOnboarding() {
+  const modal = document.getElementById('onboardingModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function skipOnboarding() {
+  try {
+    localStorage.setItem('UVACO_ONBOARDED', '1');
+  } catch (e) {}
+  closeOnboarding();
+}
+
+function startOnboardingGuide() {
+  closeOnboarding();
+  // 聚焦到姓名欄位
+  const nameField = document.querySelector('[contenteditable][id*="Name"]') || 
+                    document.querySelector('.editable-text');
+  if (nameField) {
+    nameField.focus();
+    // 顯示提示
+    showOnboardingTip('name');
+  }
+}
+
+let currentTip = null;
+function showOnboardingTip(step) {
+  // 移除舊提示
+  if (currentTip) currentTip.remove();
+  
+  const tips = {
+    name: { text: '👋 先填寫您的姓名', target: '.name' },
+    title: { text: '✏️ 填寫您的職稱', target: '.tagline' },
+    theme: { text: '🎨 點擊選擇喜歡的主題', target: '.edit-top-header button' },
+    save: { text: '💾 完成後點擊儲存', target: '.edit-save-btn' }
+  };
+  
+  const tip = tips[step];
+  if (!tip) return;
+  
+  const target = document.querySelector(tip.target);
+  if (!target) return;
+  
+  const tipEl = document.createElement('div');
+  tipEl.className = 'onboarding-tip';
+  tipEl.innerHTML = tip.text;
+  tipEl.style.cssText = `
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--uvaco-green);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 9999;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: tipBounce 0.5s ease;
+  `;
+  document.body.appendChild(tipEl);
+  currentTip = tipEl;
+  
+  // 5 秒後自動移除
+  setTimeout(() => {
+    if (tipEl.parentNode) tipEl.remove();
+  }, 5000);
+}
+
+// 頁面載入後檢查是否需要顯示教學
+setTimeout(checkOnboarding, 1500);
 </script>
+
+<!-- 首次使用教學彈窗 -->
+<div id="onboardingModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9998;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--ui-surface-bg, #1a1a1a);border:1px solid var(--ui-surface-border, rgba(255,255,255,0.1));border-radius:20px;padding:32px 28px;max-width:400px;width:100%;text-align:center;">
+    <!-- 歡迎圖示 -->
+    <div style="font-size:48px;margin-bottom:16px;">🎉</div>
+    
+    <!-- 標題 -->
+    <h2 style="color:var(--uvaco-green);font-size:22px;font-weight:800;margin-bottom:12px;">
+      <span class="lang-zh">歡迎使用數位名片！</span>
+      <span class="lang-en">Welcome to Digital Card!</span>
+    </h2>
+    
+    <!-- 說明 -->
+    <p style="color:var(--ui-muted, #9ca3af);font-size:14px;line-height:1.7;margin-bottom:24px;">
+      <span class="lang-zh">只需 3 個步驟，即可建立您的專屬電子名片</span>
+      <span class="lang-en">Create your digital business card in just 3 steps</span>
+    </p>
+    
+    <!-- 步驟列表 -->
+    <div style="text-align:left;margin-bottom:28px;">
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;">
+        <span style="width:28px;height:28px;min-width:28px;background:var(--uvaco-green);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">1</span>
+        <div>
+          <div style="color:var(--ui-text, #fff);font-weight:600;font-size:14px;">
+            <span class="lang-zh">填寫基本資料</span>
+            <span class="lang-en">Enter Basic Info</span>
+          </div>
+          <div style="color:var(--ui-muted, #9ca3af);font-size:12px;">
+            <span class="lang-zh">姓名、職稱、聯絡方式</span>
+            <span class="lang-en">Name, title, contact info</span>
+          </div>
+        </div>
+      </div>
+      
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;">
+        <span style="width:28px;height:28px;min-width:28px;background:var(--uvaco-green);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">2</span>
+        <div>
+          <div style="color:var(--ui-text, #fff);font-weight:600;font-size:14px;">
+            <span class="lang-zh">選擇名片主題</span>
+            <span class="lang-en">Choose Theme</span>
+          </div>
+          <div style="color:var(--ui-muted, #9ca3af);font-size:12px;">
+            <span class="lang-zh">9 種精美主題任您挑選</span>
+            <span class="lang-en">9 beautiful themes to choose</span>
+          </div>
+        </div>
+      </div>
+      
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <span style="width:28px;height:28px;min-width:28px;background:var(--uvaco-green);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">3</span>
+        <div>
+          <div style="color:var(--ui-text, #fff);font-weight:600;font-size:14px;">
+            <span class="lang-zh">儲存並分享</span>
+            <span class="lang-en">Save & Share</span>
+          </div>
+          <div style="color:var(--ui-muted, #9ca3af);font-size:12px;">
+            <span class="lang-zh">使用 NFC 或 QR Code 分享</span>
+            <span class="lang-en">Share via NFC or QR Code</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 按鈕 -->
+    <button onclick="startOnboardingGuide()" style="width:100%;padding:14px;background:var(--uvaco-green);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;">
+      <span class="lang-zh">開始建立名片</span>
+      <span class="lang-en">Start Creating</span>
+    </button>
+    <button onclick="skipOnboarding()" style="width:100%;padding:12px;background:transparent;color:var(--ui-muted, #9ca3af);border:1px solid var(--ui-surface-border, rgba(255,255,255,0.1));border-radius:12px;font-size:14px;cursor:pointer;">
+      <span class="lang-zh">我已經知道了</span>
+      <span class="lang-en">I already know</span>
+    </button>
+  </div>
+</div>
+
+<style>
+@keyframes tipBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-8px); }
+}
+</style>
 
 </body>
 </html>
