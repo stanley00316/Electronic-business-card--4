@@ -133,6 +133,13 @@ CREATE POLICY "subscriptions_own_insert" ON public.subscriptions
 FOR INSERT TO authenticated
 WITH CHECK (user_id = auth.uid());
 
+-- 用戶可以更新自己的訂閱（推薦獎勵等）
+DROP POLICY IF EXISTS "subscriptions_own_update" ON public.subscriptions;
+CREATE POLICY "subscriptions_own_update" ON public.subscriptions
+FOR UPDATE TO authenticated
+USING (user_id = auth.uid())
+WITH CHECK (user_id = auth.uid());
+
 -- 管理員可以查看所有訂閱
 DROP POLICY IF EXISTS "subscriptions_admin_select" ON public.subscriptions;
 CREATE POLICY "subscriptions_admin_select" ON public.subscriptions
