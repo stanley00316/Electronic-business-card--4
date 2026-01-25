@@ -1784,16 +1784,22 @@ window.UVACO_CLOUD = (function () {
   }
 
   // 取得價格方案
-  async function getPricingPlans() {
+  async function getPricingPlans(includeInactive = false) {
     const ctx = await getAuthContext();
     if (!ctx.ok) return { plans: [] };
     
     try {
-      const { data, error } = await ctx.client
+      let query = ctx.client
         .from('pricing_plans')
         .select('*')
-        .eq('is_active', true)
         .order('sort_order', { ascending: true });
+      
+      // 如果不是管理員，只查詢啟用的方案
+      if (!includeInactive) {
+        query = query.eq('is_active', true);
+      }
+      
+      const { data, error } = await query;
       
       if (error) {
         console.error('[Subscription] 取得價格方案失敗:', error);
@@ -1851,7 +1857,7 @@ window.UVACO_CLOUD = (function () {
     }
   }
 
-  // 刪除價格方案（Super Admin Only）
+  // 停用價格方案（Super Admin Only）
   async function deletePricingPlan(planId) {
     const ctx = await getAuthContext();
     if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
@@ -1866,6 +1872,32 @@ window.UVACO_CLOUD = (function () {
       const { error } = await ctx.client
         .from('pricing_plans')
         .update({ is_active: false })
+        .eq('id', planId);
+      
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || String(e) };
+    }
+  }
+
+  // 重新啟用價格方案（Super Admin Only）
+  async function reactivatePricingPlan(planId) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+    
+    const me = await isAdmin();
+    if (!me || !me.isAdmin || !me.canManageAdmins) {
+      return { success: false, error: 'NOT_SUPER_ADMIN' };
+    }
+    
+    try {
+      const { error } = await ctx.client
+        .from('pricing_plans')
+        .update({ is_active: true })
         .eq('id', planId);
       
       if (error) {
@@ -2081,6 +2113,7 @@ window.UVACO_CLOUD = (function () {
     getPricingPlans,
     savePricingPlan,
     deletePricingPlan,
+    reactivatePricingPlan,
     updateMyReferralBonus,
     
     // 金流

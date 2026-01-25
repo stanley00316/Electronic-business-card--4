@@ -549,7 +549,8 @@ async function loadPricingPlans() {
   container.innerHTML = '<div style="text-align:center;color:#888;padding:20px;">載入中...</div>';
   
   try {
-    const result = await UVACO_CLOUD.getPricingPlans();
+    // 管理員查看所有方案（包含停用的）
+    const result = await UVACO_CLOUD.getPricingPlans(true);
     pricingPlans = result.plans || [];
     renderPricingPlans();
   } catch (e) {
@@ -567,10 +568,15 @@ function renderPricingPlans() {
     return;
   }
   
-  container.innerHTML = pricingPlans.map(plan => `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:#222;border-radius:8px;margin-bottom:8px;">
+  container.innerHTML = pricingPlans.map(plan => {
+    const isInactive = !plan.is_active;
+    const opacity = isInactive ? '0.5' : '1';
+    const statusBadge = isInactive ? '<span style="color:#ef4444;font-size:11px;margin-left:6px;">(已停用)</span>' : '';
+    
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:#222;border-radius:8px;margin-bottom:8px;opacity:${opacity};">
       <div style="flex:1;">
-        <div style="font-weight:600;color:#e5e7eb;">${plan.name}</div>
+        <div style="font-weight:600;color:#e5e7eb;">${plan.name}${statusBadge}</div>
         <div style="font-size:12px;color:#9ca3af;">${plan.description || ''}</div>
       </div>
       <div style="text-align:right;">
@@ -579,10 +585,13 @@ function renderPricingPlans() {
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editPricingPlan('${plan.id}')">編輯</button>
-        <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;color:#ef4444;border-color:#ef4444;" onclick="deletePricingPlan('${plan.id}')">刪除</button>
+        ${isInactive 
+          ? `<button class="btn btn-outline" style="padding:4px 10px;font-size:12px;color:#22c55e;border-color:#22c55e;" onclick="reactivatePricingPlan('${plan.id}')">啟用</button>`
+          : `<button class="btn btn-outline" style="padding:4px 10px;font-size:12px;color:#ef4444;border-color:#ef4444;" onclick="deletePricingPlan('${plan.id}')">停用</button>`
+        }
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function editPricingPlan(planId) {
@@ -656,19 +665,36 @@ async function savePricingPlan() {
 }
 
 async function deletePricingPlan(planId) {
-  if (!confirm('確定要刪除此價格方案嗎？')) return;
+  if (!confirm('確定要停用此價格方案嗎？')) return;
   
   try {
     const result = await UVACO_CLOUD.deletePricingPlan(planId);
     if (result.success) {
-      alert('方案已刪除');
+      alert('方案已停用');
       await loadPricingPlans();
     } else {
-      alert('刪除失敗：' + (result.error || '未知錯誤'));
+      alert('停用失敗：' + (result.error || '未知錯誤'));
     }
   } catch (e) {
-    console.error('刪除價格方案失敗:', e);
-    alert('刪除失敗：' + (e.message || e));
+    console.error('停用價格方案失敗:', e);
+    alert('停用失敗：' + (e.message || e));
+  }
+}
+
+async function reactivatePricingPlan(planId) {
+  if (!confirm('確定要重新啟用此價格方案嗎？')) return;
+  
+  try {
+    const result = await UVACO_CLOUD.reactivatePricingPlan(planId);
+    if (result.success) {
+      alert('方案已啟用');
+      await loadPricingPlans();
+    } else {
+      alert('啟用失敗：' + (result.error || '未知錯誤'));
+    }
+  } catch (e) {
+    console.error('啟用價格方案失敗:', e);
+    alert('啟用失敗：' + (e.message || e));
   }
 }
 

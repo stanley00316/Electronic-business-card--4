@@ -176,16 +176,35 @@ WITH CHECK (public.is_admin());
 -- pricing_plans 表
 ALTER TABLE public.pricing_plans ENABLE ROW LEVEL SECURITY;
 
--- 所有登入用戶可以查看價格方案
+-- 所有登入用戶可以查看啟用的價格方案
 DROP POLICY IF EXISTS "pricing_plans_authenticated_select" ON public.pricing_plans;
 CREATE POLICY "pricing_plans_authenticated_select" ON public.pricing_plans
 FOR SELECT TO authenticated
 USING (is_active = true);
 
--- 管理員可以管理價格方案
-DROP POLICY IF EXISTS "pricing_plans_admin_all" ON public.pricing_plans;
-CREATE POLICY "pricing_plans_admin_all" ON public.pricing_plans
-FOR ALL TO authenticated
+-- 管理員可以查看所有價格方案（包含停用的）
+DROP POLICY IF EXISTS "pricing_plans_admin_select" ON public.pricing_plans;
+CREATE POLICY "pricing_plans_admin_select" ON public.pricing_plans
+FOR SELECT TO authenticated
+USING (public.is_admin());
+
+-- 管理員可以新增價格方案
+DROP POLICY IF EXISTS "pricing_plans_admin_insert" ON public.pricing_plans;
+CREATE POLICY "pricing_plans_admin_insert" ON public.pricing_plans
+FOR INSERT TO authenticated
+WITH CHECK (public.is_admin());
+
+-- 管理員可以更新價格方案
+DROP POLICY IF EXISTS "pricing_plans_admin_update" ON public.pricing_plans;
+CREATE POLICY "pricing_plans_admin_update" ON public.pricing_plans
+FOR UPDATE TO authenticated
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
+
+-- 管理員可以刪除價格方案
+DROP POLICY IF EXISTS "pricing_plans_admin_delete" ON public.pricing_plans;
+CREATE POLICY "pricing_plans_admin_delete" ON public.pricing_plans
+FOR DELETE TO authenticated
 USING (public.is_admin());
 
 -- ===== 輔助函數 =====
