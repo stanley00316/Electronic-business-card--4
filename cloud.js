@@ -1,13 +1,21 @@
-// 雲端（Supabase）共用工具（純前端 / GitHub Pages 可用）
+// 雲端（Supabase + Cloudflare R2）共用工具（純前端 / GitHub Pages 可用）
 // 注意：Supabase ANON KEY 可公開放在前端（它不是私鑰），真正權限由 RLS 控制。
+// v=20260126 - 新增 Cloudflare R2 儲存支援
 
 window.UVACO_CLOUD = (function () {
+  // ===== Supabase 設定 =====
   // 你需要把這兩個值改成你 Supabase 專案的設定（Project Settings → API）
   // - SUPABASE_URL: https://xxxx.supabase.co
   // - SUPABASE_ANON_KEY: anon public key
   const SUPABASE_URL = 'https://nqxibryjhgftyxttopuo.supabase.co';
   // Supabase Dashboard → Settings → API Keys → Publishable key (default)
   const SUPABASE_ANON_KEY = 'sb_publishable_iTgIYinO82u_nwhdzvS8EQ_zDtNKpdH';
+
+  // ===== 儲存設定 =====
+  // STORAGE_PROVIDER: 'supabase' 或 'r2'
+  // - 'supabase': 使用 Supabase Storage（預設）
+  // - 'r2': 使用 Cloudflare R2（需要部署 upload-r2 Edge Function）
+  const STORAGE_PROVIDER = 'supabase'; // 改為 'r2' 以使用 Cloudflare R2
 
   // ===== LINE Login（自訂 JWT 模式）=====
   // 若你要啟用 LINE 登入：
@@ -17,6 +25,23 @@ window.UVACO_CLOUD = (function () {
   // 重要：LINE Login 的 Channel ID 通常是「純數字」。
   // 你給的值若不是數字，代表可能貼到的是 LINE ID 而非 Channel ID（會導致登入失敗）。
   const LINE_CHANNEL_ID = '2008810712'; // LINE Login 的 Channel ID（client_id）
+  
+  // ===== Google Login =====
+  // 若你要啟用 Google 登入：
+  // 1) 在 Google Cloud Console 建立 OAuth 2.0 Client
+  // 2) 把 Client ID 填在這裡（可公開）
+  // 3) 在 Supabase Edge Functions Secrets 設定 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET
+  // 4) 部署 supabase edge function：supabase/functions/google-auth
+  const GOOGLE_CLIENT_ID = ''; // Google OAuth Client ID（留空則不顯示 Google 登入按鈕）
+  
+  // ===== Apple Login =====
+  // 若你要啟用 Apple 登入：
+  // 1) 註冊 Apple Developer Program ($99/年)
+  // 2) 在 Apple Developer 建立 Services ID
+  // 3) 把 Client ID 填在這裡（可公開）
+  // 4) 部署 supabase edge function：supabase/functions/apple-auth
+  const APPLE_CLIENT_ID = ''; // Apple Services ID（留空則不顯示 Apple 登入按鈕）
+  
   const CUSTOM_JWT_KEY = 'UVACO_CUSTOM_JWT';
 
   async function fetchWithTimeout(url, options, timeoutMs) {
@@ -293,6 +318,268 @@ window.UVACO_CLOUD = (function () {
     }
   }
 
+  // ===== Google Login Functions =====
+  
+  function hasGoogleConfig() {
+    return !!GOOGLE_CLIENT_ID;
+  }
+
+  function getGoogleRedirectUri() {
+    return getBaseUrl() + 'auth.html';
+  }
+
+  function startGoogleLogin(nextRelativeUrl) {
+    if (!GOOGLE_CLIENT_ID) {
+      alert("尚未設定 GOOGLE_CLIENT_ID（請在 cloud.js 填入 Google OAuth Client ID）。");
+      return false;
+    }
+    const next = nextRelativeUrl || 'directory.html';
+    try { localStorage.setItem('UVACO_GOOGLE_NEXT', next); } catch (e) {}
+    const redirectUri = getGoogleRedirectUri();
+    const state = 'google_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { localStorage.setItem('UVACO_GOOGLE_STATE', state); } catch (e) {}
+    try { sessionStorage.setItem('UVACO_GOOGLE_STATE', state); } catch (e) {}
+
+    const params = new URLSearchParams();
+    params.set('response_type', 'code');
+    params.set('client_id', GOOGLE_CLIENT_ID);
+    params.set('redirect_uri', redirectUri);
+    params.set('state', state);
+    params.set('scope', 'openid email profile');
+    params.set('access_type', 'offline');
+    params.set('prompt', 'consent');
+
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+    return true;
+  }
+
+  async function finishGoogleLoginFromUrl() {
+    let url;
+    try {
+      url = new URL(window.location.href);
+    } catch (e) {
+      return { ok: false, error: 'GOOGLE_URL_PARSE_ERROR', detail: String(e?.message || e || '') };
+    }
+
+    const code = String(url.searchParams.get('code') || '').trim();
+    const state = String(url.searchParams.get('state') || '').trim();
+    
+    // 檢查是否為 Google callback（state 以 google_ 開頭）
+    if (!code || !state || !state.startsWith('google_')) {
+      return { ok: true, handled: false };
+    }
+
+    try {
+      const expectedState = (function () {
+        try {
+          const a = String(localStorage.getItem('UVACO_GOOGLE_STATE') || '').trim();
+          const b = String(sessionStorage.getItem('UVACO_GOOGLE_STATE') || '').trim();
+          return a || b;
+        } catch (e) { return ''; }
+      })();
+      
+      if (expectedState && state !== expectedState) return { ok: false, error: 'GOOGLE_BAD_STATE' };
+
+      const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/google-auth';
+      const redirectUri = getGoogleRedirectUri();
+      let resp;
+      try {
+        resp = await fetchWithTimeout(endpoint, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({ code, redirect_uri: redirectUri })
+        }, 15000);
+      } catch (e) {
+        return {
+          ok: false,
+          error: 'GOOGLE_FETCH_FAILED',
+          detail: String(e?.name === 'AbortError' ? 'TIMEOUT' : (e?.message || e || '')),
+          endpoint
+        };
+      }
+
+      let data = {};
+      try {
+        data = await resp.json();
+      } catch (_e) {
+        data = { non_json_response: true };
+      }
+      if (!resp.ok) return { ok: false, error: 'GOOGLE_EXCHANGE_FAILED', detail: data, status: resp.status };
+
+      const token = String(data?.access_token || '').trim();
+      const userId = String(data?.user_id || '').trim();
+      if (!token || !userId) return { ok: false, error: 'GOOGLE_NO_TOKEN', detail: data };
+
+      setCustomJwt(token);
+      try { localStorage.removeItem('UVACO_GOOGLE_STATE'); } catch (e) {}
+      try { sessionStorage.removeItem('UVACO_GOOGLE_STATE'); } catch (e) {}
+
+      const next = (function () {
+        try { return String(localStorage.getItem('UVACO_GOOGLE_NEXT') || '').trim(); } catch (e) { return ''; }
+      })() || 'directory.html';
+      try { localStorage.removeItem('UVACO_GOOGLE_NEXT'); } catch (e) {}
+      window.location.replace(next);
+      return { ok: true, handled: true };
+    } catch (e) {
+      return { ok: false, error: 'GOOGLE_CALLBACK_ERROR', detail: String(e?.message || e || '') };
+    }
+  }
+
+  async function googleAuthDiag() {
+    const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/google-auth';
+    try {
+      const r = await fetchWithTimeout(endpoint, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      }, 8000);
+      const data = await r.json().catch(() => ({}));
+      return { ok: r.ok, status: r.status, data, endpoint };
+    } catch (e) {
+      return { ok: false, error: 'GOOGLE_DIAG_FAILED', detail: String(e?.name === 'AbortError' ? 'TIMEOUT' : (e?.message || e || '')), endpoint };
+    }
+  }
+
+  // ===== Apple Login Functions =====
+  
+  function hasAppleConfig() {
+    return !!APPLE_CLIENT_ID;
+  }
+
+  function getAppleRedirectUri() {
+    return getBaseUrl() + 'auth.html';
+  }
+
+  function startAppleLogin(nextRelativeUrl) {
+    if (!APPLE_CLIENT_ID) {
+      alert("尚未設定 APPLE_CLIENT_ID（請在 cloud.js 填入 Apple Services ID）。");
+      return false;
+    }
+    const next = nextRelativeUrl || 'directory.html';
+    try { localStorage.setItem('UVACO_APPLE_NEXT', next); } catch (e) {}
+    const redirectUri = getAppleRedirectUri();
+    const state = 'apple_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { localStorage.setItem('UVACO_APPLE_STATE', state); } catch (e) {}
+    try { sessionStorage.setItem('UVACO_APPLE_STATE', state); } catch (e) {}
+
+    const params = new URLSearchParams();
+    params.set('response_type', 'code id_token');
+    params.set('response_mode', 'form_post'); // Apple 使用 form_post
+    params.set('client_id', APPLE_CLIENT_ID);
+    params.set('redirect_uri', redirectUri);
+    params.set('state', state);
+    params.set('scope', 'name email');
+
+    window.location.href = 'https://appleid.apple.com/auth/authorize?' + params.toString();
+    return true;
+  }
+
+  // Apple 使用 form_post，需要在後端處理 callback
+  // 這個函數用於處理從後端轉發過來的 callback
+  async function finishAppleLoginFromUrl() {
+    let url;
+    try {
+      url = new URL(window.location.href);
+    } catch (e) {
+      return { ok: false, error: 'APPLE_URL_PARSE_ERROR', detail: String(e?.message || e || '') };
+    }
+
+    const code = String(url.searchParams.get('code') || '').trim();
+    const state = String(url.searchParams.get('state') || '').trim();
+    const idToken = String(url.searchParams.get('id_token') || '').trim();
+    
+    // 檢查是否為 Apple callback（state 以 apple_ 開頭）
+    if (!state || !state.startsWith('apple_')) {
+      return { ok: true, handled: false };
+    }
+
+    if (!code) {
+      return { ok: false, error: 'APPLE_NO_CODE' };
+    }
+
+    try {
+      const expectedState = (function () {
+        try {
+          const a = String(localStorage.getItem('UVACO_APPLE_STATE') || '').trim();
+          const b = String(sessionStorage.getItem('UVACO_APPLE_STATE') || '').trim();
+          return a || b;
+        } catch (e) { return ''; }
+      })();
+      
+      if (expectedState && state !== expectedState) return { ok: false, error: 'APPLE_BAD_STATE' };
+
+      const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/apple-auth';
+      const redirectUri = getAppleRedirectUri();
+      let resp;
+      try {
+        resp = await fetchWithTimeout(endpoint, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({ code, redirect_uri: redirectUri, id_token: idToken })
+        }, 15000);
+      } catch (e) {
+        return {
+          ok: false,
+          error: 'APPLE_FETCH_FAILED',
+          detail: String(e?.name === 'AbortError' ? 'TIMEOUT' : (e?.message || e || '')),
+          endpoint
+        };
+      }
+
+      let data = {};
+      try {
+        data = await resp.json();
+      } catch (_e) {
+        data = { non_json_response: true };
+      }
+      if (!resp.ok) return { ok: false, error: 'APPLE_EXCHANGE_FAILED', detail: data, status: resp.status };
+
+      const token = String(data?.access_token || '').trim();
+      const userId = String(data?.user_id || '').trim();
+      if (!token || !userId) return { ok: false, error: 'APPLE_NO_TOKEN', detail: data };
+
+      setCustomJwt(token);
+      try { localStorage.removeItem('UVACO_APPLE_STATE'); } catch (e) {}
+      try { sessionStorage.removeItem('UVACO_APPLE_STATE'); } catch (e) {}
+
+      const next = (function () {
+        try { return String(localStorage.getItem('UVACO_APPLE_NEXT') || '').trim(); } catch (e) { return ''; }
+      })() || 'directory.html';
+      try { localStorage.removeItem('UVACO_APPLE_NEXT'); } catch (e) {}
+      window.location.replace(next);
+      return { ok: true, handled: true };
+    } catch (e) {
+      return { ok: false, error: 'APPLE_CALLBACK_ERROR', detail: String(e?.message || e || '') };
+    }
+  }
+
+  async function appleAuthDiag() {
+    const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/apple-auth';
+    try {
+      const r = await fetchWithTimeout(endpoint, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      }, 8000);
+      const data = await r.json().catch(() => ({}));
+      return { ok: r.ok, status: r.status, data, endpoint };
+    } catch (e) {
+      return { ok: false, error: 'APPLE_DIAG_FAILED', detail: String(e?.name === 'AbortError' ? 'TIMEOUT' : (e?.message || e || '')), endpoint };
+    }
+  }
+
   async function getMyCard() {
     const ctx = await getAuthContext();
     if (!ctx.ok) return { card: null };
@@ -538,11 +825,9 @@ window.UVACO_CLOUD = (function () {
     return { rows: data || [] };
   }
 
-  async function uploadMyAsset(kind, blob, opts) {
-    const ctx = await getAuthContext();
-    if (!ctx.ok) throw new Error('NO_SESSION');
+  // 上傳到 Supabase Storage
+  async function uploadToSupabaseStorage(ctx, kind, blob, opts) {
     const client = ctx.client;
-    if (!blob) throw new Error('NO_FILE');
     const bucket = (opts && opts.bucket) ? String(opts.bucket) : 'card-assets';
     const ext = (opts && opts.ext) ? String(opts.ext).replace(/^\./, '') : 'webp';
     const contentType = (opts && opts.contentType) ? String(opts.contentType) : 'image/webp';
@@ -555,12 +840,81 @@ window.UVACO_CLOUD = (function () {
         contentType
       });
     if (error) throw error;
-    return { bucket, path };
+    return { bucket, path, provider: 'supabase' };
+  }
+
+  // 上傳到 Cloudflare R2
+  async function uploadToR2(ctx, kind, blob, opts) {
+    const ext = (opts && opts.ext) ? String(opts.ext).replace(/^\./, '') : 'webp';
+    const contentType = (opts && opts.contentType) ? String(opts.contentType) : 'image/webp';
+    const key = `${ctx.userId}/${kind}.${ext}`;
+
+    // 將 blob 轉換為 base64
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64Data = btoa(binary);
+
+    // 呼叫 Edge Function 上傳
+    const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/upload-r2';
+    const customJwt = getCustomJwt();
+    
+    const resp = await fetchWithTimeout(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + (customJwt || SUPABASE_ANON_KEY)
+      },
+      body: JSON.stringify({
+        action: 'upload',
+        key: key,
+        data: base64Data,
+        contentType: contentType
+      })
+    }, 30000);
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data?.error || 'R2_UPLOAD_FAILED');
+    }
+
+    return { 
+      bucket: data.bucket, 
+      path: key, 
+      publicUrl: data.publicUrl,
+      provider: 'r2'
+    };
+  }
+
+  async function uploadMyAsset(kind, blob, opts) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) throw new Error('NO_SESSION');
+    if (!blob) throw new Error('NO_FILE');
+
+    // 根據設定選擇儲存提供者
+    const provider = (opts && opts.provider) || STORAGE_PROVIDER;
+    
+    if (provider === 'r2') {
+      return await uploadToR2(ctx, kind, blob, opts);
+    } else {
+      return await uploadToSupabaseStorage(ctx, kind, blob, opts);
+    }
   }
 
   async function getSignedAssetUrl(path, opts) {
+    if (!path) return { url: '' };
+    
+    // 如果 path 已經是完整的 URL（R2 公開 URL），直接返回
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return { url: path };
+    }
+    
     const client = getClient();
-    if (!client || !path) return { url: '' };
+    if (!client) return { url: '' };
     const bucket = (opts && opts.bucket) ? String(opts.bucket) : 'card-assets';
     const expiresIn = Math.min(Math.max(parseInt(opts?.expiresIn || 3600, 10) || 3600, 60), 60 * 60 * 24);
     const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresIn);
@@ -676,6 +1030,29 @@ window.UVACO_CLOUD = (function () {
     return true;
   }
 
+  // R2 診斷
+  async function r2Diag() {
+    const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/upload-r2';
+    try {
+      const r = await fetchWithTimeout(endpoint, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      }, 8000);
+      const data = await r.json().catch(() => ({}));
+      return { ok: r.ok, status: r.status, data, endpoint };
+    } catch (e) {
+      return { ok: false, error: 'R2_DIAG_FAILED', detail: String(e?.name === 'AbortError' ? 'TIMEOUT' : (e?.message || e || '')), endpoint };
+    }
+  }
+
+  // 取得目前的儲存提供者
+  function getStorageProvider() {
+    return STORAGE_PROVIDER;
+  }
+
   return {
     hasConfig,
     getClient,
@@ -686,9 +1063,20 @@ window.UVACO_CLOUD = (function () {
     requireAuth,
     signInWithEmailOtp,
     exchangeCodeForSessionIfNeeded,
+    // LINE Login
     startLineLogin,
     finishLineLoginFromUrl,
     lineAuthDiag,
+    // Google Login
+    hasGoogleConfig,
+    startGoogleLogin,
+    finishGoogleLoginFromUrl,
+    googleAuthDiag,
+    // Apple Login
+    hasAppleConfig,
+    startAppleLogin,
+    finishAppleLoginFromUrl,
+    appleAuthDiag,
     getMyCard,
     getCardByUserId,
     getCardPublic,
@@ -704,6 +1092,8 @@ window.UVACO_CLOUD = (function () {
     adminUpdateCard,
     uploadMyAsset,
     getSignedAssetUrl,
+    getStorageProvider,
+    r2Diag,
     exportCardsCsv
   };
 })();

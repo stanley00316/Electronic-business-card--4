@@ -7,72 +7,372 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>LINE 登入 | LINE Login - UVACO</title>
+  <title>登入 | Login - UVACO 電子名片</title>
   <link rel="stylesheet" href="styles.css?v=20260105">
   <style>
     body { padding-bottom: 0; }
-    .auth-page { width: 100%; max-width: 520px; margin: 0 auto; padding: 20px; padding-top: 90px; }
-    .auth-card { border-radius: 20px; padding: 22px; }
+    .auth-page { width: 100%; max-width: 480px; margin: 0 auto; padding: 20px; padding-top: 60px; }
+    
+    /* Logo 區塊 */
+    .auth-logo { text-align: center; margin-bottom: 24px; }
+    .auth-logo img { width: 80px; height: 80px; }
+    
+    /* 語言切換 */
+    .lang-switch { 
+      position: fixed; 
+      top: 16px; 
+      right: 16px; 
+      display: flex; 
+      gap: 8px; 
+      z-index: 100;
+    }
+    .lang-switch button {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: #9ca3af;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-switch button:hover { background: rgba(255,255,255,0.12); }
+    .lang-switch button.active { 
+      background: var(--uvaco-green); 
+      color: #fff; 
+      border-color: var(--uvaco-green);
+    }
+    body.theme-light .lang-switch button { 
+      border-color: rgba(15,23,42,0.12); 
+      background: rgba(15,23,42,0.04);
+      color: #6b7280;
+    }
+    body.theme-light .lang-switch button:hover { background: rgba(15,23,42,0.08); }
+    body.theme-light .lang-switch button.active { 
+      background: var(--uvaco-green); 
+      color: #fff; 
+    }
+    
+    /* 卡片 */
+    .auth-card { border-radius: 20px; padding: 28px 24px; }
     body.theme-dark .auth-card { background: rgba(22,22,24,0.85); border: 1px solid rgba(255,255,255,0.08); }
     body.theme-light .auth-card { background: #fff; border: 1px solid rgba(15,23,42,0.08); }
-    .auth-title { font-size: 22px; font-weight: 800; color: var(--uvaco-green); margin-bottom: 8px; }
-    .auth-desc { font-size: 14px; line-height: 1.7; color: #9ca3af; margin-bottom: 14px; }
+    
+    /* 標題 */
+    .auth-title { 
+      font-size: 24px; 
+      font-weight: 800; 
+      color: var(--uvaco-green); 
+      margin-bottom: 8px; 
+      text-align: center;
+    }
+    
+    /* 說明文字 */
+    .auth-desc { 
+      font-size: 14px; 
+      line-height: 1.7; 
+      color: #9ca3af; 
+      margin-bottom: 20px; 
+      text-align: center;
+    }
     body.theme-light .auth-desc { color: #6b7280; }
-    .auth-input { width: 100%; padding: 12px 14px; border-radius: 12px; font-size: 15px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #fff; box-sizing: border-box; }
-    body.theme-light .auth-input { background: #fff; border-color: rgba(15,23,42,0.12); color: #111827; }
-    .auth-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; background: var(--uvaco-green); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 12px; }
-    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    /* 登入按鈕 */
+    .auth-btn { 
+      width: 100%; 
+      padding: 14px; 
+      border-radius: 12px; 
+      border: none; 
+      background: var(--uvaco-green); 
+      color: #fff; 
+      font-weight: 700; 
+      font-size: 15px; 
+      cursor: pointer; 
+      margin-top: 12px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .auth-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
     .auth-btn.secondary { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.10); color: #fff; }
     body.theme-light .auth-btn.secondary { background: rgba(15,23,42,0.04); border-color: rgba(15,23,42,0.10); color: #111827; }
-    .auth-divider { height: 1px; background: rgba(255,255,255,0.10); margin: 16px 0; }
+    
+    /* 分隔線 */
+    .auth-divider { height: 1px; background: rgba(255,255,255,0.10); margin: 24px 0; }
     body.theme-light .auth-divider { background: rgba(15,23,42,0.10); }
-    .auth-note { font-size: 12px; line-height: 1.7; margin-top: 14px; color: #9ca3af; }
-    body.theme-light .auth-note { color: #6b7280; }
-    .auth-status { margin-top: 14px; padding: 12px 14px; border-radius: 12px; display: none; }
+    
+    /* 引導區塊 */
+    .onboarding-guide {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    body.theme-light .onboarding-guide {
+      background: rgba(15,23,42,0.02);
+      border-color: rgba(15,23,42,0.08);
+    }
+    .guide-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--uvaco-green);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .guide-steps { display: flex; flex-direction: column; gap: 14px; }
+    .guide-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .step-icon {
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      border-radius: 50%;
+      background: var(--uvaco-green);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #e5e7eb;
+      padding-top: 3px;
+    }
+    body.theme-light .step-text { color: #374151; }
+    
+    /* 底部連結 */
+    .auth-footer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      margin-top: 20px;
+      font-size: 12px;
+    }
+    .auth-footer a { color: #9ca3af; text-decoration: none; }
+    .auth-footer a:hover { color: var(--uvaco-green); }
+    body.theme-light .auth-footer a { color: #6b7280; }
+    
+    /* 開發者選項摺疊 */
+    .dev-options {
+      margin-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 16px;
+    }
+    body.theme-light .dev-options { border-color: rgba(15,23,42,0.08); }
+    .dev-options summary {
+      cursor: pointer;
+      color: #6b7280;
+      font-size: 12px;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dev-options summary::-webkit-details-marker { display: none; }
+    .dev-options summary::before { content: '▶'; font-size: 10px; transition: transform 0.2s; }
+    .dev-options[open] summary::before { transform: rotate(90deg); }
+    .dev-options-content {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 12px;
+    }
+    body.theme-light .dev-options-content { background: rgba(15,23,42,0.02); }
+    .dev-options .auth-btn { margin-top: 8px; }
+    
+    /* 狀態訊息 */
+    .auth-status { margin-top: 14px; padding: 12px 14px; border-radius: 12px; display: none; font-size: 13px; }
     .auth-status.show { display: block; }
     .auth-status.ok { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; }
     .auth-status.err { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; }
+    
+    /* 輸入框 */
+    .auth-input { 
+      width: 100%; 
+      padding: 12px 14px; 
+      border-radius: 12px; 
+      font-size: 14px; 
+      border: 1px solid rgba(255,255,255,0.12); 
+      background: rgba(255,255,255,0.06); 
+      color: #fff; 
+      box-sizing: border-box; 
+    }
+    body.theme-light .auth-input { background: #fff; border-color: rgba(15,23,42,0.12); color: #111827; }
+    
     a { color: var(--uvaco-green); }
   </style>
   <!-- Supabase JS（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="cloud.js?v=20260106"></script>
-  <script src="common.js?v=20260105"></script>
+  <script src="common.js?v=20260126"></script>
 </head>
 <body class="theme-dark lang-zh">
   <!-- 背景泡泡 -->
   <div class="bg-blob blob1"></div>
   <div class="bg-blob blob2"></div>
 
+  <!-- 語言切換 -->
+  <div class="lang-switch">
+    <button id="langZhBtn" class="active" onclick="switchLang('zh')">中文</button>
+    <button id="langEnBtn" onclick="switchLang('en')">EN</button>
+  </div>
+
   <div class="auth-page">
+    <!-- Logo -->
+    <div class="auth-logo">
+      <img src="uvaco-logo.svg" alt="UVACO" />
+    </div>
+    
     <div class="auth-card">
-      <div class="auth-title">LINE 登入驗證</div>
+      <!-- 歡迎標題 -->
+      <div class="auth-title">
+        <span class="lang-zh">歡迎使用 UVACO 電子名片</span>
+        <span class="lang-en">Welcome to UVACO Business Card</span>
+      </div>
+      
+      <!-- 簡潔說明 -->
       <div class="auth-desc">
-        點擊下方按鈕將跳轉至 LINE 完成登入驗證，完成後會自動回到系統繼續操作。<br>
-        （本機測試需使用 HTTPS，例如 ngrok；LINE 不接受 http://localhost）<br>
-        LINE Developers 的 Callback URL 建議填：<strong>https://stanley00316.github.io/Electronic-business-card--4/auth.html</strong>
+        <span class="lang-zh">請選擇登入方式，開始建立您的專屬電子名片</span>
+        <span class="lang-en">Choose a login method to create your digital business card</span>
       </div>
 
-      <button type="button" class="auth-btn" onclick="startLine()">使用 LINE 登入</button>
-      <button type="button" class="auth-btn secondary" onclick="diagLine()">診斷（不會顯示密鑰）</button>
-      <button type="button" class="auth-btn secondary" onclick="explainLineAuth()">部署/設定教學</button>
+      <!-- LINE 登入按鈕 -->
+      <button type="button" class="auth-btn" onclick="startLine()" style="background: #00C300;">
+        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+          <span class="lang-zh">使用 LINE 登入</span>
+          <span class="lang-en">Sign in with LINE</span>
+        </span>
+      </button>
+      
+      <!-- Google 登入按鈕（只在設定了 GOOGLE_CLIENT_ID 時顯示） -->
+      <button type="button" class="auth-btn" id="googleLoginBtn" onclick="startGoogle()" style="display: none; background: #4285F4;">
+        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          <span class="lang-zh">使用 Google 登入</span>
+          <span class="lang-en">Sign in with Google</span>
+        </span>
+      </button>
+      
+      <!-- Apple 登入按鈕（只在設定了 APPLE_CLIENT_ID 時顯示） -->
+      <button type="button" class="auth-btn" id="appleLoginBtn" onclick="startApple()" style="display: none; background: #000;">
+        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          <span class="lang-zh">使用 Apple 登入</span>
+          <span class="lang-en">Sign in with Apple</span>
+        </span>
+      </button>
 
-      <!-- 開發者登入區塊（僅 Localhost 顯示） -->
-      <div id="devLoginArea" style="display:none; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-        <div style="font-size:13px; color:#f59e0b; margin-bottom:8px; font-weight:bold;">⚠️ 開發者模式 (Localhost Only)</div>
-        <div style="font-size:12px; color:#9ca3af; margin-bottom:8px;">無法使用 LINE 登入時，請貼上 Access Token 強制登入。</div>
-        <input type="text" id="devJwtInput" class="auth-input" placeholder="Paste JWT here..." style="font-family:monospace; font-size:12px;">
-        <button type="button" class="auth-btn" style="background:#f59e0b; margin-top:8px;" onclick="doDevLogin()">開發者強制登入</button>
+      <div class="auth-divider"></div>
+
+      <!-- 新用戶引導區塊 -->
+      <div class="onboarding-guide">
+        <div class="guide-title">
+          <span class="lang-zh">新用戶指南</span>
+          <span class="lang-en">Getting Started</span>
+        </div>
+        <div class="guide-steps">
+          <div class="guide-step">
+            <span class="step-icon">1</span>
+            <span class="step-text">
+              <span class="lang-zh">選擇 LINE 或其他方式登入</span>
+              <span class="lang-en">Sign in with LINE or other methods</span>
+            </span>
+          </div>
+          <div class="guide-step">
+            <span class="step-icon">2</span>
+            <span class="step-text">
+              <span class="lang-zh">填寫名片資訊並選擇喜歡的主題</span>
+              <span class="lang-en">Fill in your info and choose a theme</span>
+            </span>
+          </div>
+          <div class="guide-step">
+            <span class="step-icon">3</span>
+            <span class="step-text">
+              <span class="lang-zh">分享專屬連結或使用 NFC 名片</span>
+              <span class="lang-en">Share your link or use NFC card</span>
+            </span>
+          </div>
+        </div>
       </div>
 
       <div id="statusBox" class="auth-status"></div>
-      <div class="auth-note">
-        隱私權政策：<a href="privacy.html" target="_blank" rel="noopener">查看</a>
+
+      <!-- 底部連結 -->
+      <div class="auth-footer">
+        <a href="privacy.html" target="_blank" rel="noopener">
+          <span class="lang-zh">隱私權政策</span>
+          <span class="lang-en">Privacy Policy</span>
+        </a>
       </div>
+
+      <!-- 開發者選項（摺疊） -->
+      <details class="dev-options" id="devOptionsArea">
+        <summary>
+          <span class="lang-zh">開發者選項</span>
+          <span class="lang-en">Developer Options</span>
+        </summary>
+        <div class="dev-options-content">
+          <div style="font-size: 12px; color: #9ca3af; margin-bottom: 12px;">
+            <span class="lang-zh">這些選項僅供開發人員使用</span>
+            <span class="lang-en">These options are for developers only</span>
+          </div>
+          
+          <button type="button" class="auth-btn secondary" onclick="diagAll()">
+            <span class="lang-zh">診斷連線狀態</span>
+            <span class="lang-en">Diagnose Connection</span>
+          </button>
+          <button type="button" class="auth-btn secondary" onclick="explainAuth()">
+            <span class="lang-zh">部署設定教學</span>
+            <span class="lang-en">Deployment Guide</span>
+          </button>
+
+          <!-- 開發者登入區塊（僅 Localhost 顯示） -->
+          <div id="devLoginArea" style="display:none; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
+            <div style="font-size:13px; color:#f59e0b; margin-bottom:8px; font-weight:bold;">
+              <span class="lang-zh">開發者模式 (Localhost)</span>
+              <span class="lang-en">Developer Mode (Localhost)</span>
+            </div>
+            <div style="font-size:12px; color:#9ca3af; margin-bottom:8px;">
+              <span class="lang-zh">貼上 JWT Token 直接登入</span>
+              <span class="lang-en">Paste JWT Token to login directly</span>
+            </div>
+            <input type="text" id="devJwtInput" class="auth-input" placeholder="Paste JWT here..." style="font-family:monospace; font-size:12px;">
+            <button type="button" class="auth-btn" style="background:#f59e0b; margin-top:8px;" onclick="doDevLogin()">
+              <span class="lang-zh">開發者登入</span>
+              <span class="lang-en">Developer Login</span>
+            </button>
+          </div>
+        </div>
+      </details>
     </div>
   </div>
 
   <script>
+    // 語言切換
+    function switchLang(lang) {
+      setLang(lang);
+      updateLangButtons(lang);
+    }
+
+    function updateLangButtons(lang) {
+      const zhBtn = document.getElementById('langZhBtn');
+      const enBtn = document.getElementById('langEnBtn');
+      if (zhBtn && enBtn) {
+        zhBtn.classList.toggle('active', lang === 'zh');
+        enBtn.classList.toggle('active', lang === 'en');
+      }
+    }
+
     function setStatus(type, msg) {
       var box = document.getElementById('statusBox');
       box.className = 'auth-status show ' + (type === 'ok' ? 'ok' : 'err');
@@ -89,27 +389,67 @@
     }
 
     async function bootstrap() {
+      // 初始化語言按鈕狀態
+      const savedLang = localStorage.getItem('lang') || 'zh';
+      updateLangButtons(savedLang);
+
       if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
         setStatus('err', '尚未設定 Supabase（請在 cloud.js 填入 SUPABASE_URL / SUPABASE_ANON_KEY）。');
         return;
       }
 
-      // 若是 LINE callback，先處理（成功會自動導回 next）
-      var lineRes = await UVACO_CLOUD.finishLineLoginFromUrl();
-      if (lineRes && lineRes.ok === false) {
-        var detail = '';
-        try {
-          if (lineRes.status) detail += 'HTTP ' + lineRes.status + ' ';
-          if (lineRes.error) detail += String(lineRes.error) + ' ';
-          if (lineRes.detail) detail += JSON.stringify(lineRes.detail);
-        } catch (e) {}
-        setStatus('err', 'LINE 登入失敗，請重試。' + (detail ? ('\\n' + detail) : ''));
-        return;
+      // 顯示已設定的登入方式按鈕
+      if (UVACO_CLOUD.hasGoogleConfig && UVACO_CLOUD.hasGoogleConfig()) {
+        document.getElementById('googleLoginBtn').style.display = 'block';
+      }
+      if (UVACO_CLOUD.hasAppleConfig && UVACO_CLOUD.hasAppleConfig()) {
+        document.getElementById('appleLoginBtn').style.display = 'block';
+      }
+
+      // 處理 OAuth callback
+      var url = new URL(window.location.href);
+      var state = url.searchParams.get('state') || '';
+      
+      if (state.startsWith('google_')) {
+        var googleRes = await UVACO_CLOUD.finishGoogleLoginFromUrl();
+        if (googleRes && googleRes.ok === false) {
+          var detail = '';
+          try {
+            if (googleRes.status) detail += 'HTTP ' + googleRes.status + ' ';
+            if (googleRes.error) detail += String(googleRes.error) + ' ';
+            if (googleRes.detail) detail += JSON.stringify(googleRes.detail);
+          } catch (e) {}
+          setStatus('err', 'Google 登入失敗，請重試。' + (detail ? ('\n' + detail) : ''));
+          return;
+        }
+      } else if (state.startsWith('apple_')) {
+        var appleRes = await UVACO_CLOUD.finishAppleLoginFromUrl();
+        if (appleRes && appleRes.ok === false) {
+          var detail = '';
+          try {
+            if (appleRes.status) detail += 'HTTP ' + appleRes.status + ' ';
+            if (appleRes.error) detail += String(appleRes.error) + ' ';
+            if (appleRes.detail) detail += JSON.stringify(appleRes.detail);
+          } catch (e) {}
+          setStatus('err', 'Apple 登入失敗，請重試。' + (detail ? ('\n' + detail) : ''));
+          return;
+        }
+      } else {
+        var lineRes = await UVACO_CLOUD.finishLineLoginFromUrl();
+        if (lineRes && lineRes.ok === false) {
+          var detail = '';
+          try {
+            if (lineRes.status) detail += 'HTTP ' + lineRes.status + ' ';
+            if (lineRes.error) detail += String(lineRes.error) + ' ';
+            if (lineRes.detail) detail += JSON.stringify(lineRes.detail);
+          } catch (e) {}
+          setStatus('err', 'LINE 登入失敗，請重試。' + (detail ? ('\n' + detail) : ''));
+          return;
+        }
       }
 
       var s = await UVACO_CLOUD.getSession();
       if (s.session) {
-        // 已登入：回到 next
         window.location.replace(getNext());
       }
     }
@@ -118,40 +458,79 @@
       try {
         UVACO_CLOUD.startLineLogin(getNext());
       } catch (e) {
-        setStatus('err', 'LINE 登入尚未設定完成（請先看「部署/設定教學」）。');
+        setStatus('err', 'LINE 登入尚未設定完成。');
       }
     }
 
-    async function diagLine() {
+    function startGoogle() {
       try {
-        var r = await UVACO_CLOUD.lineAuthDiag();
-        setStatus('ok', 'line-auth 診斷：\\n' + JSON.stringify(r, null, 2));
+        UVACO_CLOUD.startGoogleLogin(getNext());
+      } catch (e) {
+        setStatus('err', 'Google 登入尚未設定完成。');
+      }
+    }
+
+    function startApple() {
+      if (UVACO_CLOUD.hasAppleConfig && UVACO_CLOUD.hasAppleConfig()) {
+        try {
+          UVACO_CLOUD.startAppleLogin(getNext());
+        } catch (e) {
+          setStatus('err', 'Apple 登入尚未設定完成。');
+        }
+      } else {
+        alert('Apple 登入尚未啟用。');
+      }
+    }
+
+    async function diagAll() {
+      try {
+        var results = { line: null, google: null, apple: null };
+        results.line = await UVACO_CLOUD.lineAuthDiag();
+        if (UVACO_CLOUD.hasGoogleConfig && UVACO_CLOUD.hasGoogleConfig()) {
+          results.google = await UVACO_CLOUD.googleAuthDiag();
+        }
+        if (UVACO_CLOUD.hasAppleConfig && UVACO_CLOUD.hasAppleConfig()) {
+          results.apple = await UVACO_CLOUD.appleAuthDiag();
+        }
+        setStatus('ok', '診斷結果：\n' + JSON.stringify(results, null, 2));
       } catch (e) {
         setStatus('err', '診斷失敗：' + String(e && e.message ? e.message : e));
       }
     }
 
-    function explainLineAuth() {
-      alert(
-        '目前這個專案是「純前端 + Supabase RLS/Storage」。\\n\\n' +
-        '我已改成「自訂 JWT 模式」，不依賴 Supabase 的 LINE Provider。\\n' +
-        '你需要做 3 件事（照做就能跑）：\\n\\n' +
-        '1) Supabase SQL Editor 執行：supabase-setup.sql（確保已建立 public.line_identities）\\n' +
-        '2) Supabase Edge Functions 設定 Secrets：\\n' +
-        '   - SUPABASE_URL\\n' +
-        '   - SUPABASE_SERVICE_ROLE_KEY\\n' +
-        '   - JWT_SECRET（或舊名 SUPABASE_JWT_SECRET）\\n' +
-        '   - LINE_CHANNEL_ID\\n' +
-        '   - LINE_CHANNEL_SECRET\\n' +
-        '3) 用 Supabase CLI 部署 function：line-auth\\n\\n' +
-        '部署後，GitHub Pages 直接按「使用 LINE 登入」即可。\\n\\n' +
-        '本機測試：請用 ngrok 產生 https 網址並把 redirect URI 設在 LINE Developers，否則 LINE 會擋 http://localhost。'
-      );
+    function explainAuth() {
+      const zhMsg = '=== 登入方式設定說明 ===\n\n' +
+        '【LINE 登入】\n' +
+        '1) Supabase SQL Editor 執行：supabase-setup.sql\n' +
+        '2) Supabase Edge Functions 設定 Secrets\n' +
+        '3) 部署 Edge Function：line-auth\n\n' +
+        '【Google 登入】\n' +
+        '1) Google Cloud Console 建立 OAuth 2.0 Client\n' +
+        '2) 在 cloud.js 填入 GOOGLE_CLIENT_ID\n' +
+        '3) 部署 Edge Function：google-auth\n\n' +
+        '【Apple 登入】\n' +
+        '需要 Apple Developer Program ($99/年)\n' +
+        '詳見 oauth-providers-setup.sql';
+      
+      const enMsg = '=== Login Setup Guide ===\n\n' +
+        '[LINE Login]\n' +
+        '1) Run supabase-setup.sql in Supabase SQL Editor\n' +
+        '2) Set Secrets in Supabase Edge Functions\n' +
+        '3) Deploy Edge Function: line-auth\n\n' +
+        '[Google Login]\n' +
+        '1) Create OAuth 2.0 Client in Google Cloud Console\n' +
+        '2) Set GOOGLE_CLIENT_ID in cloud.js\n' +
+        '3) Deploy Edge Function: google-auth\n\n' +
+        '[Apple Login]\n' +
+        'Requires Apple Developer Program ($99/year)\n' +
+        'See oauth-providers-setup.sql for details';
+      
+      const lang = localStorage.getItem('lang') || 'zh';
+      alert(lang === 'zh' ? zhMsg : enMsg);
     }
 
     function checkDevMode() {
       const h = window.location.hostname;
-      // 允許 localhost, 127.0.0.1, 192.168.*, 172.*, 10.* 等區域網路 IP
       if (h === 'localhost' || h === '127.0.0.1' || 
           h.startsWith('192.168.') || h.startsWith('172.') || h.startsWith('10.')) {
         const el = document.getElementById('devLoginArea');
@@ -163,32 +542,30 @@
       const input = document.getElementById('devJwtInput');
       const token = (input.value || '').trim();
       if (!token) {
-        alert('請輸入 Token');
+        alert('請輸入 Token / Please enter Token');
         return;
       }
-      // 簡單格式檢查
       if (!token.includes('.')) {
-        alert('Token 格式看起來不正確 (不是 JWT)');
+        alert('Token 格式不正確 / Invalid Token format');
         return;
       }
       
       if (UVACO_CLOUD.setCustomJwt(token)) {
-        // 立即驗證 Token 是否有效
         try {
           const s = await UVACO_CLOUD.getSession();
           if (s && s.session && s.session.user && s.session.user.id) {
-            alert('Token 驗證成功 (User ID: ' + s.session.user.id + ')，即將跳轉...');
+            alert('Token 驗證成功 / Token verified (User ID: ' + s.session.user.id + ')');
             window.location.replace(getNext());
           } else {
-            alert('Token 設定成功但無法取得 Session (無效或過期)。\n請檢查 Token 是否正確。');
+            alert('Token 無效或已過期 / Token invalid or expired');
             UVACO_CLOUD.clearCustomJwt();
           }
         } catch (e) {
-          alert('Token 驗證發生錯誤：' + e.message);
+          alert('驗證錯誤 / Verification error: ' + e.message);
           UVACO_CLOUD.clearCustomJwt();
         }
       } else {
-        alert('設定失敗');
+        alert('設定失敗 / Setup failed');
       }
     }
 

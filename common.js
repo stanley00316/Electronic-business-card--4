@@ -1,5 +1,6 @@
-// v=20260105
+// v=20260126
 // 語言和主題管理
+// 優化：CSS 按需載入、主題預載入、效能改進
 function setLang(lang) {
   // 更新 body 的 class，讓 CSS 規則生效
   document.body.classList.remove('lang-zh', 'lang-en');
@@ -85,7 +86,13 @@ function setLang(lang) {
 
 // ===== 全域主題系統（類似 LINE 主題） =====
 
-// 載入主題 CSS
+// 主題快取狀態
+const _themeCache = {
+  loaded: new Set(),
+  preloading: new Set()
+};
+
+// 載入主題 CSS（優化版：支援快取和預載入）
 function loadThemeCSS(themeNumber) {
   // 移除舊的主題 CSS
   const oldThemeLink = document.getElementById('theme-css');
@@ -100,7 +107,46 @@ function loadThemeCSS(themeNumber) {
     link.rel = 'stylesheet';
     link.href = `theme-${themeNumber}.css`;
     document.head.appendChild(link);
+    _themeCache.loaded.add(themeNumber);
   }
+}
+
+// 預載入主題 CSS（背景載入，不阻塞渲染）
+function preloadThemeCSS(themeNumber) {
+  if (themeNumber < 1 || themeNumber > 9) return;
+  if (_themeCache.loaded.has(themeNumber) || _themeCache.preloading.has(themeNumber)) return;
+  
+  const existingPreload = document.getElementById(`theme-preload-${themeNumber}`);
+  if (existingPreload) return;
+  
+  _themeCache.preloading.add(themeNumber);
+  
+  const link = document.createElement('link');
+  link.id = `theme-preload-${themeNumber}`;
+  link.rel = 'preload';
+  link.as = 'style';
+  link.href = `theme-${themeNumber}.css`;
+  link.onload = () => {
+    _themeCache.preloading.delete(themeNumber);
+    _themeCache.loaded.add(themeNumber);
+  };
+  document.head.appendChild(link);
+}
+
+// 預載入所有主題（用於編輯頁面，使用 requestIdleCallback 優化）
+function preloadAllThemes() {
+  const loadNext = (index) => {
+    if (index > 9) return;
+    preloadThemeCSS(index);
+    // 使用 requestIdleCallback 或 setTimeout 延遲載入下一個
+    if (window.requestIdleCallback) {
+      requestIdleCallback(() => loadNext(index + 1), { timeout: 100 });
+    } else {
+      setTimeout(() => loadNext(index + 1), 50);
+    }
+  };
+  // 從主題 1 開始延遲預載入
+  setTimeout(() => loadNext(1), 500);
 }
 
 // 設置全域主題
@@ -268,6 +314,168 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initLangAndTheme);
 } else {
   initLangAndTheme();
+}
+
+// ===== 圖片懶載入工具 =====
+
+// 使用 Intersection Observer 實現懶載入
+const _lazyLoadObserver = (function() {
+  if (typeof IntersectionObserver === 'undefined') return null;
+  
+  return new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        const src = img.dataset.src;
+        if (src) {
+          img.src = src;
+          img.removeAttribute('data-src');
+          img.classList.remove('lazy');
+          img.classList.add('lazy-loaded');
+        }
+        observer.unobserve(img);
+      }
+    });
+  }, {
+    rootMargin: '50px 0px',
+    threshold: 0.01
+  });
+})();
+
+// 設定圖片為懶載入（用於動態建立的圖片）
+function setupLazyImage(img, src) {
+  if (!img || !src) return;
+  
+  // 如果瀏覽器原生支援 loading="lazy"，直接使用
+  if ('loading' in HTMLImageElement.prototype) {
+    img.loading = 'lazy';
+    img.src = src;
+    return;
+  }
+  
+  // 否則使用 Intersection Observer
+  if (_lazyLoadObserver) {
+    img.dataset.src = src;
+    img.classList.add('lazy');
+    _lazyLoadObserver.observe(img);
+  } else {
+    // 降級：直接載入
+    img.src = src;
+  }
+}
+
+// 為頁面上所有 data-src 圖片啟用懶載入
+function initLazyImages() {
+  if (!_lazyLoadObserver) return;
+  
+  document.querySelectorAll('img[data-src]').forEach(img => {
+    _lazyLoadObserver.observe(img);
+  });
+}
+
+// ===== 圖片壓縮與 WebP 轉換工具 =====
+
+// 壓縮圖片並轉換為 WebP 格式
+// @param {File|Blob} file - 要壓縮的圖片檔案
+// @param {Object} opts - 選項
+//   - maxDim: 最大尺寸（預設 512）
+//   - maxBytes: 最大檔案大小（預設 1MB）
+//   - mime: 目標格式（預設 image/webp）
+// @returns {Promise<{blob: Blob, contentType: string, ext: string, width: number, height: number}>}
+async function compressImageToWebP(file, opts) {
+  const maxDim = Math.max(64, parseInt(opts?.maxDim || 512, 10) || 512);
+  const maxBytes = Math.max(50 * 1024, parseInt(opts?.maxBytes || 1024 * 1024, 10) || 1024 * 1024);
+  const targetMime = String(opts?.mime || 'image/webp');
+
+  if (!file || (!file.type && !(file instanceof Blob))) {
+    throw new Error('NOT_IMAGE');
+  }
+  
+  // 檢查是否為圖片
+  if (file.type && !file.type.startsWith('image/')) {
+    throw new Error('NOT_IMAGE');
+  }
+
+  const imgUrl = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = imgUrl;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('LOAD_FAILED'));
+    });
+
+    const w0 = img.naturalWidth || img.width || 1;
+    const h0 = img.naturalHeight || img.height || 1;
+
+    let targetMaxDim = maxDim;
+    let outMime = targetMime;
+    let blob = null;
+    let tw = 0;
+    let th = 0;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { alpha: true });
+
+    async function encodeAt(quality) {
+      return await new Promise((resolve) => canvas.toBlob(resolve, outMime, quality));
+    }
+
+    // 嘗試多次壓縮直到符合大小限制
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const scale = Math.min(1, targetMaxDim / Math.max(w0, h0));
+      tw = Math.max(1, Math.round(w0 * scale));
+      th = Math.max(1, Math.round(h0 * scale));
+      canvas.width = tw;
+      canvas.height = th;
+      ctx.clearRect(0, 0, tw, th);
+      ctx.drawImage(img, 0, 0, tw, th);
+
+      // 先試 webp，若瀏覽器不支援則改用 jpeg
+      outMime = targetMime;
+      let q = 0.9;
+      blob = await encodeAt(q);
+      if (!blob) {
+        outMime = 'image/jpeg';
+        q = 0.9;
+        blob = await encodeAt(q);
+      }
+      if (!blob) throw new Error('ENCODE_FAILED');
+
+      // 逐步降低品質直到符合大小限制
+      while (blob.size > maxBytes && q > 0.3) {
+        q -= 0.1;
+        blob = await encodeAt(q);
+        if (!blob) break;
+      }
+
+      if (blob && blob.size <= maxBytes) break;
+
+      // 若仍然太大，縮小尺寸
+      targetMaxDim = Math.floor(targetMaxDim * 0.75);
+      if (targetMaxDim < 64) {
+        throw new Error('TOO_LARGE');
+      }
+    }
+
+    if (!blob || blob.size > maxBytes) {
+      throw new Error('TOO_LARGE');
+    }
+
+    const ext = outMime === 'image/webp' ? 'webp' : (outMime === 'image/jpeg' ? 'jpg' : 'png');
+    return { blob, contentType: outMime, ext, width: tw, height: th };
+  } finally {
+    URL.revokeObjectURL(imgUrl);
+  }
+}
+
+// 檢查瀏覽器是否支援 WebP
+function isWebPSupported() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 1;
+  return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
 }
 
 // ===== 編輯名片：聯絡方式 CONTACT 版型切換（列表 / 小卡）=====

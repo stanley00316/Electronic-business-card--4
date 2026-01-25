@@ -46,3 +46,18 @@ jobs:
         env:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
+      - name: "Deploy function: upload-r2"
+        run: supabase functions deploy upload-r2 --project-ref "${SUPABASE_PROJECT_REF}"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: "Deploy function: google-auth"
+        run: supabase functions deploy google-auth --project-ref "${SUPABASE_PROJECT_REF}"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: "Deploy function: apple-auth"
+        run: supabase functions deploy apple-auth --project-ref "${SUPABASE_PROJECT_REF}"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
