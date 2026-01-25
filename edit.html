@@ -4012,6 +4012,13 @@ function showTaxIdInput() {
 function showAddressEditModal(addressType) {
   window.currentAddressType = addressType;
   
+  // 為對應項目加上 editing class 顯示刪除按鈕
+  const itemId = addressType + 'Item';
+  const item = document.getElementById(itemId);
+  if (item) {
+    item.classList.add('editing');
+  }
+  
   // 設定標題
   const titleMap = {
     'serviceLocation': { zh: '編輯服務據點', en: 'Edit Service Location' },
@@ -4062,6 +4069,15 @@ function closeAddressEditModal(event) {
     overlay.classList.remove('show');
     overlay.style.display = 'none';
     document.body.style.overflow = '';
+  }
+  
+  // 移除 editing class 隱藏刪除按鈕
+  if (window.currentAddressType) {
+    const itemId = window.currentAddressType + 'Item';
+    const item = document.getElementById(itemId);
+    if (item) {
+      item.classList.remove('editing');
+    }
   }
   
   window.currentAddressType = null;
@@ -4366,6 +4382,13 @@ function editAddress(addressType, event) {
 function editTaxId(event) {
   event.preventDefault();
   event.stopPropagation();
+  
+  // 為對應項目加上 editing class 顯示刪除按鈕
+  const taxIdItem = document.getElementById('taxIdItem');
+  if (taxIdItem) {
+    taxIdItem.classList.add('editing');
+  }
+  
   const zhInput = document.getElementById('previewTaxIdZh');
   if (zhInput) {
     setTimeout(() => {
@@ -4376,6 +4399,18 @@ function editTaxId(event) {
       selection.removeAllRanges();
       selection.addRange(range);
     }, 100);
+    
+    // 監聽 blur 事件以移除 editing class
+    const handleBlur = () => {
+      // 延遲執行，避免點擊刪除按鈕時提前移除 class
+      setTimeout(() => {
+        if (taxIdItem && !taxIdItem.contains(document.activeElement)) {
+          taxIdItem.classList.remove('editing');
+        }
+      }, 200);
+      zhInput.removeEventListener('blur', handleBlur);
+    };
+    zhInput.addEventListener('blur', handleBlur);
   }
 }
 

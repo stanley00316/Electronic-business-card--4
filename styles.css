@@ -4229,7 +4229,7 @@ body.theme-light .address-text {
   font-size: 18px;
   line-height: 1;
   flex-shrink: 0;
-  transition: all 0.2s;
+  transition: opacity 0.2s, transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4238,6 +4238,16 @@ body.theme-light .address-text {
   position: absolute;
   top: 10px;
   right: 12px;
+  
+  /* 預設隱藏，僅在編輯模式顯示 */
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 編輯中狀態顯示刪除按鈕 */
+.info-item.editing .info-delete-btn {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .info-delete-btn:hover {
