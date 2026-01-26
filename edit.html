@@ -2553,6 +2553,213 @@ function loadCardToUI(card) {
 
   // 8) 同步標語預覽（確保事件繫結與整理）
   try { if (typeof updateSlogansPreview === 'function') updateSlogansPreview(); } catch (e) {}
+
+  // 9) 恢復公司資訊區域的編輯功能
+  try { restoreCompanyInfoFunctionality(); } catch (e) { console.error('restoreCompanyInfoFunctionality error:', e); }
+
+  // 10) 恢復聯絡方式區域的編輯功能
+  try { restoreContactsFunctionality(); } catch (e) { console.error('restoreContactsFunctionality error:', e); }
+}
+
+// 恢復公司資訊區域的編輯功能（載入已保存數據後重新綁定事件）
+function restoreCompanyInfoFunctionality() {
+  const section = document.getElementById('companyInfoSection');
+  if (!section) return;
+
+  // 地址類型列表
+  const addressTypes = ['serviceLocation', 'mailingAddress', 'companyAddress'];
+
+  addressTypes.forEach(type => {
+    const itemId = type + 'Item';
+    const item = document.getElementById(itemId);
+    if (!item) return;
+
+    const typeCapitalized = type.charAt(0).toUpperCase() + type.slice(1);
+    const zhEl = document.getElementById(`preview${typeCapitalized}Zh`);
+    const enEl = document.getElementById(`preview${typeCapitalized}En`);
+
+    // 恢復中文地址的編輯功能
+    if (zhEl) {
+      zhEl.classList.add('edit-clickable');
+      zhEl.onclick = function(event) { editAddress(type, event); };
+      
+      // 恢復地圖連結
+      const mapLinkZh = zhEl.querySelector('.address-map-link');
+      if (mapLinkZh) {
+        mapLinkZh.onclick = function(event) { openMap(type, event); };
+      }
+    }
+
+    // 恢復英文地址的編輯功能
+    if (enEl) {
+      enEl.classList.add('edit-clickable');
+      enEl.onclick = function(event) { editAddress(type, event); };
+      
+      // 恢復地圖連結
+      const mapLinkEn = enEl.querySelector('.address-map-link');
+      if (mapLinkEn) {
+        mapLinkEn.onclick = function(event) { openMap(type, event); };
+      }
+    }
+
+    // 檢查並添加刪除按鈕（如果不存在）
+    if (!item.querySelector('.info-delete-btn')) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'info-delete-btn';
+      deleteBtn.title = '刪除';
+      deleteBtn.textContent = '×';
+      deleteBtn.onclick = function() { deleteCompanyInfo(type); };
+      item.appendChild(deleteBtn);
+    }
+  });
+
+  // 恢復統一編號的編輯功能
+  const taxIdItem = document.getElementById('taxIdItem');
+  if (taxIdItem) {
+    const taxIdZh = document.getElementById('previewTaxIdZh');
+    const taxIdEn = document.getElementById('previewTaxIdEn');
+
+    if (taxIdZh) {
+      taxIdZh.classList.add('edit-clickable');
+      taxIdZh.setAttribute('contenteditable', 'true');
+      taxIdZh.onclick = function(event) { editTaxId(event); };
+    }
+    if (taxIdEn) {
+      taxIdEn.classList.add('edit-clickable');
+      taxIdEn.setAttribute('contenteditable', 'true');
+      taxIdEn.onclick = function(event) { editTaxId(event); };
+    }
+
+    // 檢查並添加刪除按鈕
+    if (!taxIdItem.querySelector('.info-delete-btn')) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'info-delete-btn';
+      deleteBtn.title = '刪除';
+      deleteBtn.textContent = '×';
+      deleteBtn.onclick = function() { deleteCompanyInfo('taxId'); };
+      taxIdItem.appendChild(deleteBtn);
+    }
+  }
+
+  // 恢復自訂公司資訊項目的編輯功能
+  const customItems = section.querySelectorAll('.info-item-custom');
+  customItems.forEach(item => {
+    const labelEl = item.querySelector('.info-label');
+    const valueZhEl = item.querySelector('.info-value.lang-zh');
+    const valueEnEl = item.querySelector('.info-value.lang-en');
+
+    if (labelEl) {
+      labelEl.classList.add('edit-clickable');
+      labelEl.setAttribute('contenteditable', 'true');
+    }
+    if (valueZhEl) {
+      valueZhEl.classList.add('edit-clickable');
+      valueZhEl.setAttribute('contenteditable', 'true');
+    }
+    if (valueEnEl) {
+      valueEnEl.classList.add('edit-clickable');
+      valueEnEl.setAttribute('contenteditable', 'true');
+    }
+
+    // 檢查並添加刪除按鈕
+    if (!item.querySelector('.info-delete-btn')) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'info-delete-btn';
+      deleteBtn.title = '刪除';
+      deleteBtn.textContent = '×';
+      deleteBtn.onclick = function() { item.remove(); };
+      item.appendChild(deleteBtn);
+    }
+  });
+
+  // 檢查並添加「新增公司資訊」按鈕（如果不存在）
+  if (!section.querySelector('.edit-add-btn')) {
+    const addBtnZh = document.createElement('button');
+    addBtnZh.className = 'edit-add-btn lang-zh';
+    addBtnZh.textContent = '+ 新增公司資訊';
+    addBtnZh.onclick = function(event) { showCompanyInfoTypeModal(event); };
+    section.appendChild(addBtnZh);
+
+    const addBtnEn = document.createElement('button');
+    addBtnEn.className = 'edit-add-btn lang-en';
+    addBtnEn.textContent = '+ Add Company Info';
+    addBtnEn.onclick = function(event) { showCompanyInfoTypeModal(event); };
+    section.appendChild(addBtnEn);
+  }
+}
+
+// 恢復聯絡方式區域的編輯功能（載入已保存數據後重新綁定事件）
+function restoreContactsFunctionality() {
+  const contacts = document.getElementById('previewContacts');
+  if (!contacts) return;
+
+  // 恢復所有聯絡方式按鈕的編輯功能
+  const contactBtns = contacts.querySelectorAll('a.btn');
+  contactBtns.forEach(btn => {
+    btn.classList.add('edit-clickable');
+    
+    // 根據按鈕類型和 href 判斷聯絡方式類型
+    const href = btn.getAttribute('href') || '';
+    let type = 'website';
+    
+    if (href.startsWith('tel:')) {
+      type = 'call';
+    } else if (href.startsWith('mailto:')) {
+      type = 'email';
+    } else if (href.includes('line.me') || href.includes('line://')) {
+      type = 'line';
+    } else if (href.endsWith('.vcf')) {
+      type = 'vcf';
+    } else if (href.includes('wa.me') || href.includes('whatsapp')) {
+      type = 'whatsapp';
+    } else if (href.includes('facebook.com') || href.includes('fb.com')) {
+      type = 'facebook';
+    } else if (href.includes('instagram.com')) {
+      type = 'instagram';
+    } else if (href.includes('linkedin.com')) {
+      type = 'linkedin';
+    } else if (href.includes('twitter.com') || href.includes('x.com')) {
+      type = 'twitter';
+    } else if (href.includes('youtube.com')) {
+      type = 'youtube';
+    } else if (href.includes('wechat') || href.includes('weixin')) {
+      type = 'wechat';
+    }
+
+    const currentLink = href;
+    btn.onclick = function(event) { editContact(event, type, currentLink); };
+  });
+
+  // 恢復刪除按鈕
+  const wrappers = contacts.querySelectorAll('.contact-btn-wrapper');
+  wrappers.forEach(wrapper => {
+    if (!wrapper.querySelector('.contact-delete-btn')) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'contact-delete-btn';
+      deleteBtn.title = '刪除';
+      deleteBtn.textContent = '✕';
+      deleteBtn.onclick = function(event) {
+        event.stopPropagation();
+        deleteContactButton(wrapper.querySelector('a'));
+      };
+      wrapper.appendChild(deleteBtn);
+    }
+  });
+
+  // 檢查並添加「新增聯絡方式」按鈕（如果不存在）
+  if (!contacts.querySelector('.edit-add-btn')) {
+    const addBtnZh = document.createElement('button');
+    addBtnZh.className = 'edit-add-btn lang-zh';
+    addBtnZh.textContent = '+ 新增聯絡方式';
+    addBtnZh.onclick = function(event) { addContact(event); };
+    contacts.appendChild(addBtnZh);
+
+    const addBtnEn = document.createElement('button');
+    addBtnEn.className = 'edit-add-btn lang-en';
+    addBtnEn.textContent = '+ Add Contact Method';
+    addBtnEn.onclick = function(event) { addContact(event); };
+    contacts.appendChild(addBtnEn);
+  }
 }
 
 // 聚焦編輯
