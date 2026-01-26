@@ -987,7 +987,7 @@ window.UVACO_CLOUD = (function () {
   // 生成邀請連結
   function generateInviteLink(userId) {
     const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
-    return `${baseUrl}auth.html?ref=${encodeURIComponent(userId)}`;
+    return `${baseUrl}auth.html?ref=${encodeURIComponent(userId)}&next=edit.html`;
   }
 
   /* =========================================================================
