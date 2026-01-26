@@ -1105,7 +1105,7 @@ window.UVACO_CLOUD = (function () {
     // 只取必要欄位，避免依賴 created_at / note 等不存在欄位
     const { data, error } = await client
       .from('admin_users')
-      .select('user_id,managed_company');
+      .select('user_id,target_company');
     if (error) return { rows: [] };
     return { rows: data || [] };
   }
@@ -1131,7 +1131,7 @@ window.UVACO_CLOUD = (function () {
       .from('admin_users')
       .insert({
         user_id: uid,
-        managed_company: (String(managedCompany || '').trim() || null)
+        target_company: (String(managedCompany || '').trim() || null)
       });
 
     if (error) throw error;
@@ -1395,7 +1395,7 @@ window.UVACO_CLOUD = (function () {
     // 檢查 admin_users 表
     const { data, error } = await client
       .from('admin_users')
-      .select('user_id, managed_company')
+      .select('user_id, target_company')
       .eq('user_id', ctx.userId)
       .maybeSingle();
       
@@ -1420,7 +1420,7 @@ window.UVACO_CLOUD = (function () {
     // canManageAdmins: 是否有權管理其他管理員（需在 admin_allowlist 中）
     return { 
       isAdmin: true, 
-      managedCompany: data.managed_company || null,
+      managedCompany: data.target_company || null,
       canManageAdmins: canManageAdmins
     };
   }
