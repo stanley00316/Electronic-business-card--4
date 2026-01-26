@@ -9,8 +9,9 @@ create table if not exists public.admin_allowlist (
 );
 
 -- 你的管理者 email
+-- 預設超級管理員（請根據實際需求修改）
 insert into public.admin_allowlist (email, enabled, note)
-values ('[REDACTED_ADMIN_EMAIL]', true, '管理者')
+values ('[REDACTED_ADMIN_EMAIL]', true, '超級管理員')
 on conflict (email) do update set enabled = excluded.enabled;
 
 -- helpers：取得 jwt email（Supabase Auth）
