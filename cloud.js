@@ -1408,11 +1408,14 @@ window.UVACO_CLOUD = (function () {
       const { data: isAdminResult, error: rpcError } = await client
         .rpc('is_admin');
       
-      if (!rpcError && isAdminResult === true) {
+      console.log('[isAdmin] RPC result:', isAdminResult, 'error:', rpcError);
+      
+      // 處理各種可能的返回值格式
+      if (!rpcError && (isAdminResult === true || isAdminResult === 'true' || isAdminResult === 't' || isAdminResult === 1)) {
         canManageAdmins = true;
       }
     } catch (e) {
-      // is_admin RPC 可能失敗，忽略錯誤
+      console.error('[isAdmin] RPC error:', e);
     }
     
     // 回傳物件：{ isAdmin: true, managedCompany: 'Tesla' or null, canManageAdmins: boolean }
