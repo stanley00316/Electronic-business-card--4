@@ -1401,21 +1401,35 @@ window.UVACO_CLOUD = (function () {
       
     if (error || !data) return false;
     
-    // 檢查是否為超級管理員（使用資料庫的 is_admin() 函數）
-    // is_admin() 函數會檢查當前用戶的 email 是否在 admin_allowlist 表中且 enabled = true
+    // 檢查是否為超級管理員
+    // 直接獲取用戶 email 並查詢 admin_allowlist 表
     let canManageAdmins = false;
     try {
-      const { data: isAdminResult, error: rpcError } = await client
-        .rpc('is_admin');
+      // 獲取當前用戶的 email
+      const { data: { user } } = await client.auth.getUser();
+      const userEmail = user?.email;
+      console.log('[isAdmin] user email:', userEmail);
       
-      console.log('[isAdmin] RPC result:', isAdminResult, 'error:', rpcError);
-      
-      // 處理各種可能的返回值格式
-      if (!rpcError && (isAdminResult === true || isAdminResult === 'true' || isAdminResult === 't' || isAdminResult === 1)) {
-        canManageAdmins = true;
+      if (userEmail) {
+        // 直接查詢 admin_allowlist 表
+        const { data: allowlistData, error: allowlistError } = await client
+          .from('admin_allowlist')
+          .select('email, enabled')
+          .eq('enabled', true);
+        
+        console.log('[isAdmin] allowlist data:', allowlistData, 'error:', allowlistError);
+        
+        if (!allowlistError && allowlistData) {
+          // 檢查用戶 email 是否在 allowlist 中（不區分大小寫）
+          const emailLower = userEmail.toLowerCase();
+          canManageAdmins = allowlistData.some(item => 
+            item.email && item.email.toLowerCase() === emailLower
+          );
+          console.log('[isAdmin] canManageAdmins:', canManageAdmins);
+        }
       }
     } catch (e) {
-      console.error('[isAdmin] RPC error:', e);
+      console.error('[isAdmin] error:', e);
     }
     
     // 回傳物件：{ isAdmin: true, managedCompany: 'Tesla' or null, canManageAdmins: boolean }
