@@ -6,7 +6,7 @@
 -- 同時檢查：
 -- (a) admin_allowlist 表（透過 email）- 用於 Supabase Auth 或有 email 的 JWT
 -- (b) admin_users 表（透過 user_id）- 用於 LINE 登入等自訂 JWT
-DROP FUNCTION IF EXISTS public.is_admin();
+-- 注意：使用 CREATE OR REPLACE 而不是 DROP，避免破壞依賴的 RLS 政策
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
 LANGUAGE sql
