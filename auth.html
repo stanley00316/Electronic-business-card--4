@@ -258,8 +258,8 @@
       
       <!-- 簡潔說明 -->
       <div class="auth-desc">
-        <span class="lang-zh">請選擇登入方式，開始建立您的專屬電子名片</span>
-        <span class="lang-en">Choose a login method to create your digital business card</span>
+        <span class="lang-zh">使用 LINE 帳號登入，開始建立您的專屬電子名片</span>
+        <span class="lang-en">Sign in with LINE to create your digital business card</span>
       </div>
 
       <!-- LINE 登入按鈕 -->
@@ -271,24 +271,6 @@
         </span>
       </button>
       
-      <!-- Google 登入按鈕（只在設定了 GOOGLE_CLIENT_ID 時顯示） -->
-      <button type="button" class="auth-btn" id="googleLoginBtn" onclick="startGoogle()" style="display: none; background: #4285F4;">
-        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-          <span class="lang-zh">使用 Google 登入</span>
-          <span class="lang-en">Sign in with Google</span>
-        </span>
-      </button>
-      
-      <!-- Apple 登入按鈕（只在設定了 APPLE_CLIENT_ID 時顯示） -->
-      <button type="button" class="auth-btn" id="appleLoginBtn" onclick="startApple()" style="display: none; background: #000;">
-        <span style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-          <span class="lang-zh">使用 Apple 登入</span>
-          <span class="lang-en">Sign in with Apple</span>
-        </span>
-      </button>
-
       <div class="auth-divider"></div>
 
       <!-- 新用戶引導區塊 -->
@@ -301,8 +283,8 @@
           <div class="guide-step">
             <span class="step-icon">1</span>
             <span class="step-text">
-              <span class="lang-zh">選擇 LINE 或其他方式登入</span>
-              <span class="lang-en">Sign in with LINE or other methods</span>
+              <span class="lang-zh">使用 LINE 帳號登入</span>
+              <span class="lang-en">Sign in with your LINE account</span>
             </span>
           </div>
           <div class="guide-step">
@@ -454,54 +436,17 @@
         return;
       }
 
-      // 顯示已設定的登入方式按鈕
-      if (UVACO_CLOUD.hasGoogleConfig && UVACO_CLOUD.hasGoogleConfig()) {
-        document.getElementById('googleLoginBtn').style.display = 'block';
-      }
-      if (UVACO_CLOUD.hasAppleConfig && UVACO_CLOUD.hasAppleConfig()) {
-        document.getElementById('appleLoginBtn').style.display = 'block';
-      }
-
-      // 處理 OAuth callback
-      var url = new URL(window.location.href);
-      var state = url.searchParams.get('state') || '';
-      
-      if (state.startsWith('google_')) {
-        var googleRes = await UVACO_CLOUD.finishGoogleLoginFromUrl();
-        if (googleRes && googleRes.ok === false) {
-          var detail = '';
-          try {
-            if (googleRes.status) detail += 'HTTP ' + googleRes.status + ' ';
-            if (googleRes.error) detail += String(googleRes.error) + ' ';
-            if (googleRes.detail) detail += JSON.stringify(googleRes.detail);
-          } catch (e) {}
-          setStatus('err', 'Google 登入失敗，請重試。' + (detail ? ('\n' + detail) : ''));
-          return;
-        }
-      } else if (state.startsWith('apple_')) {
-        var appleRes = await UVACO_CLOUD.finishAppleLoginFromUrl();
-        if (appleRes && appleRes.ok === false) {
-          var detail = '';
-          try {
-            if (appleRes.status) detail += 'HTTP ' + appleRes.status + ' ';
-            if (appleRes.error) detail += String(appleRes.error) + ' ';
-            if (appleRes.detail) detail += JSON.stringify(appleRes.detail);
-          } catch (e) {}
-          setStatus('err', 'Apple 登入失敗，請重試。' + (detail ? ('\n' + detail) : ''));
-          return;
-        }
-      } else {
-        var lineRes = await UVACO_CLOUD.finishLineLoginFromUrl();
-        if (lineRes && lineRes.ok === false) {
-          var detail = '';
-          try {
-            if (lineRes.status) detail += 'HTTP ' + lineRes.status + ' ';
-            if (lineRes.error) detail += String(lineRes.error) + ' ';
-            if (lineRes.detail) detail += JSON.stringify(lineRes.detail);
-          } catch (e) {}
-          setStatus('err', 'LINE 登入失敗，請重試。' + (detail ? ('\n' + detail) : ''));
-          return;
-        }
+      // 處理 LINE OAuth callback
+      var lineRes = await UVACO_CLOUD.finishLineLoginFromUrl();
+      if (lineRes && lineRes.ok === false) {
+        var detail = '';
+        try {
+          if (lineRes.status) detail += 'HTTP ' + lineRes.status + ' ';
+          if (lineRes.error) detail += String(lineRes.error) + ' ';
+          if (lineRes.detail) detail += JSON.stringify(lineRes.detail);
+        } catch (e) {}
+        setStatus('err', 'LINE 登入失敗，請重試。' + (detail ? ('\n' + detail) : ''));
+        return;
       }
 
       var s = await UVACO_CLOUD.getSession();
@@ -520,68 +465,25 @@
       }
     }
 
-    function startGoogle() {
-      try {
-        UVACO_CLOUD.startGoogleLogin(getNext());
-      } catch (e) {
-        setStatus('err', 'Google 登入尚未設定完成。');
-      }
-    }
-
-    function startApple() {
-      if (UVACO_CLOUD.hasAppleConfig && UVACO_CLOUD.hasAppleConfig()) {
-        try {
-          UVACO_CLOUD.startAppleLogin(getNext());
-        } catch (e) {
-          setStatus('err', 'Apple 登入尚未設定完成。');
-        }
-      } else {
-        alert('Apple 登入尚未啟用。');
-      }
-    }
-
     async function diagAll() {
       try {
-        var results = { line: null, google: null, apple: null };
-        results.line = await UVACO_CLOUD.lineAuthDiag();
-        if (UVACO_CLOUD.hasGoogleConfig && UVACO_CLOUD.hasGoogleConfig()) {
-          results.google = await UVACO_CLOUD.googleAuthDiag();
-        }
-        if (UVACO_CLOUD.hasAppleConfig && UVACO_CLOUD.hasAppleConfig()) {
-          results.apple = await UVACO_CLOUD.appleAuthDiag();
-        }
-        setStatus('ok', '診斷結果：\n' + JSON.stringify(results, null, 2));
+        var result = await UVACO_CLOUD.lineAuthDiag();
+        setStatus('ok', 'LINE 登入診斷結果：\n' + JSON.stringify(result, null, 2));
       } catch (e) {
         setStatus('err', '診斷失敗：' + String(e && e.message ? e.message : e));
       }
     }
 
     function explainAuth() {
-      const zhMsg = '=== 登入方式設定說明 ===\n\n' +
-        '【LINE 登入】\n' +
+      const zhMsg = '=== LINE 登入設定說明 ===\n\n' +
         '1) Supabase SQL Editor 執行：supabase-setup.sql\n' +
         '2) Supabase Edge Functions 設定 Secrets\n' +
-        '3) 部署 Edge Function：line-auth\n\n' +
-        '【Google 登入】\n' +
-        '1) Google Cloud Console 建立 OAuth 2.0 Client\n' +
-        '2) 在 cloud.js 填入 GOOGLE_CLIENT_ID\n' +
-        '3) 部署 Edge Function：google-auth\n\n' +
-        '【Apple 登入】\n' +
-        '需要 Apple Developer Program ($99/年)\n' +
-        '詳見 oauth-providers-setup.sql';
+        '3) 部署 Edge Function：line-auth';
       
-      const enMsg = '=== Login Setup Guide ===\n\n' +
-        '[LINE Login]\n' +
+      const enMsg = '=== LINE Login Setup Guide ===\n\n' +
         '1) Run supabase-setup.sql in Supabase SQL Editor\n' +
         '2) Set Secrets in Supabase Edge Functions\n' +
-        '3) Deploy Edge Function: line-auth\n\n' +
-        '[Google Login]\n' +
-        '1) Create OAuth 2.0 Client in Google Cloud Console\n' +
-        '2) Set GOOGLE_CLIENT_ID in cloud.js\n' +
-        '3) Deploy Edge Function: google-auth\n\n' +
-        '[Apple Login]\n' +
-        'Requires Apple Developer Program ($99/year)\n' +
-        'See oauth-providers-setup.sql for details';
+        '3) Deploy Edge Function: line-auth';
       
       const lang = localStorage.getItem('lang') || 'zh';
       alert(lang === 'zh' ? zhMsg : enMsg);
