@@ -1405,9 +1405,9 @@ window.UVACO_CLOUD = (function () {
     // 直接獲取用戶 email 並查詢 admin_allowlist 表
     let canManageAdmins = false;
     try {
-      // 獲取當前用戶的 email
-      const { data: { user } } = await client.auth.getUser();
-      const userEmail = user?.email;
+      // 從 session 獲取當前用戶的 email
+      const { data: { session } } = await client.auth.getSession();
+      const userEmail = session?.user?.email;
       console.log('[isAdmin] user email:', userEmail);
       
       if (userEmail) {
