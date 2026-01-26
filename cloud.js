@@ -265,6 +265,22 @@ window.UVACO_CLOUD = (function () {
     }
   }
 
+  // 從 JWT 中解析 email
+  function decodeJwtEmail(token) {
+    try {
+      const parts = String(token || '').split('.');
+      if (parts.length < 2) return '';
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
+      const json = atob(b64 + pad);
+      const payload = JSON.parse(json);
+      // 嘗試從多個位置獲取 email
+      return String(payload?.email || payload?.user_metadata?.email || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
   // 檢查 JWT 是否已過期
   function isJwtExpired(token) {
     try {
@@ -1405,15 +1421,35 @@ window.UVACO_CLOUD = (function () {
     // 獲取用戶 email 並查詢 admin_allowlist 表
     let canManageAdmins = false;
     try {
-      // 從 cards 表獲取用戶的 email（因為 LINE 登入時 session 中沒有 email）
-      const { data: cardData } = await client
-        .from('cards')
-        .select('email')
-        .eq('user_id', ctx.userId)
-        .maybeSingle();
+      // 嘗試多種方式獲取用戶 email
+      let userEmail = '';
       
-      const userEmail = cardData?.email;
-      console.log('[isAdmin] user email from cards:', userEmail);
+      // 1. 從 JWT token 中獲取
+      const customJwt = getCustomJwt();
+      if (customJwt) {
+        userEmail = decodeJwtEmail(customJwt);
+        console.log('[isAdmin] email from JWT:', userEmail);
+      }
+      
+      // 2. 如果 JWT 中沒有，從 cards 表獲取
+      if (!userEmail) {
+        const { data: cardData } = await client
+          .from('cards')
+          .select('email')
+          .eq('user_id', ctx.userId)
+          .maybeSingle();
+        userEmail = cardData?.email || '';
+        console.log('[isAdmin] email from cards:', userEmail);
+      }
+      
+      // 3. 如果還是沒有，用 userId 直接在 admin_users 表中檢查（無 target_company 就是 super admin）
+      if (!userEmail && !data.target_company) {
+        // 沒有 managed company，可能是 super admin
+        canManageAdmins = true;
+        console.log('[isAdmin] no target_company, assuming super admin');
+      }
+      
+      console.log('[isAdmin] final userEmail:', userEmail);
       
       if (userEmail) {
         // 直接查詢 admin_allowlist 表
