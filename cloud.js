@@ -1689,7 +1689,7 @@ window.UVACO_CLOUD = (function () {
     return new Date(endDate) > new Date();
   }
 
-  // 取得所有訂閱（管理員用）
+  // 取得所有訂閱（管理員用）- 顯示所有 cards 用戶
   async function getAllSubscriptionsAdmin() {
     const ctx = await getAuthContext();
     if (!ctx.ok) return { rows: [] };
@@ -1698,53 +1698,82 @@ window.UVACO_CLOUD = (function () {
     if (!adminStatus || !adminStatus.isAdmin) return { rows: [] };
     
     try {
-      // 聯結 cards 表取得用戶資訊
-      const { data, error } = await ctx.client
-        .from('subscriptions')
-        .select(`
-          *,
-          cards:user_id (name, company, email)
-        `)
-        .order('created_at', { ascending: false });
+      // 從 cards 表查詢，LEFT JOIN subscriptions 以顯示所有用戶
+      const { data: cardsData, error: cardsError } = await ctx.client
+        .from('cards')
+        .select('user_id, name, company, email, updated_at')
+        .order('updated_at', { ascending: false });
       
-      if (error) {
-        console.error('[Subscription] 取得所有訂閱失敗:', error);
+      if (cardsError) {
+        console.error('[Subscription] 取得名片列表失敗:', cardsError);
         return { rows: [] };
       }
       
-      // 計算每個用戶的剩餘天數
-      const rows = (data || []).map(sub => {
-        let endDate;
-        if (sub.subscription_end_at) {
-          endDate = new Date(sub.subscription_end_at);
-        } else if (sub.trial_end_at) {
-          endDate = new Date(sub.trial_end_at);
-        } else {
-          const trialStart = new Date(sub.trial_start_at || Date.now());
-          endDate = new Date(trialStart);
-          endDate.setDate(endDate.getDate() + 30);
-        }
+      // 取得所有訂閱記錄
+      const { data: subsData, error: subsError } = await ctx.client
+        .from('subscriptions')
+        .select('*');
+      
+      if (subsError) {
+        console.error('[Subscription] 取得訂閱列表失敗:', subsError);
+      }
+      
+      // 建立訂閱查詢 map
+      const subsMap = {};
+      (subsData || []).forEach(sub => {
+        subsMap[sub.user_id] = sub;
+      });
+      
+      // 合併資料，計算每個用戶的剩餘天數
+      const rows = (cardsData || []).map(card => {
+        const sub = subsMap[card.user_id];
         
-        if (sub.referral_bonus_days > 0) {
-          endDate.setDate(endDate.getDate() + sub.referral_bonus_days);
+        let endDate;
+        let status = 'none';  // 沒有訂閱記錄
+        
+        if (sub) {
+          status = sub.status || 'trial';
+          if (sub.subscription_end_at) {
+            endDate = new Date(sub.subscription_end_at);
+          } else if (sub.trial_end_at) {
+            endDate = new Date(sub.trial_end_at);
+          } else {
+            const trialStart = new Date(sub.trial_start_at || Date.now());
+            endDate = new Date(trialStart);
+            endDate.setDate(endDate.getDate() + 30);
+          }
+          
+          if (sub.referral_bonus_days > 0) {
+            endDate.setDate(endDate.getDate() + sub.referral_bonus_days);
+          }
+        } else {
+          // 沒有訂閱記錄，顯示為未啟用
+          endDate = new Date();
         }
         
         const now = new Date();
-        const daysLeft = Math.max(0, Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)));
+        const daysLeft = sub ? Math.max(0, Math.ceil((endDate - now) / (1000 * 60 * 60 * 24))) : 0;
         
         return {
-          ...sub,
+          user_id: card.user_id,
+          status: status,
+          trial_start_at: sub?.trial_start_at || null,
+          trial_end_at: sub?.trial_end_at || null,
+          subscription_start_at: sub?.subscription_start_at || null,
+          subscription_end_at: sub?.subscription_end_at || null,
+          referral_bonus_days: sub?.referral_bonus_days || 0,
           endDate: endDate.toISOString(),
           daysLeft,
           isActive: daysLeft > 0,
-          userName: sub.cards?.name || '-',
-          userCompany: sub.cards?.company || '-',
-          userEmail: sub.cards?.email || '-'
+          userName: card.name || '-',
+          userCompany: card.company || '-',
+          userEmail: card.email || '-'
         };
       });
       
       return { rows };
     } catch (e) {
+      console.error('[Subscription] getAllSubscriptionsAdmin 錯誤:', e);
       return { rows: [] };
     }
   }

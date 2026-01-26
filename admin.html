@@ -754,13 +754,15 @@ function renderSubscriptionTable(data) {
       trial: '#3b82f6',
       active: '#22c55e',
       expired: '#ef4444',
-      cancelled: '#9ca3af'
+      cancelled: '#9ca3af',
+      none: '#f59e0b'  // 未啟用（橙色）
     };
     const statusLabels = {
       trial: '試用中',
       active: '訂閱中',
       expired: '已過期',
-      cancelled: '已取消'
+      cancelled: '已取消',
+      none: '未啟用'
     };
     
     const statusColor = statusColors[row.status] || '#9ca3af';
