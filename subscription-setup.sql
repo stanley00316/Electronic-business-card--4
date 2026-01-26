@@ -152,6 +152,12 @@ CREATE POLICY "subscriptions_admin_update" ON public.subscriptions
 FOR UPDATE TO authenticated
 USING (public.is_admin());
 
+-- 管理員可以為任何用戶新增訂閱
+DROP POLICY IF EXISTS "subscriptions_admin_insert" ON public.subscriptions;
+CREATE POLICY "subscriptions_admin_insert" ON public.subscriptions
+FOR INSERT TO authenticated
+WITH CHECK (public.is_admin());
+
 -- payment_history 表
 ALTER TABLE public.payment_history ENABLE ROW LEVEL SECURITY;
 
