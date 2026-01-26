@@ -1402,13 +1402,18 @@ window.UVACO_CLOUD = (function () {
     if (error || !data) return false;
     
     // 檢查是否為超級管理員
-    // 直接獲取用戶 email 並查詢 admin_allowlist 表
+    // 獲取用戶 email 並查詢 admin_allowlist 表
     let canManageAdmins = false;
     try {
-      // 從 session 獲取當前用戶的 email
-      const { data: { session } } = await client.auth.getSession();
-      const userEmail = session?.user?.email;
-      console.log('[isAdmin] user email:', userEmail);
+      // 從 cards 表獲取用戶的 email（因為 LINE 登入時 session 中沒有 email）
+      const { data: cardData } = await client
+        .from('cards')
+        .select('email')
+        .eq('user_id', ctx.userId)
+        .maybeSingle();
+      
+      const userEmail = cardData?.email;
+      console.log('[isAdmin] user email from cards:', userEmail);
       
       if (userEmail) {
         // 直接查詢 admin_allowlist 表
