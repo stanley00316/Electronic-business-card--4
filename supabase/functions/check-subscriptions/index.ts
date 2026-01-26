@@ -102,7 +102,7 @@ serve(async (req: Request) => {
 
       // 如果推薦人數有變化，更新獎勵
       if (referralCount !== lastCheck) {
-        const bonusDays = Math.floor(referralCount / 3) * 180
+        const bonusDays = referralCount * 30  // 每推薦 1 人 = 30 天
 
         await supabase
           .from('subscriptions')

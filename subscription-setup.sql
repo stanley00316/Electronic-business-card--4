@@ -261,15 +261,15 @@ BEGIN
 END;
 $$;
 
--- 計算推薦獎勵天數（每 3 人 = 180 天）
+-- 計算推薦獎勵天數（每推薦 1 人 = 30 天）
 CREATE OR REPLACE FUNCTION public.calculate_referral_bonus(p_referral_count INTEGER)
 RETURNS INTEGER
 LANGUAGE plpgsql
 IMMUTABLE
 AS $$
 BEGIN
-  -- 每 3 人給 180 天
-  RETURN (p_referral_count / 3) * 180;
+  -- 每推薦 1 人給 30 天
+  RETURN p_referral_count * 30;
 END;
 $$;
 
@@ -413,3 +413,26 @@ DROP POLICY IF EXISTS "cards_directory_select" ON public.cards;
 CREATE POLICY "cards_directory_select" ON public.cards
 FOR SELECT TO authenticated
 USING (is_visible = true OR user_id = auth.uid() OR public.is_admin());
+
+-- ===== 定時任務設定 (Cron Job) =====
+-- 用途：每日自動檢查過期訂閱並隱藏名片
+-- 注意：需要先啟用 pg_cron 擴展（在 Supabase Dashboard > Database > Extensions 中啟用）
+
+-- 啟用 pg_cron 擴展（如尚未啟用）
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- 設定每日 00:00 (UTC) 執行過期檢查
+-- SELECT cron.schedule(
+--   'daily-check-expired-subscriptions',  -- 任務名稱
+--   '0 0 * * *',                           -- Cron 表達式：每日 00:00
+--   $$SELECT public.check_expired_subscriptions()$$
+-- );
+
+-- 查看已排程的任務
+-- SELECT * FROM cron.job;
+
+-- 查看任務執行記錄
+-- SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 20;
+
+-- 刪除定時任務（如需移除）
+-- SELECT cron.unschedule('daily-check-expired-subscriptions');
