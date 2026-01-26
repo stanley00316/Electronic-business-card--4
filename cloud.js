@@ -1866,6 +1866,139 @@ window.UVACO_CLOUD = (function () {
     }
   }
 
+  // 停用訂閱（管理員用）
+  async function deactivateSubscription(targetUserId, reason) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+    
+    const adminStatus = await isAdmin();
+    if (!adminStatus || !adminStatus.isAdmin) {
+      return { success: false, error: 'NOT_ADMIN' };
+    }
+    
+    try {
+      // 更新訂閱狀態為 cancelled
+      const { data: sub } = await ctx.client
+        .from('subscriptions')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+      
+      if (sub) {
+        // 更新現有訂閱
+        const { error: subError } = await ctx.client
+          .from('subscriptions')
+          .update({
+            status: 'cancelled',
+            extend_reason: reason || '管理員手動停用',
+            extended_by: ctx.userId,
+            extended_at: new Date().toISOString()
+          })
+          .eq('user_id', targetUserId);
+        
+        if (subError) throw subError;
+      } else {
+        // 建立 cancelled 狀態的訂閱記錄
+        const { error: insertError } = await ctx.client
+          .from('subscriptions')
+          .insert({
+            user_id: targetUserId,
+            status: 'cancelled',
+            extend_reason: reason || '管理員手動停用',
+            extended_by: ctx.userId,
+            extended_at: new Date().toISOString()
+          });
+        
+        if (insertError) throw insertError;
+      }
+      
+      // 隱藏名片
+      const { error: cardError } = await ctx.client
+        .from('cards')
+        .update({ is_visible: false })
+        .eq('user_id', targetUserId);
+      
+      if (cardError) {
+        console.error('[Subscription] 隱藏名片失敗:', cardError);
+      }
+      
+      return { success: true };
+    } catch (e) {
+      console.error('[Subscription] 停用訂閱失敗:', e);
+      return { success: false, error: e.message || String(e) };
+    }
+  }
+
+  // 重新啟用訂閱（管理員用）
+  async function reactivateUserSubscription(targetUserId, days, reason) {
+    const ctx = await getAuthContext();
+    if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+    
+    const adminStatus = await isAdmin();
+    if (!adminStatus || !adminStatus.isAdmin) {
+      return { success: false, error: 'NOT_ADMIN' };
+    }
+    
+    const extendDays = days || 30;
+    
+    try {
+      const newEnd = new Date();
+      newEnd.setDate(newEnd.getDate() + extendDays);
+      
+      // 更新訂閱狀態
+      const { data: sub } = await ctx.client
+        .from('subscriptions')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+      
+      if (sub) {
+        const { error: subError } = await ctx.client
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            subscription_start_at: new Date().toISOString(),
+            subscription_end_at: newEnd.toISOString(),
+            extend_reason: reason || '管理員重新啟用',
+            extended_by: ctx.userId,
+            extended_at: new Date().toISOString()
+          })
+          .eq('user_id', targetUserId);
+        
+        if (subError) throw subError;
+      } else {
+        const { error: insertError } = await ctx.client
+          .from('subscriptions')
+          .insert({
+            user_id: targetUserId,
+            status: 'active',
+            subscription_start_at: new Date().toISOString(),
+            subscription_end_at: newEnd.toISOString(),
+            extend_reason: reason || '管理員重新啟用',
+            extended_by: ctx.userId,
+            extended_at: new Date().toISOString()
+          });
+        
+        if (insertError) throw insertError;
+      }
+      
+      // 顯示名片
+      const { error: cardError } = await ctx.client
+        .from('cards')
+        .update({ is_visible: true })
+        .eq('user_id', targetUserId);
+      
+      if (cardError) {
+        console.error('[Subscription] 顯示名片失敗:', cardError);
+      }
+      
+      return { success: true, newEndDate: newEnd.toISOString() };
+    } catch (e) {
+      console.error('[Subscription] 重新啟用訂閱失敗:', e);
+      return { success: false, error: e.message || String(e) };
+    }
+  }
+
   // 取得價格方案
   async function getPricingPlans(includeInactive = false) {
     const ctx = await getAuthContext();
@@ -2193,6 +2326,8 @@ window.UVACO_CLOUD = (function () {
     isSubscriptionActive,
     getAllSubscriptionsAdmin,
     extendSubscription,
+    deactivateSubscription,
+    reactivateUserSubscription,
     getPricingPlans,
     savePricingPlan,
     deletePricingPlan,

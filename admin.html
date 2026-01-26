@@ -769,6 +769,13 @@ function renderSubscriptionTable(data) {
     const statusLabel = statusLabels[row.status] || row.status;
     const endDate = row.endDate ? new Date(row.endDate).toLocaleDateString('zh-TW') : '-';
     
+    // 根據狀態決定顯示的按鈕
+    const isCancelled = row.status === 'cancelled';
+    const actionButtons = isCancelled
+      ? `<button class="btn btn-green" onclick="openReactivateModal('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}')">重新啟用</button>`
+      : `<button class="btn btn-green" onclick="openExtendModal('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}', ${row.daysLeft}, '${endDate}')">延長訂閱</button>
+         <button class="btn btn-outline" style="color:#ef4444;border-color:#ef4444;" onclick="confirmDeactivate('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}')">停用</button>`;
+    
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td data-label="姓名">${row.userName || '未命名'}</td>
@@ -778,7 +785,7 @@ function renderSubscriptionTable(data) {
       <td data-label="到期日">${endDate}</td>
       <td class="actions-cell">
         <div class="actions-wrap">
-          <button class="btn btn-green" onclick="openExtendModal('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}', ${row.daysLeft}, '${endDate}')">延長訂閱</button>
+          ${actionButtons}
         </div>
       </td>
     `;
@@ -795,6 +802,14 @@ function openExtendModal(userId, userName, daysLeft, endDate) {
   document.getElementById('subTargetUserId').value = userId;
   document.getElementById('extendDaysInput').value = '';
   document.getElementById('extendReasonInput').value = '';
+  
+  // 確保按鈕是延長訂閱
+  const confirmBtn = document.querySelector('#subscriptionModal .btn-green');
+  if (confirmBtn) {
+    confirmBtn.textContent = '確認延長';
+    confirmBtn.onclick = confirmExtendSubscription;
+  }
+  
   document.getElementById('subscriptionModal').style.display = 'flex';
 }
 
@@ -830,6 +845,82 @@ async function confirmExtendSubscription() {
   } catch (e) {
     console.error('延長訂閱錯誤:', e);
     alert('延長失敗：' + (e.message || e));
+  }
+}
+
+// 停用訂閱確認
+async function confirmDeactivate(userId, userName) {
+  const reason = prompt(`確定要停用「${userName}」的訂閱嗎？\n\n停用後：\n- 名片將無法被外部瀏覽\n- 用戶自己仍可查看\n\n請輸入停用原因（選填）：`);
+  
+  if (reason === null) return; // 用戶點擊取消
+  
+  try {
+    const result = await UVACO_CLOUD.deactivateSubscription(userId, reason || '管理員手動停用');
+    if (result.success) {
+      alert(`已停用「${userName}」的訂閱\n名片已設為不可見`);
+      loadSubscriptions();
+    } else {
+      alert('停用失敗：' + (result.error || '未知錯誤'));
+    }
+  } catch (e) {
+    console.error('停用訂閱錯誤:', e);
+    alert('停用失敗：' + (e.message || e));
+  }
+}
+
+// 重新啟用訂閱彈窗
+function openReactivateModal(userId, userName) {
+  document.getElementById('subModalTitle').textContent = (userName || '用戶') + ' - 重新啟用';
+  document.getElementById('subUserInfo').innerHTML = `
+    目前狀態：<strong style="color:#9ca3af;">已停用</strong><br>
+    重新啟用後將恢復名片可見性
+  `;
+  document.getElementById('subTargetUserId').value = userId;
+  document.getElementById('extendDaysInput').value = '30';
+  document.getElementById('extendReasonInput').value = '';
+  
+  // 修改確認按鈕為重新啟用
+  const confirmBtn = document.querySelector('#subscriptionModal .btn-green');
+  if (confirmBtn) {
+    confirmBtn.textContent = '確認啟用';
+    confirmBtn.onclick = confirmReactivateSubscription;
+  }
+  
+  document.getElementById('subscriptionModal').style.display = 'flex';
+}
+
+// 確認重新啟用訂閱
+async function confirmReactivateSubscription() {
+  const userId = document.getElementById('subTargetUserId').value;
+  const days = parseInt(document.getElementById('extendDaysInput').value) || 30;
+  const reason = document.getElementById('extendReasonInput').value.trim();
+  
+  if (!userId) {
+    alert('錯誤：找不到用戶 ID');
+    return;
+  }
+  
+  try {
+    const result = await UVACO_CLOUD.reactivateUserSubscription(userId, days, reason || '管理員重新啟用');
+    if (result.success) {
+      const newEnd = new Date(result.newEndDate).toLocaleDateString('zh-TW');
+      alert(`訂閱已重新啟用\n有效期：${days} 天\n到期日：${newEnd}`);
+      document.getElementById('subscriptionModal').style.display = 'none';
+      
+      // 恢復確認按鈕為延長訂閱
+      const confirmBtn = document.querySelector('#subscriptionModal .btn-green');
+      if (confirmBtn) {
+        confirmBtn.textContent = '確認延長';
+        confirmBtn.onclick = confirmExtendSubscription;
+      }
+      
+      loadSubscriptions();
+    } else {
+      alert('啟用失敗：' + (result.error || '未知錯誤'));
+    }
+  } catch (e) {
+    console.error('重新啟用錯誤:', e);
+    alert('啟用失敗：' + (e.message || e));
   }
 }
 
