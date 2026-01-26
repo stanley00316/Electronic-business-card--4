@@ -3985,8 +3985,32 @@ function showLinkInputModal(defaultLink, currentLang) {
       let zh = '請輸入完整連結（包含 https://）。';
       let en = 'Please enter a full link (including https://).';
       if (t === 'line' || t === 'official-line') {
-        zh = 'LINE 建議貼「個人檔案分享連結」。範例：<code>https://line.me/R/ti/p/2sSjJ_o6OT</code><br>不建議只填 ID（容易填錯）。';
-        en = 'For LINE, paste a share link. Example: <code>https://line.me/R/ti/p/2sSjJ_o6OT</code><br>Avoid entering only an ID.';
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📱 如何取得 LINE 個人連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟 LINE App → 點擊「主頁」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊右上角「設定」⚙️</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊「個人檔案」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> 點擊「分享」→「複製連結」</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://line.me/ti/p/7QENOpjTy5</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📱 How to get your LINE link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open LINE App → Tap "Home"</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap "Settings" ⚙️ (top right)</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Tap "Profile"</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> Tap "Share" → "Copy Link"</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://line.me/ti/p/7QENOpjTy5</code>
+          </div>
+        </div>`;
       } else if (t === 'email') {
         zh = 'Email 連結格式：<code>mailto:yourname@example.com</code>';
         en = 'Email link format: <code>mailto:yourname@example.com</code>';
@@ -5495,12 +5519,1171 @@ setTimeout(checkOnboarding, 1500);
   </div>
 </div>
 
+<!-- ===== 新客戶步驟引導精靈 ===== -->
+<div id="wizardModal" class="wizard-overlay">
+  <div class="wizard-container">
+    <!-- 關閉按鈕 -->
+    <button class="wizard-close" onclick="closeWizard()">×</button>
+    
+    <!-- 步驟進度指示器 -->
+    <div class="wizard-progress">
+      <div class="wizard-progress-step active" data-step="1">
+        <div class="wizard-step-circle">1</div>
+        <div class="wizard-step-label">
+          <span class="lang-zh">基本資料</span>
+          <span class="lang-en">Basic Info</span>
+        </div>
+      </div>
+      <div class="wizard-progress-line"></div>
+      <div class="wizard-progress-step" data-step="2">
+        <div class="wizard-step-circle">2</div>
+        <div class="wizard-step-label">
+          <span class="lang-zh">頭像</span>
+          <span class="lang-en">Avatar</span>
+        </div>
+      </div>
+      <div class="wizard-progress-line"></div>
+      <div class="wizard-progress-step" data-step="3">
+        <div class="wizard-step-circle">3</div>
+        <div class="wizard-step-label">
+          <span class="lang-zh">聯絡方式</span>
+          <span class="lang-en">Contact</span>
+        </div>
+      </div>
+      <div class="wizard-progress-line"></div>
+      <div class="wizard-progress-step" data-step="4">
+        <div class="wizard-step-circle">4</div>
+        <div class="wizard-step-label">
+          <span class="lang-zh">主題</span>
+          <span class="lang-en">Theme</span>
+        </div>
+      </div>
+      <div class="wizard-progress-line"></div>
+      <div class="wizard-progress-step" data-step="5">
+        <div class="wizard-step-circle">5</div>
+        <div class="wizard-step-label">
+          <span class="lang-zh">完成</span>
+          <span class="lang-en">Done</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 步驟內容區域 -->
+    <div class="wizard-steps-container">
+      <!-- 步驟 1：基本資料 -->
+      <div class="wizard-step active" data-step="1">
+        <div class="wizard-step-header">
+          <h2 class="wizard-step-title">
+            <span class="lang-zh">填寫基本資料</span>
+            <span class="lang-en">Enter Basic Information</span>
+          </h2>
+          <p class="wizard-step-desc">
+            <span class="lang-zh">請填寫您的姓名和職稱，這將顯示在名片上</span>
+            <span class="lang-en">Please enter your name and title for your business card</span>
+          </p>
+        </div>
+        
+        <div class="wizard-form">
+          <div class="wizard-form-group">
+            <label class="wizard-label">
+              <span class="lang-zh">中文姓名</span>
+              <span class="lang-en">Chinese Name</span>
+            </label>
+            <input type="text" class="wizard-input" id="wizardNameZh" placeholder="例：王小明｜Kevin Wang">
+            <div class="wizard-hint">
+              <span class="lang-zh">格式建議：中文名｜英文名（例：王小明｜Kevin Wang）</span>
+              <span class="lang-en">Suggested format: Chinese Name | English Name</span>
+            </div>
+          </div>
+          
+          <div class="wizard-form-group">
+            <label class="wizard-label">
+              <span class="lang-zh">職稱（中文）</span>
+              <span class="lang-en">Title (Chinese)</span>
+            </label>
+            <input type="text" class="wizard-input" id="wizardTitleZh" placeholder="例：業務經理">
+          </div>
+          
+          <div class="wizard-form-group">
+            <label class="wizard-label">
+              <span class="lang-zh">職稱（英文）</span>
+              <span class="lang-en">Title (English)</span>
+            </label>
+            <input type="text" class="wizard-input" id="wizardTitleEn" placeholder="e.g. Sales Manager">
+          </div>
+        </div>
+      </div>
+      
+      <!-- 步驟 2：上傳頭像 -->
+      <div class="wizard-step" data-step="2">
+        <div class="wizard-step-header">
+          <h2 class="wizard-step-title">
+            <span class="lang-zh">上傳頭像照片</span>
+            <span class="lang-en">Upload Your Photo</span>
+          </h2>
+          <p class="wizard-step-desc">
+            <span class="lang-zh">上傳一張專業的個人照片，讓您的名片更加個人化</span>
+            <span class="lang-en">Upload a professional photo to personalize your card</span>
+          </p>
+        </div>
+        
+        <div class="wizard-avatar-section">
+          <div class="wizard-avatar-preview" id="wizardAvatarPreview" onclick="wizardSelectAvatar()">
+            <img src="default-avatar.svg" alt="Avatar" id="wizardAvatarImg">
+            <div class="wizard-avatar-overlay">
+              <span class="lang-zh">點擊上傳</span>
+              <span class="lang-en">Click to Upload</span>
+            </div>
+          </div>
+          <input type="file" id="wizardAvatarInput" accept="image/*" style="display:none" onchange="wizardHandleAvatarUpload(event)">
+          <div class="wizard-avatar-tips">
+            <div class="lang-zh">
+              <p>📷 建議使用正面清晰的照片</p>
+              <p>📐 建議尺寸：正方形（1:1 比例）</p>
+              <p>💾 支援格式：JPG、PNG、GIF</p>
+            </div>
+            <div class="lang-en">
+              <p>📷 Use a clear front-facing photo</p>
+              <p>📐 Recommended: Square ratio (1:1)</p>
+              <p>💾 Formats: JPG, PNG, GIF</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 步驟 3：聯絡方式 -->
+      <div class="wizard-step" data-step="3">
+        <div class="wizard-step-header">
+          <h2 class="wizard-step-title">
+            <span class="lang-zh">新增聯絡方式</span>
+            <span class="lang-en">Add Contact Methods</span>
+          </h2>
+          <p class="wizard-step-desc">
+            <span class="lang-zh">新增您希望在名片上顯示的聯絡方式</span>
+            <span class="lang-en">Add contact methods you want to display on your card</span>
+          </p>
+        </div>
+        
+        <div class="wizard-contact-section">
+          <!-- 電話 -->
+          <div class="wizard-contact-item">
+            <div class="wizard-contact-icon">📞</div>
+            <div class="wizard-contact-content">
+              <label class="wizard-label">
+                <span class="lang-zh">電話號碼</span>
+                <span class="lang-en">Phone Number</span>
+              </label>
+              <input type="tel" class="wizard-input" id="wizardPhone" placeholder="例：0912-345-678">
+              <div class="wizard-hint">
+                <span class="lang-zh">格式：0912-345-678 或 09xx-xxx-xxx</span>
+                <span class="lang-en">Format: 0912-345-678</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- LINE -->
+          <div class="wizard-contact-item">
+            <div class="wizard-contact-icon"><img src="line-logo.svg" alt="LINE" style="width:24px;height:24px;"></div>
+            <div class="wizard-contact-content">
+              <label class="wizard-label">
+                <span class="lang-zh">LINE 個人連結</span>
+                <span class="lang-en">LINE Profile Link</span>
+              </label>
+              <input type="text" class="wizard-input" id="wizardLine" placeholder="https://line.me/ti/p/xxxxxxxx">
+              <div class="wizard-line-guide">
+                <div class="wizard-line-guide-title">
+                  <span class="lang-zh">📱 如何取得 LINE 個人連結：</span>
+                  <span class="lang-en">📱 How to get your LINE link:</span>
+                </div>
+                <div class="wizard-line-steps">
+                  <div class="wizard-line-step">
+                    <span class="step-num">1</span>
+                    <span class="lang-zh">開啟 LINE App → 點擊「主頁」</span>
+                    <span class="lang-en">Open LINE App → Tap "Home"</span>
+                  </div>
+                  <div class="wizard-line-step">
+                    <span class="step-num">2</span>
+                    <span class="lang-zh">點擊右上角「設定」⚙️</span>
+                    <span class="lang-en">Tap "Settings" ⚙️ (top right)</span>
+                  </div>
+                  <div class="wizard-line-step">
+                    <span class="step-num">3</span>
+                    <span class="lang-zh">點擊「個人檔案」</span>
+                    <span class="lang-en">Tap "Profile"</span>
+                  </div>
+                  <div class="wizard-line-step">
+                    <span class="step-num">4</span>
+                    <span class="lang-zh">點擊「分享」→「複製連結」</span>
+                    <span class="lang-en">Tap "Share" → "Copy Link"</span>
+                  </div>
+                </div>
+                <div class="wizard-line-example">
+                  <span class="lang-zh">連結格式：</span>
+                  <span class="lang-en">Link format:</span>
+                  <code>https://line.me/ti/p/7QENOpjTy5</code>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Email -->
+          <div class="wizard-contact-item">
+            <div class="wizard-contact-icon">✉️</div>
+            <div class="wizard-contact-content">
+              <label class="wizard-label">
+                <span class="lang-zh">Email</span>
+                <span class="lang-en">Email</span>
+              </label>
+              <input type="email" class="wizard-input" id="wizardEmail" placeholder="例：yourname@email.com">
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 步驟 4：選擇主題 -->
+      <div class="wizard-step" data-step="4">
+        <div class="wizard-step-header">
+          <h2 class="wizard-step-title">
+            <span class="lang-zh">選擇名片主題</span>
+            <span class="lang-en">Choose Card Theme</span>
+          </h2>
+          <p class="wizard-step-desc">
+            <span class="lang-zh">選擇一個您喜歡的主題風格</span>
+            <span class="lang-en">Select a theme style you like</span>
+          </p>
+        </div>
+        
+        <div class="wizard-theme-grid" id="wizardThemeGrid">
+          <div class="wizard-theme-item active" data-theme="1" onclick="wizardSelectTheme(1)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);"></div>
+            <span class="lang-zh">經典黑</span>
+            <span class="lang-en">Classic Black</span>
+          </div>
+          <div class="wizard-theme-item" data-theme="2" onclick="wizardSelectTheme(2)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);"></div>
+            <span class="lang-zh">商務藍</span>
+            <span class="lang-en">Business Blue</span>
+          </div>
+          <div class="wizard-theme-item" data-theme="3" onclick="wizardSelectTheme(3)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #2d4a3e 0%, #3d6a54 100%);"></div>
+            <span class="lang-zh">自然綠</span>
+            <span class="lang-en">Nature Green</span>
+          </div>
+          <div class="wizard-theme-item" data-theme="4" onclick="wizardSelectTheme(4)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #4a2d5f 0%, #6a3d7f 100%);"></div>
+            <span class="lang-zh">優雅紫</span>
+            <span class="lang-en">Elegant Purple</span>
+          </div>
+          <div class="wizard-theme-item" data-theme="5" onclick="wizardSelectTheme(5)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #5f3a1e 0%, #8a5a2d 100%);"></div>
+            <span class="lang-zh">暖棕</span>
+            <span class="lang-en">Warm Brown</span>
+          </div>
+          <div class="wizard-theme-item" data-theme="6" onclick="wizardSelectTheme(6)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #5f1e3a 0%, #8a2d5a 100%);"></div>
+            <span class="lang-zh">玫瑰紅</span>
+            <span class="lang-en">Rose Red</span>
+          </div>
+          <div class="wizard-theme-item" data-theme="7" onclick="wizardSelectTheme(7)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #1e4a5f 0%, #2d6a87 100%);"></div>
+            <span class="lang-zh">海洋藍</span>
+            <span class="lang-en">Ocean Blue</span>
+          </div>
+          <div class="wizard-theme-item" data-theme="8" onclick="wizardSelectTheme(8)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #4a4a1e 0%, #6a6a2d 100%);"></div>
+            <span class="lang-zh">橄欖金</span>
+            <span class="lang-en">Olive Gold</span>
+          </div>
+          <div class="wizard-theme-item" data-theme="9" onclick="wizardSelectTheme(9)">
+            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #3a3a3a 0%, #5a5a5a 100%);"></div>
+            <span class="lang-zh">銀灰</span>
+            <span class="lang-en">Silver Gray</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 步驟 5：完成 -->
+      <div class="wizard-step" data-step="5">
+        <div class="wizard-step-header">
+          <h2 class="wizard-step-title">
+            <span class="lang-zh">🎉 名片建立完成！</span>
+            <span class="lang-en">🎉 Card Created!</span>
+          </h2>
+          <p class="wizard-step-desc">
+            <span class="lang-zh">您的名片已準備就緒，點擊下方按鈕完成設定</span>
+            <span class="lang-en">Your card is ready. Click below to finish setup</span>
+          </p>
+        </div>
+        
+        <div class="wizard-complete-section">
+          <div class="wizard-complete-preview" id="wizardCompletePreview">
+            <div class="wizard-preview-card">
+              <div class="wizard-preview-avatar">
+                <img src="default-avatar.svg" alt="Avatar" id="wizardPreviewAvatar">
+              </div>
+              <div class="wizard-preview-name" id="wizardPreviewName">您的姓名</div>
+              <div class="wizard-preview-title" id="wizardPreviewTitle">您的職稱</div>
+              <div class="wizard-preview-contacts" id="wizardPreviewContacts"></div>
+            </div>
+          </div>
+          
+          <div class="wizard-complete-tips">
+            <div class="lang-zh">
+              <p>✅ 完成後您可以隨時在編輯頁面修改名片內容</p>
+              <p>✅ 使用 NFC 或 QR Code 分享您的名片</p>
+            </div>
+            <div class="lang-en">
+              <p>✅ You can edit your card anytime after completion</p>
+              <p>✅ Share your card via NFC or QR Code</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 導航按鈕 -->
+    <div class="wizard-nav">
+      <button class="wizard-btn wizard-btn-prev" id="wizardPrevBtn" onclick="wizardPrev()" style="visibility: hidden;">
+        <span class="lang-zh">上一步</span>
+        <span class="lang-en">Previous</span>
+      </button>
+      <button class="wizard-btn wizard-btn-next" id="wizardNextBtn" onclick="wizardNext()">
+        <span class="lang-zh">下一步</span>
+        <span class="lang-en">Next</span>
+      </button>
+      <button class="wizard-btn wizard-btn-finish" id="wizardFinishBtn" onclick="finishWizard()" style="display: none;">
+        <span class="lang-zh">完成建立</span>
+        <span class="lang-en">Finish</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <style>
 @keyframes tipBounce {
   0%, 100% { transform: translateX(-50%) translateY(0); }
   50% { transform: translateX(-50%) translateY(-8px); }
 }
+
+/* ===== 步驟引導精靈樣式 ===== */
+.wizard-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.wizard-overlay.show {
+  display: flex;
+}
+
+.wizard-container {
+  background: var(--ui-surface-bg, #1a1a1a);
+  border: 1px solid var(--ui-surface-border, rgba(255,255,255,0.1));
+  border-radius: 24px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px 24px;
+  position: relative;
+  animation: wizardSlideUp 0.4s ease;
+}
+
+@keyframes wizardSlideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wizard-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.1));
+  color: var(--ui-muted, #9ca3af);
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.wizard-close:hover {
+  background: var(--ui-btn-muted-bg-hover, rgba(255,255,255,0.15));
+  color: var(--ui-text, #fff);
+}
+
+/* 步驟進度指示器 */
+.wizard-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  padding: 0 8px;
+}
+
+.wizard-progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.wizard-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.1));
+  color: var(--ui-muted, #9ca3af);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.3s;
+}
+
+.wizard-progress-step.active .wizard-step-circle,
+.wizard-progress-step.completed .wizard-step-circle {
+  background: var(--uvaco-green, #00c853);
+  color: #fff;
+}
+
+.wizard-progress-step.completed .wizard-step-circle::after {
+  content: '✓';
+}
+
+.wizard-step-label {
+  font-size: 11px;
+  color: var(--ui-muted, #9ca3af);
+  text-align: center;
+  transition: color 0.3s;
+}
+
+.wizard-progress-step.active .wizard-step-label {
+  color: var(--uvaco-green, #00c853);
+  font-weight: 600;
+}
+
+.wizard-progress-line {
+  flex: 1;
+  height: 2px;
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.1));
+  margin: 0 8px;
+  margin-bottom: 20px;
+  transition: background 0.3s;
+}
+
+.wizard-progress-step.completed + .wizard-progress-line {
+  background: var(--uvaco-green, #00c853);
+}
+
+/* 步驟內容區域 */
+.wizard-steps-container {
+  min-height: 320px;
+}
+
+.wizard-step {
+  display: none;
+  animation: wizardFadeIn 0.3s ease;
+}
+
+.wizard-step.active {
+  display: block;
+}
+
+@keyframes wizardFadeIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.wizard-step-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.wizard-step-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--uvaco-green, #00c853);
+  margin-bottom: 8px;
+}
+
+.wizard-step-desc {
+  font-size: 14px;
+  color: var(--ui-muted, #9ca3af);
+  line-height: 1.5;
+}
+
+/* 表單樣式 */
+.wizard-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.wizard-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wizard-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-text, #fff);
+}
+
+.wizard-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ui-field-border, rgba(255,255,255,0.15));
+  background: var(--ui-field-bg, rgba(255,255,255,0.05));
+  color: var(--ui-text, #fff);
+  font-size: 15px;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.wizard-input:focus {
+  outline: none;
+  border-color: var(--uvaco-green, #00c853);
+  box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.15);
+}
+
+.wizard-input::placeholder {
+  color: var(--ui-muted, #9ca3af);
+  opacity: 0.7;
+}
+
+.wizard-hint {
+  font-size: 12px;
+  color: var(--ui-muted, #9ca3af);
+  opacity: 0.8;
+}
+
+/* 頭像上傳區域 */
+.wizard-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.wizard-avatar-preview {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  border: 3px solid var(--uvaco-green, #00c853);
+  transition: transform 0.2s;
+}
+
+.wizard-avatar-preview:hover {
+  transform: scale(1.05);
+}
+
+.wizard-avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wizard-avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.wizard-avatar-preview:hover .wizard-avatar-overlay {
+  opacity: 1;
+}
+
+.wizard-avatar-tips {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ui-muted, #9ca3af);
+  line-height: 1.8;
+}
+
+/* 聯絡方式區域 */
+.wizard-contact-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wizard-contact-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.wizard-contact-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 10px;
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.wizard-contact-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* LINE 引導區域 */
+.wizard-line-guide {
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.05));
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 8px;
+}
+
+.wizard-line-guide-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--uvaco-green, #00c853);
+  margin-bottom: 10px;
+}
+
+.wizard-line-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wizard-line-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ui-text, #fff);
+}
+
+.wizard-line-step .step-num {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 50%;
+  background: var(--uvaco-green, #00c853);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.wizard-line-example {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ui-surface-border, rgba(255,255,255,0.1));
+  font-size: 12px;
+  color: var(--ui-muted, #9ca3af);
+}
+
+.wizard-line-example code {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 200, 83, 0.1);
+  border-radius: 8px;
+  color: var(--uvaco-green, #00c853);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* 主題選擇區域 */
+.wizard-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.wizard-theme-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.05));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wizard-theme-item:hover {
+  background: var(--ui-btn-muted-bg-hover, rgba(255,255,255,0.1));
+}
+
+.wizard-theme-item.active {
+  border-color: var(--uvaco-green, #00c853);
+  background: rgba(0, 200, 83, 0.1);
+}
+
+.wizard-theme-preview {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+}
+
+.wizard-theme-item span {
+  font-size: 11px;
+  color: var(--ui-muted, #9ca3af);
+}
+
+.wizard-theme-item.active span {
+  color: var(--uvaco-green, #00c853);
+  font-weight: 600;
+}
+
+/* 完成區域 */
+.wizard-complete-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.wizard-preview-card {
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.05));
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  width: 100%;
+  max-width: 280px;
+}
+
+.wizard-preview-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 16px;
+  border: 2px solid var(--uvaco-green, #00c853);
+}
+
+.wizard-preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wizard-preview-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ui-text, #fff);
+  margin-bottom: 4px;
+}
+
+.wizard-preview-title {
+  font-size: 14px;
+  color: var(--ui-muted, #9ca3af);
+  margin-bottom: 12px;
+}
+
+.wizard-preview-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wizard-preview-contact-tag {
+  padding: 4px 10px;
+  background: rgba(0, 200, 83, 0.15);
+  border-radius: 20px;
+  font-size: 11px;
+  color: var(--uvaco-green, #00c853);
+}
+
+.wizard-complete-tips {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ui-muted, #9ca3af);
+  line-height: 1.8;
+}
+
+/* 導航按鈕 */
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ui-surface-border, rgba(255,255,255,0.1));
+}
+
+.wizard-btn {
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.wizard-btn-prev {
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.1));
+  color: var(--ui-text, #fff);
+}
+
+.wizard-btn-prev:hover {
+  background: var(--ui-btn-muted-bg-hover, rgba(255,255,255,0.15));
+}
+
+.wizard-btn-next,
+.wizard-btn-finish {
+  background: var(--uvaco-green, #00c853);
+  color: #fff;
+  flex: 1;
+}
+
+.wizard-btn-next:hover,
+.wizard-btn-finish:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+/* 響應式調整 */
+@media (max-width: 480px) {
+  .wizard-container {
+    padding: 20px 16px;
+  }
+  
+  .wizard-step-label {
+    display: none;
+  }
+  
+  .wizard-progress-line {
+    margin-bottom: 0;
+  }
+  
+  .wizard-theme-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  
+  .wizard-theme-item {
+    padding: 8px;
+  }
+  
+  .wizard-theme-preview {
+    width: 40px;
+    height: 40px;
+  }
+}
 </style>
+
+<script>
+// ===== 步驟引導精靈 JavaScript =====
+let wizardCurrentStep = 1;
+const wizardTotalSteps = 5;
+let wizardSelectedTheme = 1;
+
+// 開啟精靈
+function showWizard() {
+  const modal = document.getElementById('wizardModal');
+  if (modal) {
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    wizardCurrentStep = 1;
+    updateWizardUI();
+  }
+}
+
+// 關閉精靈
+function closeWizard() {
+  const modal = document.getElementById('wizardModal');
+  if (modal) {
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  // 標記已完成 onboarding
+  try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
+}
+
+// 更新精靈 UI
+function updateWizardUI() {
+  // 更新步驟進度指示器
+  document.querySelectorAll('.wizard-progress-step').forEach(step => {
+    const stepNum = parseInt(step.dataset.step);
+    step.classList.remove('active', 'completed');
+    if (stepNum < wizardCurrentStep) {
+      step.classList.add('completed');
+    } else if (stepNum === wizardCurrentStep) {
+      step.classList.add('active');
+    }
+  });
+  
+  // 更新步驟內容
+  document.querySelectorAll('.wizard-step').forEach(step => {
+    const stepNum = parseInt(step.dataset.step);
+    step.classList.remove('active');
+    if (stepNum === wizardCurrentStep) {
+      step.classList.add('active');
+    }
+  });
+  
+  // 更新導航按鈕
+  const prevBtn = document.getElementById('wizardPrevBtn');
+  const nextBtn = document.getElementById('wizardNextBtn');
+  const finishBtn = document.getElementById('wizardFinishBtn');
+  
+  if (prevBtn) {
+    prevBtn.style.visibility = wizardCurrentStep === 1 ? 'hidden' : 'visible';
+  }
+  
+  if (nextBtn && finishBtn) {
+    if (wizardCurrentStep === wizardTotalSteps) {
+      nextBtn.style.display = 'none';
+      finishBtn.style.display = 'block';
+    } else {
+      nextBtn.style.display = 'block';
+      finishBtn.style.display = 'none';
+    }
+  }
+  
+  // 如果是最後一步，更新預覽
+  if (wizardCurrentStep === wizardTotalSteps) {
+    updateWizardPreview();
+  }
+}
+
+// 下一步
+function wizardNext() {
+  if (!validateWizardStep(wizardCurrentStep)) return;
+  
+  if (wizardCurrentStep < wizardTotalSteps) {
+    wizardCurrentStep++;
+    updateWizardUI();
+  }
+}
+
+// 上一步
+function wizardPrev() {
+  if (wizardCurrentStep > 1) {
+    wizardCurrentStep--;
+    updateWizardUI();
+  }
+}
+
+// 驗證步驟
+function validateWizardStep(step) {
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  
+  if (step === 1) {
+    const nameZh = document.getElementById('wizardNameZh')?.value?.trim();
+    if (!nameZh) {
+      alert(currentLang === 'zh' ? '請填寫姓名' : 'Please enter your name');
+      document.getElementById('wizardNameZh')?.focus();
+      return false;
+    }
+  }
+  
+  // 其他步驟可選填，不強制驗證
+  return true;
+}
+
+// 選擇頭像
+function wizardSelectAvatar() {
+  document.getElementById('wizardAvatarInput')?.click();
+}
+
+// 處理頭像上傳
+function wizardHandleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = document.getElementById('wizardAvatarImg');
+      if (img) {
+        img.src = e.target.result;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// 選擇主題
+function wizardSelectTheme(theme) {
+  wizardSelectedTheme = theme;
+  document.querySelectorAll('.wizard-theme-item').forEach(item => {
+    item.classList.remove('active');
+    if (parseInt(item.dataset.theme) === theme) {
+      item.classList.add('active');
+    }
+  });
+}
+
+// 更新預覽
+function updateWizardPreview() {
+  const nameZh = document.getElementById('wizardNameZh')?.value?.trim() || '您的姓名';
+  const titleZh = document.getElementById('wizardTitleZh')?.value?.trim() || '您的職稱';
+  const phone = document.getElementById('wizardPhone')?.value?.trim();
+  const line = document.getElementById('wizardLine')?.value?.trim();
+  const email = document.getElementById('wizardEmail')?.value?.trim();
+  const avatarSrc = document.getElementById('wizardAvatarImg')?.src;
+  
+  // 更新預覽卡片
+  const previewName = document.getElementById('wizardPreviewName');
+  const previewTitle = document.getElementById('wizardPreviewTitle');
+  const previewAvatar = document.getElementById('wizardPreviewAvatar');
+  const previewContacts = document.getElementById('wizardPreviewContacts');
+  
+  if (previewName) previewName.textContent = nameZh;
+  if (previewTitle) previewTitle.textContent = titleZh;
+  if (previewAvatar && avatarSrc) previewAvatar.src = avatarSrc;
+  
+  if (previewContacts) {
+    let contactsHtml = '';
+    if (phone) contactsHtml += '<span class="wizard-preview-contact-tag">📞 電話</span>';
+    if (line) contactsHtml += '<span class="wizard-preview-contact-tag">💬 LINE</span>';
+    if (email) contactsHtml += '<span class="wizard-preview-contact-tag">✉️ Email</span>';
+    previewContacts.innerHTML = contactsHtml || '<span class="wizard-preview-contact-tag">尚未設定聯絡方式</span>';
+  }
+}
+
+// 完成精靈
+function finishWizard() {
+  // 同步資料到名片編輯區
+  syncWizardToCard();
+  
+  // 關閉精靈
+  closeWizard();
+  
+  // 顯示成功訊息
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+  
+  alert(currentLang === 'zh' ? 
+    '名片建立成功！您可以繼續編輯或直接儲存。' : 
+    'Card created! You can continue editing or save directly.');
+}
+
+// 同步精靈資料到名片
+function syncWizardToCard() {
+  const nameZh = document.getElementById('wizardNameZh')?.value?.trim();
+  const titleZh = document.getElementById('wizardTitleZh')?.value?.trim();
+  const titleEn = document.getElementById('wizardTitleEn')?.value?.trim();
+  const phone = document.getElementById('wizardPhone')?.value?.trim();
+  const line = document.getElementById('wizardLine')?.value?.trim();
+  const email = document.getElementById('wizardEmail')?.value?.trim();
+  const avatarSrc = document.getElementById('wizardAvatarImg')?.src;
+  
+  // 更新姓名
+  const previewNameZh = document.getElementById('previewNameZh');
+  if (previewNameZh && nameZh) {
+    previewNameZh.innerHTML = nameZh;
+  }
+  
+  // 更新職稱
+  const previewTitleZh = document.getElementById('previewTitleZh');
+  const previewTitleEn = document.getElementById('previewTitleEn');
+  if (previewTitleZh && titleZh) previewTitleZh.textContent = titleZh;
+  if (previewTitleEn && titleEn) previewTitleEn.textContent = titleEn;
+  
+  // 更新頭像
+  if (avatarSrc && !avatarSrc.includes('default-avatar')) {
+    const previewAvatar = document.getElementById('previewAvatar');
+    if (previewAvatar) previewAvatar.src = avatarSrc;
+  }
+  
+  // 更新主題
+  if (wizardSelectedTheme && typeof setCardTheme === 'function') {
+    setCardTheme(wizardSelectedTheme);
+  }
+  
+  // 添加聯絡方式
+  const contacts = document.getElementById('previewContacts');
+  if (contacts) {
+    // 電話
+    if (phone) {
+      const phoneLink = 'tel:' + phone.replace(/-/g, '');
+      const phoneBtn = contacts.querySelector('a[href^="tel:"]');
+      if (phoneBtn) {
+        phoneBtn.href = phoneLink;
+      } else {
+        addContactButtonToPreview('call', phoneLink, '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電', '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now');
+      }
+    }
+    
+    // LINE
+    if (line) {
+      let lineLink = line;
+      // 如果沒有 http 開頭，嘗試補全
+      if (!lineLink.startsWith('http')) {
+        lineLink = 'https://line.me/ti/p/' + line;
+      }
+      const lineBtn = contacts.querySelector('a[href*="line.me"]');
+      if (lineBtn) {
+        lineBtn.href = lineLink;
+      } else {
+        addContactButtonToPreview('line', lineLink, '<img src="line-logo.svg" alt="LINE" class="btn-icon-line"> LINE', '<img src="line-logo.svg" alt="LINE" class="btn-icon-line"> LINE');
+      }
+    }
+    
+    // Email
+    if (email) {
+      const emailLink = 'mailto:' + email;
+      const emailBtn = contacts.querySelector('a[href^="mailto:"]');
+      if (emailBtn) {
+        emailBtn.href = emailLink;
+      } else {
+        addContactButtonToPreview('email', emailLink, '<img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email', '<img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email');
+      }
+    }
+  }
+}
+
+// 修改 startOnboardingGuide 函數，改為啟動步驟精靈
+const originalStartOnboardingGuide = typeof startOnboardingGuide === 'function' ? startOnboardingGuide : null;
+function startOnboardingGuide() {
+  // 關閉原有的 onboarding modal
+  closeOnboarding();
+  // 開啟步驟精靈
+  showWizard();
+}
+</script>
 
 </body>
 </html>
