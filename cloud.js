@@ -1699,10 +1699,17 @@ window.UVACO_CLOUD = (function () {
     
     try {
       // 從 cards 表查詢，LEFT JOIN subscriptions 以顯示所有用戶
-      const { data: cardsData, error: cardsError } = await ctx.client
+      let query = ctx.client
         .from('cards')
         .select('user_id, name, company, email, updated_at')
         .order('updated_at', { ascending: false });
+      
+      // 企業管理員：只篩選該公司的名片
+      if (adminStatus.managedCompany) {
+        query = query.ilike('company', `%${adminStatus.managedCompany}%`);
+      }
+      
+      const { data: cardsData, error: cardsError } = await query;
       
       if (cardsError) {
         console.error('[Subscription] 取得名片列表失敗:', cardsError);
@@ -1785,6 +1792,20 @@ window.UVACO_CLOUD = (function () {
     
     const adminStatus = await isAdmin();
     if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
+    
+    // 企業管理員：檢查目標用戶是否屬於該公司
+    if (adminStatus.managedCompany) {
+      const { data: targetCard } = await ctx.client
+        .from('cards')
+        .select('company')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+      
+      const targetCompany = targetCard?.company || '';
+      if (!targetCompany.toLowerCase().includes(adminStatus.managedCompany.toLowerCase())) {
+        throw new Error('PERMISSION_DENIED_COMPANY_MISMATCH');
+      }
+    }
     
     try {
       // 取得目前訂閱
@@ -1876,6 +1897,20 @@ window.UVACO_CLOUD = (function () {
       return { success: false, error: 'NOT_ADMIN' };
     }
     
+    // 企業管理員：檢查目標用戶是否屬於該公司
+    if (adminStatus.managedCompany) {
+      const { data: targetCard } = await ctx.client
+        .from('cards')
+        .select('company')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+      
+      const targetCompany = targetCard?.company || '';
+      if (!targetCompany.toLowerCase().includes(adminStatus.managedCompany.toLowerCase())) {
+        return { success: false, error: 'PERMISSION_DENIED_COMPANY_MISMATCH' };
+      }
+    }
+    
     try {
       // 更新訂閱狀態為 cancelled
       const { data: sub } = await ctx.client
@@ -1937,6 +1972,20 @@ window.UVACO_CLOUD = (function () {
     const adminStatus = await isAdmin();
     if (!adminStatus || !adminStatus.isAdmin) {
       return { success: false, error: 'NOT_ADMIN' };
+    }
+    
+    // 企業管理員：檢查目標用戶是否屬於該公司
+    if (adminStatus.managedCompany) {
+      const { data: targetCard } = await ctx.client
+        .from('cards')
+        .select('company')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+      
+      const targetCompany = targetCard?.company || '';
+      if (!targetCompany.toLowerCase().includes(adminStatus.managedCompany.toLowerCase())) {
+        return { success: false, error: 'PERMISSION_DENIED_COMPANY_MISMATCH' };
+      }
     }
     
     const extendDays = days || 30;
