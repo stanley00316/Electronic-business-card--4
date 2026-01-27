@@ -4283,6 +4283,12 @@ body.theme-light .address-text {
   pointer-events: auto;
 }
 
+/* 自訂公司資訊項目的刪除按鈕始終可見 */
+.info-item-custom .info-delete-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .info-delete-btn:hover {
   background: rgba(239, 68, 68, 0.3);
   transform: scale(1.1);
