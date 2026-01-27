@@ -4230,68 +4230,81 @@ function selectContactType(type, labelZh, labelEn) {
   
   switch(type) {
     case 'company-phone':
-      defaultLink = 'tel:';
+      defaultLink = '';
+      inputField.placeholder = '例：02-12345678';
       buttonTextZh = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 公司電話';
       buttonTextEn = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Company Phone';
       break;
     case 'personal-phone':
-      defaultLink = 'tel:';
+      defaultLink = '';
+      inputField.placeholder = '例：0912345678';
       buttonTextZh = '<img src="mobile-icon.svg" alt="Mobile" class="btn-icon-mobile"> 個人電話';
       buttonTextEn = '<img src="mobile-icon.svg" alt="Mobile" class="btn-icon-mobile"> Personal Phone';
       break;
     case 'call':
-      defaultLink = 'tel:0905519002';
+      defaultLink = '';
+      inputField.placeholder = '例：0912345678';
       buttonTextZh = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電';
       buttonTextEn = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now';
       break;
     case 'email':
-      defaultLink = 'mailto:';
+      defaultLink = '';
+      inputField.placeholder = '例：yourname@example.com';
       buttonTextZh = '<img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email';
       buttonTextEn = '<img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email';
       break;
     case 'website':
-      defaultLink = 'https://';
+      defaultLink = '';
+      inputField.placeholder = '例：www.example.com';
       buttonTextZh = '<img src="website-icon.svg" alt="Website" class="btn-icon-website"> 網站';
       buttonTextEn = '<img src="website-icon.svg" alt="Website" class="btn-icon-website"> Website';
       break;
     case 'line':
     case 'official-line':
-      defaultLink = 'https://line.me/R/ti/p/';
+      defaultLink = '';
+      inputField.placeholder = '例：https://line.me/R/ti/p/xxxxx';
       buttonTextZh = '<img src="line-logo.svg" alt="LINE" class="btn-icon-line"> LINE';
       buttonTextEn = '<img src="line-logo.svg" alt="LINE" class="btn-icon-line"> LINE';
       break;
     case 'facebook':
-      defaultLink = 'https://www.facebook.com/';
+      defaultLink = '';
+      inputField.placeholder = '例：facebook.com/yourpage';
       buttonTextZh = '<img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook"> Facebook';
       buttonTextEn = '<img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook"> Facebook';
       break;
     case 'instagram':
-      defaultLink = 'https://www.instagram.com/';
+      defaultLink = '';
+      inputField.placeholder = '例：@yourusername 或 instagram.com/yourusername';
       buttonTextZh = '<img src="instagram-logo.svg" alt="Instagram" class="btn-icon-instagram"> Instagram';
       buttonTextEn = '<img src="instagram-logo.svg" alt="Instagram" class="btn-icon-instagram"> Instagram';
       break;
     case 'linkedin':
-      defaultLink = 'https://www.linkedin.com/in/';
+      defaultLink = '';
+      inputField.placeholder = '例：linkedin.com/in/yourprofile';
       buttonTextZh = '<img src="linkedin-logo.svg" alt="LinkedIn" class="btn-icon-linkedin"> LinkedIn';
       buttonTextEn = '<img src="linkedin-logo.svg" alt="LinkedIn" class="btn-icon-linkedin"> LinkedIn';
       break;
     case 'twitter':
-      defaultLink = 'https://twitter.com/';
+      defaultLink = '';
+      inputField.placeholder = '例：@yourusername 或 x.com/yourusername';
       buttonTextZh = '<img src="twitter-logo.svg" alt="X" class="btn-icon-twitter"> X (Twitter)';
       buttonTextEn = '<img src="twitter-logo.svg" alt="X" class="btn-icon-twitter"> X (Twitter)';
       break;
     case 'youtube':
-      defaultLink = 'https://www.youtube.com/';
+      defaultLink = '';
+      inputField.placeholder = '例：youtube.com/@yourchannel';
       buttonTextZh = '<img src="youtube-logo.svg" alt="YouTube" class="btn-icon-youtube"> YouTube';
       buttonTextEn = '<img src="youtube-logo.svg" alt="YouTube" class="btn-icon-youtube"> YouTube';
       break;
     case 'wechat':
-      defaultLink = 'weixin://';
+      defaultLink = '';
+      inputField.placeholder = '例：your_wechat_id';
       buttonTextZh = '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat"> 微信';
       buttonTextEn = '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat"> WeChat';
       break;
     case 'whatsapp':
-      defaultLink = 'https://wa.me/';
+      defaultLink = '';
+      inputField.placeholder = '例：+886912345678';
       buttonTextZh = '<img src="whatsapp-logo.svg" alt="WhatsApp" class="btn-icon-whatsapp"> WhatsApp';
       buttonTextEn = '<img src="whatsapp-logo.svg" alt="WhatsApp" class="btn-icon-whatsapp"> WhatsApp';
       break;
@@ -4819,32 +4832,102 @@ function submitLinkInput(event) {
     return true;
   }
 
+  // ===== 自動添加前綴 =====
+  
+  // Email：自動添加 mailto:
+  if (t === 'email') {
+    if (!/^mailto:/i.test(newLink)) {
+      // 驗證是否為有效的 email 格式
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newLink)) {
+        if (fail('請輸入有效的 Email 地址，例如：yourname@example.com', 'Please enter a valid email address, e.g. yourname@example.com')) return;
+      }
+      newLink = 'mailto:' + newLink;
+    }
+  }
+
+  // 電話：自動添加 tel:
+  if (t === 'company-phone' || t === 'personal-phone' || t === 'call') {
+    if (!/^tel:/i.test(newLink)) {
+      // 移除常見的格式字符，保留數字和 + 號
+      const cleanedPhone = newLink.replace(/[\s\-\(\)]/g, '');
+      if (!/^[\+]?[0-9]{6,15}$/.test(cleanedPhone)) {
+        if (fail('請輸入有效的電話號碼，例如：0912345678 或 +886912345678', 'Please enter a valid phone number, e.g. 0912345678 or +886912345678')) return;
+      }
+      newLink = 'tel:' + cleanedPhone;
+    }
+  }
+
+  // 網站：自動添加 https://
+  if (t === 'website') {
+    if (!/^https?:\/\//i.test(newLink)) {
+      // 如果沒有協議，自動加上 https://
+      newLink = 'https://' + newLink;
+    }
+  }
+
+  // LINE：驗證必須是完整連結
   if (t === 'line' || t === 'official-line') {
-    // 允許貼完整 line.me 連結；若只貼 @id/純 ID，直接提示改用分享連結
     const v = newLink.trim();
     if (!/^https?:\/\//i.test(v) || !/line\.me\//i.test(v)) {
       if (fail(
-        'LINE 請貼「分享連結」，例如：https://line.me/R/ti/p/2sSjJ_o6OT\\n（請到 LINE 個人檔案 → 分享 → 複製連結）',
+        'LINE 請貼「分享連結」，例如：https://line.me/R/ti/p/2sSjJ_o6OT\n（請到 LINE 個人檔案 → 分享 → 複製連結）',
         'Please paste a LINE share link, e.g. https://line.me/R/ti/p/2sSjJ_o6OT'
       )) return;
     }
   }
-
-  if (t === 'email') {
-    if (!/^mailto:/i.test(newLink)) {
-      if (fail('Email 連結需以 mailto: 開頭，例如 mailto:yourname@example.com', 'Email link must start with mailto:, e.g. mailto:yourname@example.com')) return;
-    }
-  }
-
-  if (t === 'company-phone' || t === 'personal-phone' || t === 'call') {
-    if (!/^tel:/i.test(newLink)) {
-      if (fail('電話連結需以 tel: 開頭，例如 tel:0905519002', 'Phone link must start with tel:, e.g. tel:+886905519002')) return;
-    }
-  }
-
-  if (t === 'website') {
+  
+  // Facebook：自動添加 https://
+  if (t === 'facebook') {
     if (!/^https?:\/\//i.test(newLink)) {
-      if (fail('網站連結需以 https:// 開頭，例如 https://example.com', 'Website link must start with https://, e.g. https://example.com')) return;
+      newLink = 'https://' + newLink;
+    }
+  }
+  
+  // Instagram：自動添加 https://
+  if (t === 'instagram') {
+    if (!/^https?:\/\//i.test(newLink)) {
+      // 如果只輸入用戶名，自動組合完整連結
+      if (!newLink.includes('instagram.com')) {
+        newLink = 'https://www.instagram.com/' + newLink.replace(/^@/, '');
+      } else {
+        newLink = 'https://' + newLink;
+      }
+    }
+  }
+  
+  // LinkedIn：自動添加 https://
+  if (t === 'linkedin') {
+    if (!/^https?:\/\//i.test(newLink)) {
+      newLink = 'https://' + newLink;
+    }
+  }
+  
+  // Twitter/X：自動添加 https://
+  if (t === 'twitter') {
+    if (!/^https?:\/\//i.test(newLink)) {
+      // 如果只輸入用戶名，自動組合完整連結
+      if (!newLink.includes('twitter.com') && !newLink.includes('x.com')) {
+        newLink = 'https://x.com/' + newLink.replace(/^@/, '');
+      } else {
+        newLink = 'https://' + newLink;
+      }
+    }
+  }
+  
+  // YouTube：自動添加 https://
+  if (t === 'youtube') {
+    if (!/^https?:\/\//i.test(newLink)) {
+      newLink = 'https://' + newLink;
+    }
+  }
+  
+  // WeChat：保持原樣（微信 ID）
+  // WhatsApp：自動添加 https://wa.me/
+  if (t === 'whatsapp') {
+    if (!/^https?:\/\//i.test(newLink)) {
+      // 移除常見的格式字符，保留數字和 + 號
+      const cleanedPhone = newLink.replace(/[\s\-\(\)]/g, '');
+      newLink = 'https://wa.me/' + cleanedPhone.replace(/^\+/, '');
     }
   }
   
