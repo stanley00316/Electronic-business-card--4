@@ -1623,6 +1623,28 @@ body.theme-light .link-input-cancel:hover {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Contenteditable placeholder styling */
+[contenteditable="true"]:empty:before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  pointer-events: none;
+}
+
+[contenteditable="true"]:focus:empty:before {
+  content: '';
+}
+
+/* Upload placeholder styling */
+.upload-placeholder {
+  transition: all 0.2s ease;
+}
+
+.upload-placeholder:hover {
+  border-color: rgba(255,255,255,0.5) !important;
+  background: rgba(255,255,255,0.1) !important;
+}
+
 </style>
 </head>
 
@@ -1660,8 +1682,13 @@ body.theme-light .link-input-cancel:hover {
     <!-- 名片預覽（可直接編輯） -->
     <div class="edit-preview-section">
       <div class="hero">
-        <div class="hero-frame edit-clickable" onclick="editLogo()" title="點擊編輯 LOGO">
-          <img src="uvaco-logo.svg?v=20260125" class="hero-logo" alt="數位身分平台" id="previewLogo" loading="lazy">
+        <div class="hero-frame edit-clickable" onclick="editLogo()" title="點擊編輯 LOGO" style="position: relative;">
+          <img src="" class="hero-logo" alt="Logo" id="previewLogo" loading="lazy" style="display: none;">
+          <div class="upload-placeholder" id="logoPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 80px; border: 2px dashed rgba(255,255,255,0.3); border-radius: 8px; cursor: pointer;">
+            <span style="font-size: 24px; margin-bottom: 4px;">📷</span>
+            <span class="lang-zh" style="font-size: 12px; color: rgba(255,255,255,0.6);">點擊上傳 Logo</span>
+            <span class="lang-en" style="font-size: 12px; color: rgba(255,255,255,0.6);">Click to upload Logo</span>
+          </div>
         </div>
       </div>
 
@@ -1671,39 +1698,32 @@ body.theme-light .link-input-cancel:hover {
           <span class="lang-zh">範例呈現</span>
           <span class="lang-en">Example</span>
         </div>
-        <img class="avatar edit-clickable" id="previewAvatar" src="default-avatar.svg" alt="Avatar" loading="lazy" onclick="editAvatar()" title="點擊編輯頭像">
+        <div class="avatar-container edit-clickable" onclick="editAvatar()" title="點擊編輯頭像" style="position: relative; width: 120px; height: 120px; margin: 0 auto 16px;">
+          <img class="avatar" id="previewAvatar" src="" alt="Avatar" loading="lazy" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+          <div class="upload-placeholder" id="avatarPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; height: 120px; border: 2px dashed rgba(255,255,255,0.3); border-radius: 50%; cursor: pointer; background: rgba(255,255,255,0.05);">
+            <span style="font-size: 32px; margin-bottom: 4px;">👤</span>
+            <span class="lang-zh" style="font-size: 11px; color: rgba(255,255,255,0.6); text-align: center;">點擊上傳<br>頭像</span>
+            <span class="lang-en" style="font-size: 11px; color: rgba(255,255,255,0.6); text-align: center;">Upload<br>Photo</span>
+          </div>
+        </div>
         
-        <div class="name lang-zh edit-clickable" id="previewNameZh" contenteditable="true" onblur="updateNameFromPreview()" onclick="focusEdit(this)">柯宜瀅 ｜ <span class="en">Yuyu Ko</span></div>
+        <div class="name lang-zh edit-clickable" id="previewNameZh" contenteditable="true" onblur="updateNameFromPreview()" onclick="focusEdit(this)" data-placeholder="請輸入姓名" style="min-height: 1.2em;"></div>
         
-        <div class="tagline lang-zh edit-clickable" id="previewTitleZh" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)">業務經理</div>
-        <div class="tagline lang-en edit-clickable" id="previewTitleEn" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)">Sales Manager</div>
+        <div class="tagline lang-zh edit-clickable" id="previewTitleZh" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)" data-placeholder="請輸入職稱" style="min-height: 1.2em;"></div>
+        <div class="tagline lang-en edit-clickable" id="previewTitleEn" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)" data-placeholder="Enter job title" style="min-height: 1.2em;"></div>
         
         <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start;">
           <div id="previewSlogansZh" class="slogans-container">
-            <div class="slogan-item">
-              <div class="tagline lang-zh edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)">健康・事業・未來</div>
-              <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="刪除標語">✕</button>
-            </div>
-            <div class="slogan-item">
-              <div class="tagline lang-zh edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)"><strong>葡眾企業｜專業陪伴</strong></div>
-              <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="刪除標語">✕</button>
-            </div>
+            <!-- 標語將動態新增 -->
           </div>
-          <button class="edit-add-btn lang-zh" onclick="addSloganToPreview('zh')">+ 新增中文標語</button>
-          <button class="edit-add-btn lang-en" onclick="addSloganToPreview('zh')">+ Add Chinese Slogan</button>
+          <button class="edit-add-btn lang-zh" onclick="addSloganToPreview('zh')">+ 新增中文標語（選填）</button>
+          <button class="edit-add-btn lang-en" onclick="addSloganToPreview('zh')">+ Add Chinese Slogan (optional)</button>
           
           <div id="previewSlogansEn" class="slogans-container">
-            <div class="slogan-item">
-              <div class="tagline lang-en edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)">Health • Business • Future</div>
-              <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="Delete slogan">✕</button>
-            </div>
-            <div class="slogan-item">
-              <div class="tagline lang-en edit-clickable" contenteditable="true" onblur="updateSlogansPreview()" onclick="focusEdit(this)"><strong>Puzhong Enterprise | Professional Support</strong></div>
-              <button class="slogan-delete-btn" onclick="deleteSloganFromPreview(this)" title="Delete slogan">✕</button>
-            </div>
+            <!-- 標語將動態新增 -->
           </div>
-          <button class="edit-add-btn lang-zh" onclick="addSloganToPreview('en')">+ 新增英文標語</button>
-          <button class="edit-add-btn lang-en" onclick="addSloganToPreview('en')">+ Add English Slogan</button>
+          <button class="edit-add-btn lang-zh" onclick="addSloganToPreview('en')">+ 新增英文標語（選填）</button>
+          <button class="edit-add-btn lang-en" onclick="addSloganToPreview('en')">+ Add English Slogan (optional)</button>
         </div>
 
         <div class="divider"></div>
@@ -2450,34 +2470,72 @@ function loadCardToUI(card) {
     try {
       const logo = document.getElementById('previewLogo');
       const avatar = document.getElementById('previewAvatar');
-      // 若載入失敗（常見：signed URL 過期/路徑錯誤），回退到預設圖，避免一直刷 400
+      const logoPlaceholder = document.getElementById('logoPlaceholder');
+      const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+      
+      // 顯示/隱藏 Logo placeholder
+      function updateLogoDisplay(hasImage) {
+        if (logo && logoPlaceholder) {
+          logo.style.display = hasImage ? 'block' : 'none';
+          logoPlaceholder.style.display = hasImage ? 'none' : 'flex';
+        }
+      }
+      
+      // 顯示/隱藏 Avatar placeholder
+      function updateAvatarDisplay(hasImage) {
+        if (avatar && avatarPlaceholder) {
+          avatar.style.display = hasImage ? 'block' : 'none';
+          avatarPlaceholder.style.display = hasImage ? 'none' : 'flex';
+        }
+      }
+      
+      // 若載入失敗，顯示 placeholder
       if (logo && !logo.__uvacoOnErrorBound) {
         logo.__uvacoOnErrorBound = true;
         logo.addEventListener('error', () => {
-          try { logo.setAttribute('src', 'uvaco-logo.svg'); } catch (e) {}
+          updateLogoDisplay(false);
+        });
+        logo.addEventListener('load', () => {
+          if (logo.src && logo.src !== window.location.href) updateLogoDisplay(true);
         });
       }
       if (avatar && !avatar.__uvacoOnErrorBound) {
         avatar.__uvacoOnErrorBound = true;
         avatar.addEventListener('error', () => {
-          try { avatar.setAttribute('src', 'default-avatar.svg'); } catch (e) {}
+          updateAvatarDisplay(false);
+        });
+        avatar.addEventListener('load', () => {
+          if (avatar.src && avatar.src !== window.location.href) updateAvatarDisplay(true);
         });
       }
+      
+      // 初始狀態：顯示 placeholder
+      updateLogoDisplay(false);
+      updateAvatarDisplay(false);
+      
       if (window.UVACO_CLOUD && UVACO_CLOUD.hasConfig()) {
         if (logo) {
           if (pj.logoPath) {
             const u = await UVACO_CLOUD.getSignedAssetUrl(String(pj.logoPath), { bucket: 'card-assets', expiresIn: 3600 });
-            if (u && u.url) logo.setAttribute('src', u.url);
+            if (u && u.url) {
+              logo.setAttribute('src', u.url);
+              updateLogoDisplay(true);
+            }
           } else if (pj.logoSrc) {
             logo.setAttribute('src', String(pj.logoSrc));
+            updateLogoDisplay(true);
           }
         }
         if (avatar) {
           if (pj.avatarPath) {
             const u = await UVACO_CLOUD.getSignedAssetUrl(String(pj.avatarPath), { bucket: 'card-assets', expiresIn: 3600 });
-            if (u && u.url) avatar.setAttribute('src', u.url);
+            if (u && u.url) {
+              avatar.setAttribute('src', u.url);
+              updateAvatarDisplay(true);
+            }
           } else if (pj.avatarSrc) {
             avatar.setAttribute('src', String(pj.avatarSrc));
+            updateAvatarDisplay(true);
           }
         }
       }
@@ -3505,10 +3563,20 @@ async function handleImagePickAndPreview(file, kind) {
     const url = URL.createObjectURL(out.blob);
     if (kind === 'avatar') {
       const el = document.getElementById('previewAvatar');
-      if (el) el.src = url;
+      const placeholder = document.getElementById('avatarPlaceholder');
+      if (el) {
+        el.src = url;
+        el.style.display = 'block';
+      }
+      if (placeholder) placeholder.style.display = 'none';
     } else {
       const el = document.getElementById('previewLogo');
-      if (el) el.src = url;
+      const placeholder = document.getElementById('logoPlaceholder');
+      if (el) {
+        el.src = url;
+        el.style.display = 'block';
+      }
+      if (placeholder) placeholder.style.display = 'none';
     }
   } catch (e) {
     const code = String(e && e.message ? e.message : '');
@@ -5631,10 +5699,15 @@ setTimeout(checkOnboarding, 1500);
         
         <div class="wizard-avatar-section">
           <div class="wizard-avatar-preview" id="wizardAvatarPreview" onclick="wizardSelectAvatar()">
-            <img src="default-avatar.svg" alt="Avatar" id="wizardAvatarImg">
-            <div class="wizard-avatar-overlay">
-              <span class="lang-zh">點擊上傳</span>
-              <span class="lang-en">Click to Upload</span>
+            <img src="" alt="Avatar" id="wizardAvatarImg" style="display: none;">
+            <div class="wizard-avatar-placeholder" id="wizardAvatarPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; color: rgba(255,255,255,0.6);">
+              <span style="font-size: 48px; margin-bottom: 8px;">👤</span>
+              <span class="lang-zh" style="font-size: 14px;">點擊上傳頭像</span>
+              <span class="lang-en" style="font-size: 14px;">Click to Upload</span>
+            </div>
+            <div class="wizard-avatar-overlay" style="display: none;">
+              <span class="lang-zh">點擊更換</span>
+              <span class="lang-en">Click to Change</span>
             </div>
           </div>
           <input type="file" id="wizardAvatarInput" accept="image/*" style="display:none" onchange="wizardHandleAvatarUpload(event)">
@@ -5826,10 +5899,11 @@ setTimeout(checkOnboarding, 1500);
           <div class="wizard-complete-preview" id="wizardCompletePreview">
             <div class="wizard-preview-card">
               <div class="wizard-preview-avatar">
-                <img src="default-avatar.svg" alt="Avatar" id="wizardPreviewAvatar">
+                <img src="" alt="Avatar" id="wizardPreviewAvatar" style="display: none;">
+                <div id="wizardPreviewAvatarPlaceholder" style="width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 32px;">👤</div>
               </div>
-              <div class="wizard-preview-name" id="wizardPreviewName">您的姓名</div>
-              <div class="wizard-preview-title" id="wizardPreviewTitle">您的職稱</div>
+              <div class="wizard-preview-name" id="wizardPreviewName" style="color: rgba(255,255,255,0.4); font-style: italic;">（姓名）</div>
+              <div class="wizard-preview-title" id="wizardPreviewTitle" style="color: rgba(255,255,255,0.4); font-style: italic;">（職稱）</div>
               <div class="wizard-preview-contacts" id="wizardPreviewContacts"></div>
             </div>
           </div>
@@ -6543,9 +6617,14 @@ function wizardHandleAvatarUpload(event) {
     const reader = new FileReader();
     reader.onload = function(e) {
       const img = document.getElementById('wizardAvatarImg');
+      const placeholder = document.getElementById('wizardAvatarPlaceholder');
+      const overlay = document.querySelector('.wizard-avatar-overlay');
       if (img) {
         img.src = e.target.result;
+        img.style.display = 'block';
       }
+      if (placeholder) placeholder.style.display = 'none';
+      if (overlay) overlay.style.display = 'flex';
     };
     reader.readAsDataURL(file);
   }
@@ -6564,8 +6643,8 @@ function wizardSelectTheme(theme) {
 
 // 更新預覽
 function updateWizardPreview() {
-  const nameZh = document.getElementById('wizardNameZh')?.value?.trim() || '您的姓名';
-  const titleZh = document.getElementById('wizardTitleZh')?.value?.trim() || '您的職稱';
+  const nameZh = document.getElementById('wizardNameZh')?.value?.trim() || '';
+  const titleZh = document.getElementById('wizardTitleZh')?.value?.trim() || '';
   const phone = document.getElementById('wizardPhone')?.value?.trim();
   const line = document.getElementById('wizardLine')?.value?.trim();
   const email = document.getElementById('wizardEmail')?.value?.trim();
@@ -6577,9 +6656,25 @@ function updateWizardPreview() {
   const previewAvatar = document.getElementById('wizardPreviewAvatar');
   const previewContacts = document.getElementById('wizardPreviewContacts');
   
-  if (previewName) previewName.textContent = nameZh;
-  if (previewTitle) previewTitle.textContent = titleZh;
-  if (previewAvatar && avatarSrc) previewAvatar.src = avatarSrc;
+  if (previewName) {
+    previewName.textContent = nameZh || '（姓名）';
+    previewName.style.color = nameZh ? '' : 'rgba(255,255,255,0.4)';
+    previewName.style.fontStyle = nameZh ? '' : 'italic';
+  }
+  if (previewTitle) {
+    previewTitle.textContent = titleZh || '（職稱）';
+    previewTitle.style.color = titleZh ? '' : 'rgba(255,255,255,0.4)';
+    previewTitle.style.fontStyle = titleZh ? '' : 'italic';
+  }
+  const previewAvatarPlaceholder = document.getElementById('wizardPreviewAvatarPlaceholder');
+  if (previewAvatar && avatarSrc && avatarSrc !== window.location.href && !avatarSrc.endsWith('/')) {
+    previewAvatar.src = avatarSrc;
+    previewAvatar.style.display = 'block';
+    if (previewAvatarPlaceholder) previewAvatarPlaceholder.style.display = 'none';
+  } else {
+    if (previewAvatar) previewAvatar.style.display = 'none';
+    if (previewAvatarPlaceholder) previewAvatarPlaceholder.style.display = 'flex';
+  }
   
   if (previewContacts) {
     let contactsHtml = '';
@@ -6630,9 +6725,14 @@ function syncWizardToCard() {
   if (previewTitleEn && titleEn) previewTitleEn.textContent = titleEn;
   
   // 更新頭像
-  if (avatarSrc && !avatarSrc.includes('default-avatar')) {
+  if (avatarSrc && avatarSrc !== window.location.href && !avatarSrc.endsWith('/')) {
     const previewAvatar = document.getElementById('previewAvatar');
-    if (previewAvatar) previewAvatar.src = avatarSrc;
+    const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+    if (previewAvatar) {
+      previewAvatar.src = avatarSrc;
+      previewAvatar.style.display = 'block';
+    }
+    if (avatarPlaceholder) avatarPlaceholder.style.display = 'none';
   }
   
   // 更新主題
