@@ -1727,6 +1727,51 @@ body.theme-light .link-input-cancel:hover {
   box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.5);
 }
 
+/* 調色盤輸入框 */
+.font-color-picker-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.font-color-picker {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.font-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.font-color-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.font-color-picker::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.font-color-picker:hover {
+  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.font-color-picker:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.3);
+}
+
 /* 可編輯欄位的樣式容器 */
 .editable-field-wrapper {
   position: relative;
@@ -1754,13 +1799,10 @@ body.theme-light .link-input-cancel:hover {
   </div>
   <!-- 顏色 -->
   <div class="font-style-group">
-    <button type="button" class="font-color-btn active" onclick="setFontColor('#ffffff'); event.stopPropagation();" style="background: #ffffff;" title="白色"></button>
-    <button type="button" class="font-color-btn" onclick="setFontColor('#22c55e'); event.stopPropagation();" style="background: #22c55e;" title="綠色"></button>
-    <button type="button" class="font-color-btn" onclick="setFontColor('#3b82f6'); event.stopPropagation();" style="background: #3b82f6;" title="藍色"></button>
-    <button type="button" class="font-color-btn" onclick="setFontColor('#f59e0b'); event.stopPropagation();" style="background: #f59e0b;" title="金色"></button>
-    <button type="button" class="font-color-btn" onclick="setFontColor('#ef4444'); event.stopPropagation();" style="background: #ef4444;" title="紅色"></button>
-    <button type="button" class="font-color-btn" onclick="setFontColor('#a855f7'); event.stopPropagation();" style="background: #a855f7;" title="紫色"></button>
-    <button type="button" class="font-color-btn" onclick="setFontColor('#9ca3af'); event.stopPropagation();" style="background: #9ca3af;" title="灰色"></button>
+    <div class="font-color-picker-wrapper">
+      <input type="color" id="fontColorPicker" class="font-color-picker" value="#ffffff" title="選擇顏色" onchange="setFontColor(this.value)" oninput="setFontColor(this.value)">
+      <span style="color: #aaa; font-size: 11px;">顏色</span>
+    </div>
   </div>
 </div>
 
@@ -3062,15 +3104,12 @@ function updateToolbarState(element) {
     toolbar.querySelector('.font-style-btn[onclick="setFontWeight(\'normal\')"]')?.classList.add('active');
   }
   
-  // 更新顏色按鈕狀態
+  // 更新調色盤狀態
   const color = rgbToHex(style.color);
-  toolbar.querySelectorAll('.font-color-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.style.background.toLowerCase() === color.toLowerCase() || 
-        rgbToHex(btn.style.background) === color) {
-      btn.classList.add('active');
-    }
-  });
+  const picker = document.getElementById('fontColorPicker');
+  if (picker) {
+    picker.value = color;
+  }
 }
 
 function rgbToHex(rgb) {
@@ -3121,20 +3160,21 @@ function setFontWeight(weight) {
 }
 
 function setFontColor(color) {
-  console.log('setFontColor called:', color, 'currentStyledElement:', currentStyledElement);
   if (!currentStyledElement) {
-    console.warn('setFontColor: no currentStyledElement');
     return;
   }
   
   currentStyledElement.style.color = color;
   currentStyledElement.dataset.fontColor = color;
   
+  // 更新調色盤顯示
+  const picker = document.getElementById('fontColorPicker');
+  if (picker && picker.value !== color) {
+    picker.value = color;
+  }
+  
   // 確保焦點保持在元素上
   currentStyledElement.focus();
-  
-  updateToolbarState(currentStyledElement);
-  console.log('setFontColor completed, new color:', currentStyledElement.style.color);
 }
 
 // 點擊其他地方時隱藏工具列
