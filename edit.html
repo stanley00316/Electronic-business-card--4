@@ -4363,7 +4363,7 @@ function showLinkInputModal(defaultLink, currentLang) {
       const t = window.isEditingContact && window.editingContactInfo ? window.editingContactInfo.type : (window.currentContactType ? window.currentContactType.type : '');
       let zh = '請輸入完整連結（包含 https://）。';
       let en = 'Please enter a full link (including https://).';
-      if (t === 'line' || t === 'official-line') {
+      if (t === 'line') {
         zh = `<div style="text-align:left;">
           <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📱 如何取得 LINE 個人連結：</div>
           <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
@@ -4392,15 +4392,302 @@ function showLinkInputModal(defaultLink, currentLang) {
             <code style="color:var(--uvaco-green);word-break:break-all;">https://line.me/ti/p/7QENOpjTy5</code>
           </div>
         </div>`;
+      } else if (t === 'official-line') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📱 如何取得 LINE 官方帳號連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 登入 LINE Official Account Manager</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 選擇您的官方帳號</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊「加入好友」→「分享連結」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> 複製 URL 連結</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://line.me/R/ti/p/@yourid</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📱 How to get LINE Official Account link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Login to LINE Official Account Manager</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Select your official account</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Click "Add Friends" → "Share Link"</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> Copy the URL link</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://line.me/R/ti/p/@yourid</code>
+          </div>
+        </div>`;
       } else if (t === 'email') {
-        zh = 'Email 連結格式：<code>mailto:yourname@example.com</code>';
-        en = 'Email link format: <code>mailto:yourname@example.com</code>';
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">✉️ 如何輸入 Email：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 直接輸入您的 Email 地址</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 系統會自動加上 mailto: 前綴</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">輸入格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">yourname@example.com</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">✉️ How to enter Email:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Enter your email address directly</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> System will auto-add mailto: prefix</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Input format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">yourname@example.com</code>
+          </div>
+        </div>`;
       } else if (t === 'company-phone' || t === 'personal-phone' || t === 'call') {
-        zh = '電話連結格式：<code>tel:0905519002</code>';
-        en = 'Phone link format: <code>tel:+886905519002</code>';
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📞 如何輸入電話號碼：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 直接輸入電話號碼（可包含 - 分隔）</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 系統會自動加上 tel: 前綴</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">輸入格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">0912-345-678 或 02-1234-5678</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📞 How to enter phone number:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Enter phone number directly (can include - separator)</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> System will auto-add tel: prefix</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Input format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">0912-345-678 or +886-2-1234-5678</code>
+          </div>
+        </div>`;
       } else if (t === 'website') {
-        zh = '網站範例：<code>https://example.com</code>';
-        en = 'Website example: <code>https://example.com</code>';
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">🌐 如何輸入網站連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 輸入完整網址（需包含 https://）</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 可從瀏覽器網址列複製</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.example.com</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">🌐 How to enter website link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Enter full URL (must include https://)</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> You can copy from browser address bar</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.example.com</code>
+          </div>
+        </div>`;
+      } else if (t === 'facebook') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📘 如何取得 Facebook 個人連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟 Facebook App 或網頁版</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊您的個人檔案頭像</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊「...」→「複製連結」</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.facebook.com/yourname</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📘 How to get your Facebook link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open Facebook App or website</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap your profile picture</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Tap "..." → "Copy Link"</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.facebook.com/yourname</code>
+          </div>
+        </div>`;
+      } else if (t === 'instagram') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📸 如何取得 Instagram 個人連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟 Instagram App</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊右下角「個人檔案」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊右上角「≡」→「QR 圖碼」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> 點擊「分享」→「複製連結」</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.instagram.com/yourname</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📸 How to get your Instagram link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open Instagram App</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap "Profile" (bottom right)</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Tap "≡" → "QR Code" (top right)</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> Tap "Share" → "Copy Link"</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.instagram.com/yourname</code>
+          </div>
+        </div>`;
+      } else if (t === 'linkedin') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">💼 如何取得 LinkedIn 個人連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟 LinkedIn App 或網頁版</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊「我」→「查看個人檔案」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊「...」→「分享個人檔案」→「複製」</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.linkedin.com/in/yourname</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">💼 How to get your LinkedIn link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open LinkedIn App or website</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap "Me" → "View Profile"</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Tap "..." → "Share Profile" → "Copy"</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.linkedin.com/in/yourname</code>
+          </div>
+        </div>`;
+      } else if (t === 'twitter') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">🐦 如何取得 X (Twitter) 個人連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟 X (Twitter) App</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊左上角頭像 → 「個人檔案」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊「分享」→「複製連結」</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://twitter.com/yourname</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">🐦 How to get your X (Twitter) link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open X (Twitter) App</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap profile icon (top left) → "Profile"</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Tap "Share" → "Copy Link"</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://twitter.com/yourname</code>
+          </div>
+        </div>`;
+      } else if (t === 'youtube') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">🎬 如何取得 YouTube 頻道連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟 YouTube App 或網頁版</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊右下角「您」→「查看頻道」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊「...」→「分享」→「複製連結」</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.youtube.com/@yourchannel</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">🎬 How to get your YouTube channel link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open YouTube App or website</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap "You" (bottom right) → "View Channel"</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Tap "..." → "Share" → "Copy Link"</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://www.youtube.com/@yourchannel</code>
+          </div>
+        </div>`;
+      } else if (t === 'wechat') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">💬 如何輸入微信 ID：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟微信 App</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊「我」→ 查看微信號</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 直接輸入您的微信號</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">輸入格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">your_wechat_id</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">💬 How to enter WeChat ID:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open WeChat App</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap "Me" → View WeChat ID</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Enter your WeChat ID directly</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Input format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">your_wechat_id</code>
+          </div>
+        </div>`;
+      } else if (t === 'whatsapp') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📱 如何輸入 WhatsApp 號碼：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 輸入國際格式電話號碼</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 台灣號碼：+886 開頭，去掉第一個 0</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 例：0912345678 → +886912345678</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://wa.me/886912345678</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📱 How to enter WhatsApp number:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Enter phone number in international format</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Include country code (e.g., +1 for US)</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> No spaces or dashes needed</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://wa.me/886912345678</code>
+          </div>
+        </div>`;
+      } else if (t === 'other') {
+        zh = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">🔗 如何輸入自訂連結：</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 輸入完整網址（需包含 https://）</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 可以是任何網站或服務的連結</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://example.com/yourpage</code>
+          </div>
+        </div>`;
+        en = `<div style="text-align:left;">
+          <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">🔗 How to enter custom link:</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Enter full URL (must include https://)</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Can be any website or service link</div>
+          </div>
+          <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <code style="color:var(--uvaco-green);word-break:break-all;">https://example.com/yourpage</code>
+          </div>
+        </div>`;
       }
       help.querySelector('.lang-zh').innerHTML = zh;
       help.querySelector('.lang-en').innerHTML = en;
