@@ -77,10 +77,129 @@
     .back-btn:hover {
       background: rgba(0,0,0,0.7);
     }
+    
+    /* 加入主畫面提示橫幅 */
+    .add-home-banner {
+      display: none;
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 32px);
+      max-width: 400px;
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95));
+      border-radius: 16px;
+      padding: 16px 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      z-index: 9998;
+      animation: bannerSlideUp 0.4s ease-out;
+    }
+    @keyframes bannerSlideUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .add-home-banner.show {
+      display: block;
+    }
+    .add-home-banner-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .add-home-banner-icon {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .add-home-banner-text {
+      flex: 1;
+    }
+    .add-home-banner-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .add-home-banner-desc {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.4;
+    }
+    .add-home-banner-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .add-home-banner-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .add-home-banner-action {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+    }
+    .add-home-banner-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .add-home-banner-btn.primary {
+      background: #fff;
+      color: #16a34a;
+    }
+    .add-home-banner-btn.primary:hover {
+      background: rgba(255, 255, 255, 0.9);
+    }
+    .add-home-banner-btn.secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+    .add-home-banner-btn.secondary:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
   </style>
 </head>
 
 <body class="theme-dark lang-zh">
+
+<!-- 加入主畫面提示橫幅 -->
+<div id="addHomeBanner" class="add-home-banner">
+  <button class="add-home-banner-close" onclick="dismissAddHomeBanner()" title="關閉">✕</button>
+  <div class="add-home-banner-content">
+    <div class="add-home-banner-icon">📱</div>
+    <div class="add-home-banner-text">
+      <div class="add-home-banner-title lang-zh">加入主畫面，快速開啟名片</div>
+      <div class="add-home-banner-title lang-en" style="display:none;">Add to Home Screen</div>
+      <div class="add-home-banner-desc lang-zh">將名片加入手機主畫面，下次點擊圖示即可直接開啟您的名片！</div>
+      <div class="add-home-banner-desc lang-en" style="display:none;">Add your card to home screen for quick access!</div>
+      <div class="add-home-banner-action">
+        <button class="add-home-banner-btn primary" onclick="showAddHomeInstructions()">
+          <span class="lang-zh">了解如何加入</span>
+          <span class="lang-en" style="display:none;">Learn How</span>
+        </button>
+        <button class="add-home-banner-btn secondary" onclick="dismissAddHomeBanner()">
+          <span class="lang-zh">稍後再說</span>
+          <span class="lang-en" style="display:none;">Later</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 背景泡泡 -->
 <div class="bg-blob blob1"></div>
@@ -739,6 +858,137 @@ function downloadQRCode() {
     }
   }
 }
+
+// ===== 加入主畫面提示功能 =====
+
+// 檢查是否應該顯示提示
+function shouldShowAddHomeBanner() {
+  // 已經關閉過，不再顯示
+  if (localStorage.getItem('addHomeBannerDismissed') === 'true') {
+    return false;
+  }
+  
+  // 已經是 PWA 模式（已加入主畫面），不顯示
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+    return false;
+  }
+  
+  return true;
+}
+
+// 檢查是否為自己的名片並顯示提示
+async function checkAndShowAddHomeBanner() {
+  try {
+    if (!shouldShowAddHomeBanner()) return;
+    
+    // 取得 URL 中的 id 參數
+    const urlParams = new URLSearchParams(window.location.search);
+    const cardId = urlParams.get('id');
+    if (!cardId) return;
+    
+    // 檢查是否已登入
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) return;
+    
+    const sessionResult = await UVACO_CLOUD.getSession();
+    const session = sessionResult && sessionResult.session;
+    const user = session && session.user;
+    const userId = user ? String(user.id || '').trim() : '';
+    
+    // 只有在查看自己的名片時才顯示
+    if (userId && cardId === userId) {
+      // 延遲 2 秒後顯示，避免打擾用戶瀏覽
+      setTimeout(() => {
+        const banner = document.getElementById('addHomeBanner');
+        if (banner) {
+          banner.classList.add('show');
+        }
+      }, 2000);
+    }
+  } catch (e) {
+    console.error('檢查加入主畫面提示失敗:', e);
+  }
+}
+
+// 關閉提示並記住選擇
+function dismissAddHomeBanner() {
+  const banner = document.getElementById('addHomeBanner');
+  if (banner) {
+    banner.classList.remove('show');
+  }
+  localStorage.setItem('addHomeBannerDismissed', 'true');
+}
+
+// 顯示加入主畫面說明
+function showAddHomeInstructions() {
+  const lang = localStorage.getItem('lang') || 'zh';
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+  
+  let instructions = '';
+  
+  if (lang === 'zh') {
+    if (isIOS) {
+      instructions = `📱 iOS 加入主畫面步驟：
+
+1. 點擊瀏覽器底部的「分享」按鈕 (方形+箭頭圖示)
+2. 向下滑動找到「加入主畫面」
+3. 點擊「新增」確認
+
+完成後，主畫面會出現「我的名片」圖示，點擊即可快速開啟您的名片！`;
+    } else if (isAndroid) {
+      instructions = `📱 Android 加入主畫面步驟：
+
+1. 點擊瀏覽器右上角的「選單」(⋮)
+2. 選擇「加入主畫面」或「安裝應用程式」
+3. 點擊「新增」確認
+
+完成後，主畫面會出現「我的名片」圖示，點擊即可快速開啟您的名片！`;
+    } else {
+      instructions = `📱 加入主畫面步驟：
+
+1. 在瀏覽器中找到「分享」或「選單」按鈕
+2. 選擇「加入主畫面」或「安裝」
+3. 確認新增
+
+完成後，主畫面會出現「我的名片」圖示！`;
+    }
+  } else {
+    if (isIOS) {
+      instructions = `📱 iOS - Add to Home Screen:
+
+1. Tap the "Share" button at the bottom (square with arrow)
+2. Scroll down and tap "Add to Home Screen"
+3. Tap "Add" to confirm
+
+Done! You'll see "My Card" icon on your home screen.`;
+    } else if (isAndroid) {
+      instructions = `📱 Android - Add to Home Screen:
+
+1. Tap the menu button (⋮) in the browser
+2. Select "Add to Home Screen" or "Install App"
+3. Tap "Add" to confirm
+
+Done! You'll see "My Card" icon on your home screen.`;
+    } else {
+      instructions = `📱 Add to Home Screen:
+
+1. Find the "Share" or "Menu" button in your browser
+2. Select "Add to Home Screen" or "Install"
+3. Confirm
+
+Done! You'll see the icon on your home screen.`;
+    }
+  }
+  
+  alert(instructions);
+  dismissAddHomeBanner();
+}
+
+// 頁面載入後檢查是否顯示提示
+document.addEventListener('DOMContentLoaded', function() {
+  // 延遲執行，等待頁面資料載入
+  setTimeout(checkAndShowAddHomeBanner, 1000);
+});
 </script>
 
 </body>
