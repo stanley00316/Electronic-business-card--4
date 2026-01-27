@@ -1969,42 +1969,7 @@ body.theme-light .link-input-cancel:hover {
         </div>
 
         <div class="btn-group" id="previewContacts">
-          <div class="contact-btn-wrapper">
-            <a class="btn btn-primary lang-zh edit-clickable" href="tel:0905519002" onclick="editContact(event, 'call', 'tel:0905519002')">
-              <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電
-            </a>
-            <a class="btn btn-primary lang-en edit-clickable" href="tel:0905519002" onclick="editContact(event, 'call', 'tel:0905519002')">
-              <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now
-            </a>
-            <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="刪除">✕</button>
-          </div>
-          <div class="contact-btn-wrapper">
-            <a class="btn btn-secondary lang-zh edit-clickable" href="https://line.me/R/ti/p/2sSjJ_o6OT" target="_blank" onclick="editContact(event, 'line', 'https://line.me/R/ti/p/2sSjJ_o6OT')">
-              <img src="line-logo.svg" alt="LINE" class="btn-icon-line"> LINE
-            </a>
-            <a class="btn btn-secondary lang-en edit-clickable" href="https://line.me/R/ti/p/2sSjJ_o6OT" target="_blank" onclick="editContact(event, 'line', 'https://line.me/R/ti/p/2sSjJ_o6OT')">
-              <img src="line-logo.svg" alt="LINE" class="btn-icon-line"> LINE
-            </a>
-            <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="Delete">✕</button>
-          </div>
-          <div class="contact-btn-wrapper">
-            <a class="btn btn-secondary lang-zh edit-clickable" href="mailto:ccccwoho@gmail.com" onclick="editContact(event, 'email', 'mailto:ccccwoho@gmail.com')">
-              <img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email
-            </a>
-            <a class="btn btn-secondary lang-en edit-clickable" href="mailto:ccccwoho@gmail.com" onclick="editContact(event, 'email', 'mailto:ccccwoho@gmail.com')">
-              <img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email
-            </a>
-            <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="刪除">✕</button>
-          </div>
-          <div class="contact-btn-wrapper">
-            <a class="btn btn-secondary lang-zh edit-clickable" href="yuyu-ko.vcf" download="YuyuKo.vcf" onclick="editContact(event, 'vcf', 'yuyu-ko.vcf')">
-              <img src="file-icon.svg" alt="VCF" class="btn-icon-file"> 儲存到通訊錄（VCF）
-            </a>
-            <a class="btn btn-secondary lang-en edit-clickable" href="yuyu-ko.vcf" download="YuyuKo.vcf" onclick="editContact(event, 'vcf', 'yuyu-ko.vcf')">
-              <img src="file-icon.svg" alt="VCF" class="btn-icon-file"> Save Contact (VCF)
-            </a>
-            <button class="contact-delete-btn" onclick="event.stopPropagation(); deleteContactButton(this.closest('.contact-btn-wrapper').querySelector('a'))" title="Delete">✕</button>
-          </div>
+          <!-- 聯絡方式將由使用者自行新增 -->
           <button class="edit-add-btn lang-zh" onclick="addContact(event)">+ 新增聯絡方式</button>
           <button class="edit-add-btn lang-en" onclick="addContact(event)">+ Add Contact Method</button>
         </div>
@@ -4309,7 +4274,8 @@ function selectContactType(type, labelZh, labelEn) {
       buttonTextEn = '<img src="whatsapp-logo.svg" alt="WhatsApp" class="btn-icon-whatsapp"> WhatsApp';
       break;
     case 'vcf':
-      defaultLink = 'yuyu-ko.vcf';
+      defaultLink = '';
+      inputField.placeholder = '例：contact.vcf';
       buttonTextZh = '<img src="file-icon.svg" alt="VCF" class="btn-icon-file"> 儲存到通訊錄（VCF）';
       buttonTextEn = '<img src="file-icon.svg" alt="VCF" class="btn-icon-file"> Save Contact (VCF)';
       break;
