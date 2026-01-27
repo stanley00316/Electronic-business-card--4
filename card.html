@@ -500,6 +500,35 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('viewerTitleEn').textContent = titleEn || '-';
       document.getElementById('viewerCompanyStrongZh').textContent = companyZh || '-';
       document.getElementById('viewerCompanyStrongEn').textContent = companyEn || '-';
+      
+      // 套用字體樣式
+      if (pj.fontStyles) {
+        const applyFontStyle = (elementId, styleObj, isName) => {
+          const el = document.getElementById(elementId);
+          if (!el || !styleObj) return;
+          
+          const sizeMap = isName ? {
+            'small': '18px', 'medium': '24px', 'large': '32px'
+          } : {
+            'small': '12px', 'medium': '16px', 'large': '20px'
+          };
+          
+          if (styleObj.size && sizeMap[styleObj.size]) {
+            el.style.fontSize = sizeMap[styleObj.size];
+          }
+          if (styleObj.weight) {
+            el.style.fontWeight = styleObj.weight === 'bold' ? '700' : '400';
+          }
+          if (styleObj.color) {
+            el.style.color = styleObj.color;
+          }
+        };
+        
+        applyFontStyle('viewerNameZh', pj.fontStyles.name, true);
+        applyFontStyle('viewerNameEn', pj.fontStyles.name, true);
+        applyFontStyle('viewerTitleZh', pj.fontStyles.titleZh, false);
+        applyFontStyle('viewerTitleEn', pj.fontStyles.titleEn, false);
+      }
 
       // 恢復自定義標語（若有）- 過濾系統佔位文字
       if (pj.slogansZhHtml) {

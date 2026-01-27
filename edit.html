@@ -1645,10 +1645,122 @@ body.theme-light .link-input-cancel:hover {
   background: rgba(255,255,255,0.1) !important;
 }
 
+/* 字體樣式工具列 */
+.font-style-toolbar {
+  display: none;
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  gap: 8px;
+  align-items: center;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+}
+
+.font-style-toolbar.active {
+  display: flex;
+}
+
+.font-style-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.font-style-group:not(:last-child) {
+  padding-right: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.font-style-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.font-style-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.font-style-btn.active {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: #22c55e;
+}
+
+.font-style-btn.size-s { font-size: 10px; }
+.font-style-btn.size-m { font-size: 14px; }
+.font-style-btn.size-l { font-size: 18px; }
+
+.font-color-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.font-color-btn:hover {
+  transform: scale(1.1);
+}
+
+.font-color-btn.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.5);
+}
+
+/* 可編輯欄位的樣式容器 */
+.editable-field-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
 </style>
 </head>
 
 <body class="lang-zh">
+
+<!-- 字體樣式工具列 -->
+<div id="fontStyleToolbar" class="font-style-toolbar">
+  <!-- 字體大小 -->
+  <div class="font-style-group">
+    <button class="font-style-btn size-s" onclick="setFontSize('small')" title="小">A</button>
+    <button class="font-style-btn size-m active" onclick="setFontSize('medium')" title="中">A</button>
+    <button class="font-style-btn size-l" onclick="setFontSize('large')" title="大">A</button>
+  </div>
+  <!-- 粗細 -->
+  <div class="font-style-group">
+    <button class="font-style-btn" onclick="setFontWeight('normal')" title="正常" style="font-weight: 400;">N</button>
+    <button class="font-style-btn" onclick="setFontWeight('bold')" title="粗體" style="font-weight: 700;">B</button>
+  </div>
+  <!-- 顏色 -->
+  <div class="font-style-group">
+    <button class="font-color-btn active" onclick="setFontColor('#ffffff')" style="background: #ffffff;" title="白色"></button>
+    <button class="font-color-btn" onclick="setFontColor('#22c55e')" style="background: #22c55e;" title="綠色"></button>
+    <button class="font-color-btn" onclick="setFontColor('#3b82f6')" style="background: #3b82f6;" title="藍色"></button>
+    <button class="font-color-btn" onclick="setFontColor('#f59e0b')" style="background: #f59e0b;" title="金色"></button>
+    <button class="font-color-btn" onclick="setFontColor('#ef4444')" style="background: #ef4444;" title="紅色"></button>
+    <button class="font-color-btn" onclick="setFontColor('#a855f7')" style="background: #a855f7;" title="紫色"></button>
+    <button class="font-color-btn" onclick="setFontColor('#9ca3af')" style="background: #9ca3af;" title="灰色"></button>
+  </div>
+</div>
 
 <!-- 背景泡泡 -->
 <div class="bg-blob blob1"></div>
@@ -2455,6 +2567,39 @@ function loadCardToUI(card) {
     const isSmall = (window.matchMedia && window.matchMedia('(max-width: 420px)').matches);
     fitTextToSingleLine(document.getElementById('previewNameZh'), { minPx: 16, maxPx: isSmall ? 30 : 34 });
   } catch (e) {}
+  
+  // 2.5) 還原字體樣式
+  try {
+    if (pj.fontStyles) {
+      const applyFontStyle = (elementId, styleObj) => {
+        const el = document.getElementById(elementId);
+        if (!el || !styleObj) return;
+        
+        const sizeMap = {
+          'small': elementId === 'previewNameZh' ? '18px' : '12px',
+          'medium': elementId === 'previewNameZh' ? '24px' : '16px',
+          'large': elementId === 'previewNameZh' ? '32px' : '20px'
+        };
+        
+        if (styleObj.size && sizeMap[styleObj.size]) {
+          el.style.fontSize = sizeMap[styleObj.size];
+          el.dataset.fontSize = styleObj.size;
+        }
+        if (styleObj.weight) {
+          el.style.fontWeight = styleObj.weight === 'bold' ? '700' : '400';
+          el.dataset.fontWeight = styleObj.weight;
+        }
+        if (styleObj.color) {
+          el.style.color = styleObj.color;
+          el.dataset.fontColor = styleObj.color;
+        }
+      };
+      
+      applyFontStyle('previewNameZh', pj.fontStyles.name);
+      applyFontStyle('previewTitleZh', pj.fontStyles.titleZh);
+      applyFontStyle('previewTitleEn', pj.fontStyles.titleEn);
+    }
+  } catch (e) { console.log('Font style restore error:', e); }
 
   // 3) 公司（canonical + 鎖定）
   try {
@@ -2838,7 +2983,173 @@ function focusEdit(element) {
     range.collapse(false); // 游標放到結尾
     selection.addRange(range);
   } catch (e) {}
+  
+  // 顯示字體樣式工具列
+  showFontStyleToolbar(element);
 }
+
+// ===== 字體樣式工具列功能 =====
+let currentStyledElement = null;
+
+function showFontStyleToolbar(element) {
+  const toolbar = document.getElementById('fontStyleToolbar');
+  if (!toolbar) return;
+  
+  // 只對姓名、職稱、標語欄位顯示工具列
+  const isStyleable = element.id === 'previewNameZh' || 
+                      element.id === 'previewTitleZh' || 
+                      element.id === 'previewTitleEn' ||
+                      element.closest('.slogan-item');
+  
+  if (!isStyleable) {
+    hideFontStyleToolbar();
+    return;
+  }
+  
+  currentStyledElement = element;
+  
+  // 計算位置
+  const rect = element.getBoundingClientRect();
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+  
+  toolbar.style.position = 'fixed';
+  toolbar.style.top = (rect.top - 50) + 'px';
+  toolbar.style.left = (rect.left + rect.width / 2) + 'px';
+  toolbar.style.transform = 'translateX(-50%)';
+  toolbar.classList.add('active');
+  
+  // 更新工具列按鈕狀態
+  updateToolbarState(element);
+}
+
+function hideFontStyleToolbar() {
+  const toolbar = document.getElementById('fontStyleToolbar');
+  if (toolbar) {
+    toolbar.classList.remove('active');
+  }
+  currentStyledElement = null;
+}
+
+function updateToolbarState(element) {
+  const style = window.getComputedStyle(element);
+  const toolbar = document.getElementById('fontStyleToolbar');
+  if (!toolbar) return;
+  
+  // 更新字體大小按鈕狀態
+  const fontSize = parseInt(style.fontSize);
+  toolbar.querySelectorAll('.size-s, .size-m, .size-l').forEach(btn => btn.classList.remove('active'));
+  if (fontSize <= 14) {
+    toolbar.querySelector('.size-s')?.classList.add('active');
+  } else if (fontSize >= 24) {
+    toolbar.querySelector('.size-l')?.classList.add('active');
+  } else {
+    toolbar.querySelector('.size-m')?.classList.add('active');
+  }
+  
+  // 更新粗細按鈕狀態
+  const fontWeight = style.fontWeight;
+  toolbar.querySelectorAll('.font-style-btn[onclick^="setFontWeight"]').forEach(btn => btn.classList.remove('active'));
+  if (fontWeight === 'bold' || parseInt(fontWeight) >= 600) {
+    toolbar.querySelector('.font-style-btn[onclick="setFontWeight(\'bold\')"]')?.classList.add('active');
+  } else {
+    toolbar.querySelector('.font-style-btn[onclick="setFontWeight(\'normal\')"]')?.classList.add('active');
+  }
+  
+  // 更新顏色按鈕狀態
+  const color = rgbToHex(style.color);
+  toolbar.querySelectorAll('.font-color-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.style.background.toLowerCase() === color.toLowerCase() || 
+        rgbToHex(btn.style.background) === color) {
+      btn.classList.add('active');
+    }
+  });
+}
+
+function rgbToHex(rgb) {
+  if (rgb.startsWith('#')) return rgb;
+  const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+  if (!match) return rgb;
+  return '#' + [match[1], match[2], match[3]].map(x => {
+    const hex = parseInt(x).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  }).join('');
+}
+
+function setFontSize(size) {
+  if (!currentStyledElement) return;
+  
+  const sizeMap = {
+    'small': '14px',
+    'medium': '18px',
+    'large': '26px'
+  };
+  
+  // 根據元素類型調整基準大小
+  if (currentStyledElement.classList.contains('name')) {
+    sizeMap.small = '18px';
+    sizeMap.medium = '24px';
+    sizeMap.large = '32px';
+  } else if (currentStyledElement.classList.contains('tagline')) {
+    sizeMap.small = '12px';
+    sizeMap.medium = '16px';
+    sizeMap.large = '20px';
+  }
+  
+  currentStyledElement.style.fontSize = sizeMap[size] || sizeMap.medium;
+  
+  // 儲存樣式到 data 屬性
+  currentStyledElement.dataset.fontSize = size;
+  
+  updateToolbarState(currentStyledElement);
+}
+
+function setFontWeight(weight) {
+  if (!currentStyledElement) return;
+  
+  currentStyledElement.style.fontWeight = weight === 'bold' ? '700' : '400';
+  currentStyledElement.dataset.fontWeight = weight;
+  
+  updateToolbarState(currentStyledElement);
+}
+
+function setFontColor(color) {
+  if (!currentStyledElement) return;
+  
+  currentStyledElement.style.color = color;
+  currentStyledElement.dataset.fontColor = color;
+  
+  updateToolbarState(currentStyledElement);
+}
+
+// 點擊其他地方時隱藏工具列
+document.addEventListener('click', function(e) {
+  const toolbar = document.getElementById('fontStyleToolbar');
+  if (!toolbar) return;
+  
+  // 如果點擊的是工具列或工具列內的按鈕，不隱藏
+  if (toolbar.contains(e.target)) return;
+  
+  // 如果點擊的是可編輯欄位，showFontStyleToolbar 會處理
+  const editableTarget = e.target.closest('[contenteditable="true"]');
+  if (editableTarget && editableTarget.classList.contains('edit-clickable')) return;
+  
+  // 否則隱藏工具列
+  hideFontStyleToolbar();
+});
+
+// 滾動時更新工具列位置
+document.addEventListener('scroll', function() {
+  if (currentStyledElement) {
+    const toolbar = document.getElementById('fontStyleToolbar');
+    if (toolbar && toolbar.classList.contains('active')) {
+      const rect = currentStyledElement.getBoundingClientRect();
+      toolbar.style.top = (rect.top - 50) + 'px';
+      toolbar.style.left = (rect.left + rect.width / 2) + 'px';
+    }
+  }
+}, true);
 
 // 修正：contenteditable 貼上時一律以「純文字」插入，避免插入 HTML 造成結構變動與游標跑位
 // 並在貼上後強制觸發 input/blur 事件以同步資料
@@ -5154,6 +5465,40 @@ async function saveCard() {
     const logoSrcSafe = (logoSrcRaw.startsWith('blob:') || logoSrcRaw.startsWith('data:')) ? logoSrcRaw : '';
     const avatarSrcSafe = (avatarSrcRaw.startsWith('blob:') || avatarSrcRaw.startsWith('data:')) ? avatarSrcRaw : '';
     
+    // 收集字體樣式
+    const nameEl = document.getElementById('previewNameZh');
+    const titleZhEl = document.getElementById('previewTitleZh');
+    const titleEnEl = document.getElementById('previewTitleEn');
+    
+    const fontStyles = {
+      name: {
+        size: nameEl?.dataset.fontSize || 'medium',
+        weight: nameEl?.dataset.fontWeight || 'normal',
+        color: nameEl?.dataset.fontColor || ''
+      },
+      titleZh: {
+        size: titleZhEl?.dataset.fontSize || 'medium',
+        weight: titleZhEl?.dataset.fontWeight || 'normal',
+        color: titleZhEl?.dataset.fontColor || ''
+      },
+      titleEn: {
+        size: titleEnEl?.dataset.fontSize || 'medium',
+        weight: titleEnEl?.dataset.fontWeight || 'normal',
+        color: titleEnEl?.dataset.fontColor || ''
+      }
+    };
+    
+    // 收集標語樣式
+    const sloganStyles = [];
+    document.querySelectorAll('#previewSlogansZh .tagline, #previewSlogansEn .tagline').forEach((el, idx) => {
+      sloganStyles.push({
+        index: idx,
+        size: el.dataset.fontSize || 'medium',
+        weight: el.dataset.fontWeight || 'normal',
+        color: el.dataset.fontColor || ''
+      });
+    });
+    
     return {
       lang: currentLang,
       contactLayout: (window.__uvacoContactLayout === 'grid') ? 'grid' : 'list',
@@ -5177,6 +5522,10 @@ async function saveCard() {
       // 保留 storage path (若本次沒變更圖片，沿用舊的 path)
       logoPath: logoSrcSafe ? '' : (prevPj.logoPath || ''),
       avatarPath: avatarSrcSafe ? '' : (prevPj.avatarPath || ''),
+      
+      // 字體樣式
+      fontStyles: fontStyles,
+      sloganStyles: sloganStyles,
       
       // HTML Fragments (Cleaned)
       previewCardHtml: card ? card.innerHTML : '',
