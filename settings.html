@@ -309,7 +309,7 @@ async function initUserId() {
         loadReferralStats();
       }
       
-      // 檢查管理員狀態 - 僅管理員可見以下三個項目
+      // 檢查管理員狀態 - 僅「超級管理員」可見以下三個項目
       if (s.session && UVACO_CLOUD.isAdmin) {
         const adminStatus = await UVACO_CLOUD.isAdmin();
         const statusItem = document.getElementById('adminStatusItem');
@@ -317,8 +317,10 @@ async function initUserId() {
         const adminLink = document.getElementById('adminBackendLink');
         const userIdItem = document.getElementById('userIdItem');
         
-        // 只有管理員才顯示這三個項目
-        if (adminStatus && adminStatus.isAdmin) {
+        // 只有「超級管理員」才顯示這三個項目（企業管理員不顯示）
+        const isSuperAdmin = adminStatus && adminStatus.isAdmin && !adminStatus.managedCompany;
+        
+        if (isSuperAdmin) {
           // 顯示管理後台連結
           if (adminLink) adminLink.style.display = 'flex';
           // 顯示使用者 ID
@@ -327,14 +329,10 @@ async function initUserId() {
           if (statusItem) statusItem.style.display = 'flex';
           
           if (statusDisplay) {
-            if (adminStatus.managedCompany) {
-              statusDisplay.innerHTML = '<span style="color:#22c55e;">✓ 企業管理員</span><br><small>管理公司：' + adminStatus.managedCompany + '</small>';
-            } else {
-              statusDisplay.innerHTML = '<span style="color:#22c55e;">✓ 超級管理員</span>';
-            }
+            statusDisplay.innerHTML = '<span style="color:#22c55e;">✓ 超級管理員</span>';
           }
         }
-        // 非管理員：這三個項目保持隱藏（預設 display: none）
+        // 企業管理員和一般用戶：這三個項目保持隱藏（預設 display: none）
       }
     }
   } catch (e) {
