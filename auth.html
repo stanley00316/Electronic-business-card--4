@@ -448,6 +448,11 @@
         setStatus('err', 'LINE 登入失敗，請重試。' + (detail ? ('\n' + detail) : ''));
         return;
       }
+      
+      // 如果 LINE 登入已處理跳轉，不要再執行後續跳轉
+      if (lineRes && lineRes.handled) {
+        return;
+      }
 
       var s = await UVACO_CLOUD.getSession();
       if (s.session) {
