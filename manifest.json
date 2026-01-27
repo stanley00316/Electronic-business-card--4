@@ -1,8 +1,8 @@
 {
-  "name": "數位身分平台",
-  "short_name": "數位身分",
+  "name": "我的名片",
+  "short_name": "我的名片",
   "description": "您的專屬數位名片 - Digital Identity Platform",
-  "start_url": "./index.html",
+  "start_url": "./my-card.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

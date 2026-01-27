@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的名片 - 數位身分平台</title>
+  <link rel="stylesheet" href="styles.css?v=20260105">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#22c55e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="我的名片">
+  <link rel="apple-touch-icon" href="icon-192.svg">
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #0f172a;
+      color: #fff;
+    }
+    .loading {
+      text-align: center;
+    }
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(34, 197, 94, 0.3);
+      border-top-color: #22c55e;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-text {
+      color: #9ca3af;
+      font-size: 14px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="cloud.js?v=20260106"></script>
+</head>
+<body class="theme-dark">
+  <div class="loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">正在載入您的名片...</div>
+  </div>
+
+  <script>
+    (async function() {
+      try {
+        // 檢查是否有 Supabase 配置
+        if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+          // 未配置，導向登入頁
+          window.location.replace('auth.html?next=my-card.html');
+          return;
+        }
+
+        // 取得使用者 session
+        const sessionResult = await UVACO_CLOUD.getSession();
+        const session = sessionResult && sessionResult.session;
+        const user = session && session.user;
+        const userId = user ? String(user.id || '').trim() : '';
+
+        if (!userId) {
+          // 未登入，導向登入頁
+          window.location.replace('auth.html?next=my-card.html');
+          return;
+        }
+
+        // 導向使用者的名片頁面
+        window.location.replace('card.html?id=' + encodeURIComponent(userId));
+
+      } catch (e) {
+        console.error('載入失敗:', e);
+        // 發生錯誤，導向登入頁
+        window.location.replace('auth.html?next=my-card.html');
+      }
+    })();
+  </script>
+</body>
+</html>
