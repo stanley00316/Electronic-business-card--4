@@ -459,6 +459,15 @@
         // 記錄推薦關係（如果有）
         await recordReferralIfNeeded();
         window.location.replace(getNext());
+        return;
+      }
+
+      // 如果未登入且來源是「我的名片」(next=my-card.html)，自動啟動 LINE 登入
+      // 這讓 PWA 用戶開啟 app 後直接進入 LINE 登入，無需點擊按鈕
+      var next = getNext();
+      if (next === 'my-card.html') {
+        startLine();
+        return;
       }
     }
 
