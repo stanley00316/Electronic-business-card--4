@@ -1648,19 +1648,21 @@ body.theme-light .link-input-cancel:hover {
 /* 字體樣式工具列 */
 .font-style-toolbar {
   display: none;
-  position: absolute;
-  top: -50px;
+  position: fixed;
+  top: 100px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(30, 30, 30, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 8px 12px;
-  gap: 8px;
+  background: rgba(30, 30, 30, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  padding: 10px 14px;
+  gap: 10px;
   align-items: center;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .font-style-toolbar.active {
@@ -2972,6 +2974,10 @@ function focusEdit(element) {
   try {
     const alreadyFocused = (document.activeElement === element);
     element.focus();
+    
+    // 顯示字體樣式工具列（無論是否已聚焦）
+    showFontStyleToolbar(element);
+    
     if (alreadyFocused) return;
 
     const selection = window.getSelection();
@@ -2982,10 +2988,10 @@ function focusEdit(element) {
     range.selectNodeContents(element);
     range.collapse(false); // 游標放到結尾
     selection.addRange(range);
-  } catch (e) {}
-  
-  // 顯示字體樣式工具列
-  showFontStyleToolbar(element);
+  } catch (e) {
+    // 即使發生錯誤，仍嘗試顯示工具列
+    try { showFontStyleToolbar(element); } catch (e2) {}
+  }
 }
 
 // ===== 字體樣式工具列功能 =====
