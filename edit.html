@@ -4192,95 +4192,97 @@ function selectContactType(type, labelZh, labelEn) {
   let defaultLink = '';
   let buttonTextZh = '';
   let buttonTextEn = '';
+  let placeholderText = '';
   
   switch(type) {
     case 'company-phone':
       defaultLink = '';
-      inputField.placeholder = '例：02-12345678';
+      placeholderText = '例：02-12345678';
       buttonTextZh = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 公司電話';
       buttonTextEn = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Company Phone';
       break;
     case 'personal-phone':
       defaultLink = '';
-      inputField.placeholder = '例：0912345678';
+      placeholderText = '例：0912345678';
       buttonTextZh = '<img src="mobile-icon.svg" alt="Mobile" class="btn-icon-mobile"> 個人電話';
       buttonTextEn = '<img src="mobile-icon.svg" alt="Mobile" class="btn-icon-mobile"> Personal Phone';
       break;
     case 'call':
       defaultLink = '';
-      inputField.placeholder = '例：0912345678';
+      placeholderText = '例：0912345678';
       buttonTextZh = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電';
       buttonTextEn = '<img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now';
       break;
     case 'email':
       defaultLink = '';
-      inputField.placeholder = '例：yourname@example.com';
+      placeholderText = '例：yourname@example.com';
       buttonTextZh = '<img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email';
       buttonTextEn = '<img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email';
       break;
     case 'website':
       defaultLink = '';
-      inputField.placeholder = '例：www.example.com';
+      placeholderText = '例：www.example.com';
       buttonTextZh = '<img src="website-icon.svg" alt="Website" class="btn-icon-website"> 網站';
       buttonTextEn = '<img src="website-icon.svg" alt="Website" class="btn-icon-website"> Website';
       break;
     case 'line':
     case 'official-line':
       defaultLink = '';
-      inputField.placeholder = '例：https://line.me/R/ti/p/xxxxx';
+      placeholderText = '例：https://line.me/R/ti/p/xxxxx';
       buttonTextZh = '<img src="line-logo.svg" alt="LINE" class="btn-icon-line"> LINE';
       buttonTextEn = '<img src="line-logo.svg" alt="LINE" class="btn-icon-line"> LINE';
       break;
     case 'facebook':
       defaultLink = '';
-      inputField.placeholder = '例：facebook.com/yourpage';
+      placeholderText = '例：facebook.com/yourpage';
       buttonTextZh = '<img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook"> Facebook';
       buttonTextEn = '<img src="facebook-logo.svg" alt="Facebook" class="btn-icon-facebook"> Facebook';
       break;
     case 'instagram':
       defaultLink = '';
-      inputField.placeholder = '例：@yourusername 或 instagram.com/yourusername';
+      placeholderText = '例：@yourusername 或 instagram.com/yourusername';
       buttonTextZh = '<img src="instagram-logo.svg" alt="Instagram" class="btn-icon-instagram"> Instagram';
       buttonTextEn = '<img src="instagram-logo.svg" alt="Instagram" class="btn-icon-instagram"> Instagram';
       break;
     case 'linkedin':
       defaultLink = '';
-      inputField.placeholder = '例：linkedin.com/in/yourprofile';
+      placeholderText = '例：linkedin.com/in/yourprofile';
       buttonTextZh = '<img src="linkedin-logo.svg" alt="LinkedIn" class="btn-icon-linkedin"> LinkedIn';
       buttonTextEn = '<img src="linkedin-logo.svg" alt="LinkedIn" class="btn-icon-linkedin"> LinkedIn';
       break;
     case 'twitter':
       defaultLink = '';
-      inputField.placeholder = '例：@yourusername 或 x.com/yourusername';
+      placeholderText = '例：@yourusername 或 x.com/yourusername';
       buttonTextZh = '<img src="twitter-logo.svg" alt="X" class="btn-icon-twitter"> X (Twitter)';
       buttonTextEn = '<img src="twitter-logo.svg" alt="X" class="btn-icon-twitter"> X (Twitter)';
       break;
     case 'youtube':
       defaultLink = '';
-      inputField.placeholder = '例：youtube.com/@yourchannel';
+      placeholderText = '例：youtube.com/@yourchannel';
       buttonTextZh = '<img src="youtube-logo.svg" alt="YouTube" class="btn-icon-youtube"> YouTube';
       buttonTextEn = '<img src="youtube-logo.svg" alt="YouTube" class="btn-icon-youtube"> YouTube';
       break;
     case 'wechat':
       defaultLink = '';
-      inputField.placeholder = '例：your_wechat_id';
+      placeholderText = '例：your_wechat_id';
       buttonTextZh = '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat"> 微信';
       buttonTextEn = '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat"> WeChat';
       break;
     case 'whatsapp':
       defaultLink = '';
-      inputField.placeholder = '例：+886912345678';
+      placeholderText = '例：+886912345678';
       buttonTextZh = '<img src="whatsapp-logo.svg" alt="WhatsApp" class="btn-icon-whatsapp"> WhatsApp';
       buttonTextEn = '<img src="whatsapp-logo.svg" alt="WhatsApp" class="btn-icon-whatsapp"> WhatsApp';
       break;
     case 'vcf':
       defaultLink = '';
-      inputField.placeholder = '例：contact.vcf';
+      placeholderText = '例：contact.vcf';
       buttonTextZh = '<img src="file-icon.svg" alt="VCF" class="btn-icon-file"> 儲存到通訊錄（VCF）';
       buttonTextEn = '<img src="file-icon.svg" alt="VCF" class="btn-icon-file"> Save Contact (VCF)';
       break;
     default:
       defaultLink = '';
+      placeholderText = '';
       buttonTextZh = '🔗 ' + labelZh;
       buttonTextEn = '🔗 ' + labelEn;
   }
@@ -4292,7 +4294,8 @@ function selectContactType(type, labelZh, labelEn) {
     labelEn: labelEn,
     defaultLink: defaultLink,
     buttonTextZh: buttonTextZh,
-    buttonTextEn: buttonTextEn
+    buttonTextEn: buttonTextEn,
+    placeholder: placeholderText
   };
   
   // 立即顯示連結輸入模態框（不關閉 body overflow，因為模態框會保持）
@@ -4383,7 +4386,9 @@ function showLinkInputModal(defaultLink, currentLang) {
   
   if (overlay && inputField) {
     inputField.value = defaultLink || '';
-    inputField.placeholder = currentLang === 'zh' ? '請輸入連結' : 'Please enter link';
+    // 使用 currentContactType 中的 placeholder，若無則使用預設值
+    const customPlaceholder = window.currentContactType && window.currentContactType.placeholder;
+    inputField.placeholder = customPlaceholder || (currentLang === 'zh' ? '請輸入連結' : 'Please enter link');
     // 重置提交標記（包括全局標記）
     inputField.dataset.submitted = 'false';
     window.isSubmittingLink = false;
