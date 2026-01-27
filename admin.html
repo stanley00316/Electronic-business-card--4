@@ -39,7 +39,7 @@
     /* 小螢幕：表格轉卡片列表（UX：避免超出畫面、欄名直排）
        注意：同時提供 media query 與 body class（admin-narrow），避免某些環境 media query 沒吃到 */
     @media (max-width: 900px){
-      body{padding:14px}
+      body{padding:14px;padding-bottom:100px}
       table{min-width:0}
       #userTable thead{display:none !important}
       #userTable tbody{display:block}
@@ -50,7 +50,7 @@
       #userTable tbody td.actions-cell::before{content:'';display:none}
       #userTable tbody td.actions-cell .actions-wrap{justify-content:flex-start}
     }
-    body.admin-narrow{padding:14px}
+    body.admin-narrow{padding:14px;padding-bottom:100px}
     body.admin-narrow table{min-width:0}
     body.admin-narrow #userTable thead{display:none !important}
     body.admin-narrow #userTable tbody{display:block}
