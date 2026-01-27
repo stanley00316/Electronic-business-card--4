@@ -1740,27 +1740,27 @@ body.theme-light .link-input-cancel:hover {
 <body class="lang-zh">
 
 <!-- 字體樣式工具列 -->
-<div id="fontStyleToolbar" class="font-style-toolbar">
+<div id="fontStyleToolbar" class="font-style-toolbar" onmousedown="event.preventDefault()">
   <!-- 字體大小 -->
   <div class="font-style-group">
-    <button class="font-style-btn size-s" onclick="setFontSize('small')" title="小">A</button>
-    <button class="font-style-btn size-m active" onclick="setFontSize('medium')" title="中">A</button>
-    <button class="font-style-btn size-l" onclick="setFontSize('large')" title="大">A</button>
+    <button type="button" class="font-style-btn size-s" onclick="setFontSize('small'); event.stopPropagation();" title="小">A</button>
+    <button type="button" class="font-style-btn size-m active" onclick="setFontSize('medium'); event.stopPropagation();" title="中">A</button>
+    <button type="button" class="font-style-btn size-l" onclick="setFontSize('large'); event.stopPropagation();" title="大">A</button>
   </div>
   <!-- 粗細 -->
   <div class="font-style-group">
-    <button class="font-style-btn" onclick="setFontWeight('normal')" title="正常" style="font-weight: 400;">N</button>
-    <button class="font-style-btn" onclick="setFontWeight('bold')" title="粗體" style="font-weight: 700;">B</button>
+    <button type="button" class="font-style-btn" onclick="setFontWeight('normal'); event.stopPropagation();" title="正常" style="font-weight: 400;">N</button>
+    <button type="button" class="font-style-btn" onclick="setFontWeight('bold'); event.stopPropagation();" title="粗體" style="font-weight: 700;">B</button>
   </div>
   <!-- 顏色 -->
   <div class="font-style-group">
-    <button class="font-color-btn active" onclick="setFontColor('#ffffff')" style="background: #ffffff;" title="白色"></button>
-    <button class="font-color-btn" onclick="setFontColor('#22c55e')" style="background: #22c55e;" title="綠色"></button>
-    <button class="font-color-btn" onclick="setFontColor('#3b82f6')" style="background: #3b82f6;" title="藍色"></button>
-    <button class="font-color-btn" onclick="setFontColor('#f59e0b')" style="background: #f59e0b;" title="金色"></button>
-    <button class="font-color-btn" onclick="setFontColor('#ef4444')" style="background: #ef4444;" title="紅色"></button>
-    <button class="font-color-btn" onclick="setFontColor('#a855f7')" style="background: #a855f7;" title="紫色"></button>
-    <button class="font-color-btn" onclick="setFontColor('#9ca3af')" style="background: #9ca3af;" title="灰色"></button>
+    <button type="button" class="font-color-btn active" onclick="setFontColor('#ffffff'); event.stopPropagation();" style="background: #ffffff;" title="白色"></button>
+    <button type="button" class="font-color-btn" onclick="setFontColor('#22c55e'); event.stopPropagation();" style="background: #22c55e;" title="綠色"></button>
+    <button type="button" class="font-color-btn" onclick="setFontColor('#3b82f6'); event.stopPropagation();" style="background: #3b82f6;" title="藍色"></button>
+    <button type="button" class="font-color-btn" onclick="setFontColor('#f59e0b'); event.stopPropagation();" style="background: #f59e0b;" title="金色"></button>
+    <button type="button" class="font-color-btn" onclick="setFontColor('#ef4444'); event.stopPropagation();" style="background: #ef4444;" title="紅色"></button>
+    <button type="button" class="font-color-btn" onclick="setFontColor('#a855f7'); event.stopPropagation();" style="background: #a855f7;" title="紫色"></button>
+    <button type="button" class="font-color-btn" onclick="setFontColor('#9ca3af'); event.stopPropagation();" style="background: #9ca3af;" title="灰色"></button>
   </div>
 </div>
 
@@ -3121,12 +3121,20 @@ function setFontWeight(weight) {
 }
 
 function setFontColor(color) {
-  if (!currentStyledElement) return;
+  console.log('setFontColor called:', color, 'currentStyledElement:', currentStyledElement);
+  if (!currentStyledElement) {
+    console.warn('setFontColor: no currentStyledElement');
+    return;
+  }
   
   currentStyledElement.style.color = color;
   currentStyledElement.dataset.fontColor = color;
   
+  // 確保焦點保持在元素上
+  currentStyledElement.focus();
+  
   updateToolbarState(currentStyledElement);
+  console.log('setFontColor completed, new color:', currentStyledElement.style.color);
 }
 
 // 點擊其他地方時隱藏工具列
