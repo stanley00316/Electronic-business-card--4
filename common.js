@@ -70,32 +70,31 @@ window.onunhandledrejection = function(event) {
  * 流量分析設定 (Analytics Configuration)
  * 
  * 支援的分析服務：
+ * - Cloudflare Web Analytics: 免費、隱私友好、無 cookies
  * - Plausible: 隱私友好，免費自架或 $9/月
  * - Umami: 開源，可自架免費
  * - Google Analytics: 免費但較不隱私友好
- * 
- * 啟用步驟（以 Plausible 為例）：
- * 1. 前往 https://plausible.io 註冊
- * 2. 新增網站，取得追蹤代碼
- * 3. 在 HTML 頁面 <head> 加入：
- *    <script defer data-domain="your-domain.com" src="https://plausible.io/js/script.js"></script>
  * ========================================================================= */
 const ANALYTICS_CONFIG = {
   enabled: true, // 已啟用流量分析
-  provider: 'plausible', // 'plausible', 'umami', 'ga'
-  // Plausible 設定
+  provider: 'cloudflare', // 'cloudflare', 'plausible', 'umami', 'ga'
+  // Cloudflare Web Analytics 設定
+  cloudflare: {
+    token: '32d77b5b3e864374950c6bd32227e3c9'
+  },
+  // Plausible 設定（備用）
   plausible: {
-    domain: 'stanley00316.github.io', // 您的 GitHub Pages 網域
+    domain: 'stanley00316.github.io',
     scriptUrl: 'https://plausible.io/js/script.js'
   },
   // Umami 設定
   umami: {
-    websiteId: '', // 填入你的 Website ID
-    scriptUrl: '' // 填入你的 Umami script URL
+    websiteId: '',
+    scriptUrl: ''
   },
   // Google Analytics 設定
   ga: {
-    measurementId: '' // 填入你的 GA4 Measurement ID，例如：G-XXXXXXXXXX
+    measurementId: ''
   }
 };
 
@@ -105,8 +104,20 @@ const ANALYTICS_CONFIG = {
   
   const provider = ANALYTICS_CONFIG.provider;
   
+  // Cloudflare Web Analytics
+  if (provider === 'cloudflare' && ANALYTICS_CONFIG.cloudflare.token) {
+    const script = document.createElement('script');
+    script.defer = true;
+    script.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    script.setAttribute('data-cf-beacon', JSON.stringify({
+      token: ANALYTICS_CONFIG.cloudflare.token
+    }));
+    document.head.appendChild(script);
+    console.log('[Analytics] Cloudflare Web Analytics 已啟用');
+  }
+  
+  // Plausible
   if (provider === 'plausible' && ANALYTICS_CONFIG.plausible.domain) {
-    // Plausible 通常直接在 HTML 中引入，這裡提供動態載入選項
     const script = document.createElement('script');
     script.defer = true;
     script.setAttribute('data-domain', ANALYTICS_CONFIG.plausible.domain);
@@ -115,6 +126,7 @@ const ANALYTICS_CONFIG = {
     console.log('[Analytics] Plausible 已啟用');
   }
   
+  // Umami
   if (provider === 'umami' && ANALYTICS_CONFIG.umami.websiteId) {
     const script = document.createElement('script');
     script.async = true;
@@ -124,8 +136,8 @@ const ANALYTICS_CONFIG = {
     console.log('[Analytics] Umami 已啟用');
   }
   
+  // Google Analytics 4
   if (provider === 'ga' && ANALYTICS_CONFIG.ga.measurementId) {
-    // Google Analytics 4
     const gtagScript = document.createElement('script');
     gtagScript.async = true;
     gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS_CONFIG.ga.measurementId}`;
