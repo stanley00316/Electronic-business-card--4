@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>我的名片 - 數位身分平台</title>
+  <!-- 預連線加速載入 -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://nqxibryjhgftyxttopuo.supabase.co" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="https://nqxibryjhgftyxttopuo.supabase.co">
   <link rel="stylesheet" href="styles.css?v=20260105">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -40,6 +45,14 @@
     .loading-text {
       color: #9ca3af;
       font-size: 14px;
+      line-height: 1.6;
+    }
+    .loading-text a {
+      color: #22c55e;
+      text-decoration: underline;
+    }
+    .loading-text a:hover {
+      color: #16a34a;
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -52,10 +65,19 @@
   </div>
 
   <script>
+    // 載入超時提示（8秒後顯示）
+    var loadingTimeout = setTimeout(function() {
+      var loadingText = document.querySelector('.loading-text');
+      if (loadingText) {
+        loadingText.innerHTML = '載入時間較長，請檢查網路連線...<br><a href="auth.html?next=my-card.html">點此重新登入</a>';
+      }
+    }, 8000);
+
     (async function() {
       try {
         // 檢查是否有 Supabase 配置
         if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
+          clearTimeout(loadingTimeout);
           // 未配置，導向登入頁
           window.location.replace('auth.html?next=my-card.html');
           return;
@@ -66,6 +88,8 @@
         const session = sessionResult && sessionResult.session;
         const user = session && session.user;
         const userId = user ? String(user.id || '').trim() : '';
+
+        clearTimeout(loadingTimeout);
 
         if (!userId) {
           // 未登入，導向登入頁
@@ -78,6 +102,7 @@
 
       } catch (e) {
         console.error('載入失敗:', e);
+        clearTimeout(loadingTimeout);
         // 發生錯誤，導向登入頁
         window.location.replace('auth.html?next=my-card.html');
       }

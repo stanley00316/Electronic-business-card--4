@@ -1,6 +1,6 @@
 // 數位身分平台 - Service Worker
 // 版本號：每次更新資源時需要更新此版本
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v1.1.0';
 const CACHE_NAME = `digital-identity-${CACHE_VERSION}`;
 
 // 需要快取的靜態資源
@@ -87,7 +87,16 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 請求攔截：優先網路，失敗時使用快取
+// 判斷是否為靜態資源
+function isStaticAsset(pathname) {
+  // 檢查是否為已知的靜態資源
+  return STATIC_ASSETS.some(asset => {
+    const assetPath = asset.replace('./', '/');
+    return pathname === assetPath || pathname.endsWith(assetPath);
+  });
+}
+
+// 請求攔截：靜態資源快取優先，其他網路優先
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -104,11 +113,44 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // 靜態資源使用 Cache First 策略（快取優先，大幅提升手機載入速度）
+  if (isStaticAsset(url.pathname)) {
+    event.respondWith(
+      caches.match(request)
+        .then((cachedResponse) => {
+          if (cachedResponse) {
+            // 有快取，直接返回（同時背景更新）
+            fetch(request).then((response) => {
+              if (response.ok) {
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(request, response);
+                });
+              }
+            }).catch(() => {});
+            return cachedResponse;
+          }
+          // 無快取，從網路取得
+          return fetch(request).then((response) => {
+            if (response.ok) {
+              const responseClone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            return response;
+          });
+        })
+        .catch(() => {
+          return new Response('Offline', { status: 503 });
+        })
+    );
+    return;
+  }
+
+  // 其他請求使用 Network First 策略
   event.respondWith(
-    // 網路優先策略（Network First）
     fetch(request)
       .then((response) => {
-        // 成功取得網路回應，更新快取
         if (response.ok) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME)
@@ -119,14 +161,12 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // 網路失敗，使用快取
         return caches.match(request)
           .then((cachedResponse) => {
             if (cachedResponse) {
               return cachedResponse;
             }
-            // 如果是 HTML 頁面，返回離線頁面
-            if (request.headers.get('accept').includes('text/html')) {
+            if (request.headers.get('accept') && request.headers.get('accept').includes('text/html')) {
               return caches.match('./index.html');
             }
             return new Response('Offline', { status: 503 });
