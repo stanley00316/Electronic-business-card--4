@@ -5067,16 +5067,24 @@ function selectCompanyInfoType(type) {
 
 // 顯示公司名稱輸入
 function showCompanyNameInput() {
+  console.log('showCompanyNameInput called');
   const item = document.getElementById('companyNameItem');
+  console.log('companyNameItem:', item);
   if (item) {
+    // 強制顯示（移除 style 並設定 display）
+    item.removeAttribute('style');
     item.style.display = 'flex';
+    console.log('Item display set to flex');
+    
     const zhEl = document.getElementById('previewCompanyNameZh');
     if (zhEl) {
       setTimeout(() => {
         zhEl.focus();
-        focusEdit(zhEl);
+        if (typeof focusEdit === 'function') focusEdit(zhEl);
       }, 100);
     }
+  } else {
+    console.error('companyNameItem not found!');
   }
 }
 
@@ -5559,7 +5567,18 @@ function deleteCompanyInfo(type) {
     if (type === 'taxId') {
       document.getElementById('previewTaxIdZh').textContent = '';
       document.getElementById('previewTaxIdEn').textContent = '';
+    } else if (type === 'companyName') {
+      // 公司名稱：清除內容
+      const zhEl = document.getElementById('previewCompanyNameZh');
+      const enEl = document.getElementById('previewCompanyNameEn');
+      if (zhEl) zhEl.textContent = '';
+      if (enEl) enEl.textContent = '';
+      // 同時清除全域變數
+      window.__uvacoCompanyZh = '';
+      window.__uvacoCompanyEn = '';
+      window.__uvacoSelectedCompany = '';
     } else {
+      // 地址類型
       const typeCapitalized = type.charAt(0).toUpperCase() + type.slice(1);
       const zhEl = document.getElementById(`preview${typeCapitalized}Zh`);
       const enEl = document.getElementById(`preview${typeCapitalized}En`);
