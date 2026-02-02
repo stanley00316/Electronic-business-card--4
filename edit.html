@@ -1864,12 +1864,6 @@ body.theme-light .link-input-cancel:hover {
         <div class="tagline lang-zh edit-clickable" id="previewTitleZh" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)" data-placeholder="請輸入職稱" style="min-height: 1.2em;"></div>
         <div class="tagline lang-en edit-clickable" id="previewTitleEn" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)" data-placeholder="Enter job title" style="min-height: 1.2em;"></div>
         
-        <!-- 公司名稱欄位 -->
-        <div class="company-name-field" style="margin-top: 8px;">
-          <div class="tagline lang-zh edit-clickable" id="previewCompanyZh" contenteditable="true" onblur="updateCompanyFromPreview()" onclick="focusEdit(this)" data-placeholder="請輸入公司名稱" style="min-height: 1.2em; color: #9ca3af; font-size: 14px;"></div>
-          <div class="tagline lang-en edit-clickable" id="previewCompanyEn" contenteditable="true" onblur="updateCompanyFromPreview()" onclick="focusEdit(this)" data-placeholder="Enter company name" style="min-height: 1.2em; color: #9ca3af; font-size: 14px;"></div>
-        </div>
-        
         <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start;">
           <div id="previewSlogansZh" class="slogans-container">
             <!-- 標語將動態新增 -->
@@ -1890,6 +1884,15 @@ body.theme-light .link-input-cancel:hover {
         <div class="company-info-section" id="companyInfoSection">
           <div class="section-label lang-zh">公司資訊 COMPANY INFO</div>
           <div class="section-label lang-en">COMPANY INFO</div>
+          
+          <!-- 公司名稱（可選） -->
+          <div class="info-item info-item-company-name" id="companyNameItem" style="display: none;">
+            <span class="info-label lang-zh">公司名稱：</span>
+            <span class="info-label lang-en">Company Name:</span>
+            <span class="info-value lang-zh edit-clickable" id="previewCompanyNameZh" contenteditable="true" onclick="focusEdit(this)" onblur="updateCompanyFromPreview()"></span>
+            <span class="info-value lang-en edit-clickable" id="previewCompanyNameEn" contenteditable="true" onclick="focusEdit(this)" onblur="updateCompanyFromPreview()"></span>
+            <button class="info-delete-btn" onclick="deleteCompanyInfo('companyName')" title="刪除">×</button>
+          </div>
           
           <!-- 統一編號（可選） -->
           <div class="info-item info-item-tax" id="taxIdItem" style="display: none;">
@@ -2128,6 +2131,12 @@ body.theme-light .link-input-cancel:hover {
     <h2 class="company-info-type-title lang-en">Select Company Info Type</h2>
     
     <div class="company-info-type-grid">
+      <button class="company-info-type-btn" onclick="selectCompanyInfoType('companyName')">
+        <span class="company-info-type-icon">🏷️</span>
+        <span class="company-info-type-label lang-zh">公司名稱</span>
+        <span class="company-info-type-label lang-en">Company Name</span>
+      </button>
+      
       <button class="company-info-type-btn" onclick="selectCompanyInfoType('taxId')">
         <span class="company-info-type-icon">🔢</span>
         <span class="company-info-type-label lang-zh">統一編號</span>
@@ -2621,14 +2630,18 @@ function loadCardToUI(card) {
     if (canonical) applyCompanyToUI(canonical);
   } catch (e) {}
 
-  // 3.1) 載入公司名稱到輸入欄位
+  // 3.1) 載入公司名稱到公司資訊區塊
   try {
     const companyZh = safeText(pj.companyZh || pj.companyCanonical || card.company || '');
     const companyEn = safeText(pj.companyEn || pj.companyCanonical || card.company || '');
-    const zhEl = document.getElementById('previewCompanyZh');
-    const enEl = document.getElementById('previewCompanyEn');
-    if (zhEl) zhEl.textContent = companyZh;
-    if (enEl) enEl.textContent = companyEn;
+    if (companyZh || companyEn) {
+      const item = document.getElementById('companyNameItem');
+      const zhEl = document.getElementById('previewCompanyNameZh');
+      const enEl = document.getElementById('previewCompanyNameEn');
+      if (item) item.style.display = 'flex';
+      if (zhEl) zhEl.textContent = companyZh;
+      if (enEl) enEl.textContent = companyEn;
+    }
     window.__uvacoCompanyZh = companyZh;
     window.__uvacoCompanyEn = companyEn;
   } catch (e) {}
@@ -3659,8 +3672,8 @@ function updateTitleFromPreview() {
 
 // 從預覽更新公司名稱
 function updateCompanyFromPreview() {
-  const zhEl = document.getElementById('previewCompanyZh');
-  const enEl = document.getElementById('previewCompanyEn');
+  const zhEl = document.getElementById('previewCompanyNameZh');
+  const enEl = document.getElementById('previewCompanyNameEn');
   
   // 取得純文字並清理多餘空白
   const companyZh = String(zhEl?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -5043,9 +5056,27 @@ function selectCompanyInfoType(type) {
   } else if (type === 'taxId') {
     // 統一編號：直接顯示輸入框
     showTaxIdInput();
+  } else if (type === 'companyName') {
+    // 公司名稱：顯示公司名稱輸入
+    showCompanyNameInput();
   } else {
     // 地址類型：顯示地址編輯彈窗
     showAddressEditModal(type);
+  }
+}
+
+// 顯示公司名稱輸入
+function showCompanyNameInput() {
+  const item = document.getElementById('companyNameItem');
+  if (item) {
+    item.style.display = 'flex';
+    const zhEl = document.getElementById('previewCompanyNameZh');
+    if (zhEl) {
+      setTimeout(() => {
+        zhEl.focus();
+        focusEdit(zhEl);
+      }, 100);
+    }
   }
 }
 
@@ -5834,11 +5865,11 @@ async function saveCard() {
   const email = window.__uvacoCardEmail || '';
 
   // 偵測公司名稱 (Canonical)
-  // 優先從公司名稱輸入欄位抓取，其次 Slogan DOM，最後用選擇器的
+  // 優先從公司資訊區塊的公司名稱欄位抓取，其次 Slogan DOM，最後用選擇器的
   const companyCanonical = (function () {
-    // 優先使用公司名稱輸入欄位
-    const zhEl = document.getElementById('previewCompanyZh');
-    const enEl = document.getElementById('previewCompanyEn');
+    // 優先使用公司資訊區塊的公司名稱欄位
+    const zhEl = document.getElementById('previewCompanyNameZh');
+    const enEl = document.getElementById('previewCompanyNameEn');
     const fromFieldZh = zhEl ? zhEl.textContent.trim() : '';
     const fromFieldEn = enEl ? enEl.textContent.trim() : '';
     if (fromFieldZh) return fromFieldZh;
@@ -5970,16 +6001,16 @@ async function saveCard() {
       companyCanonical: companyCanonical,
       companyLocked: false, // 永遠不鎖定
       companyZh: (function () {
-        // 優先使用公司名稱輸入欄位
-        const el = document.getElementById('previewCompanyZh');
+        // 優先使用公司資訊區塊的公司名稱欄位
+        const el = document.getElementById('previewCompanyNameZh');
         if (el && el.textContent.trim()) return el.textContent.trim();
         // Fallback 到標語
         const s = getSloganStrong('zh');
         return s ? String(s.textContent || '').trim() : '';
       })(),
       companyEn: (function () {
-        // 優先使用公司名稱輸入欄位
-        const el = document.getElementById('previewCompanyEn');
+        // 優先使用公司資訊區塊的公司名稱欄位
+        const el = document.getElementById('previewCompanyNameEn');
         if (el && el.textContent.trim()) return el.textContent.trim();
         // Fallback 到標語
         const s = getSloganStrong('en');
