@@ -1864,6 +1864,12 @@ body.theme-light .link-input-cancel:hover {
         <div class="tagline lang-zh edit-clickable" id="previewTitleZh" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)" data-placeholder="請輸入職稱" style="min-height: 1.2em;"></div>
         <div class="tagline lang-en edit-clickable" id="previewTitleEn" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)" data-placeholder="Enter job title" style="min-height: 1.2em;"></div>
         
+        <!-- 公司名稱欄位 -->
+        <div class="company-name-field" style="margin-top: 8px;">
+          <div class="tagline lang-zh edit-clickable" id="previewCompanyZh" contenteditable="true" onblur="updateCompanyFromPreview()" onclick="focusEdit(this)" data-placeholder="請輸入公司名稱" style="min-height: 1.2em; color: #9ca3af; font-size: 14px;"></div>
+          <div class="tagline lang-en edit-clickable" id="previewCompanyEn" contenteditable="true" onblur="updateCompanyFromPreview()" onclick="focusEdit(this)" data-placeholder="Enter company name" style="min-height: 1.2em; color: #9ca3af; font-size: 14px;"></div>
+        </div>
+        
         <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start;">
           <div id="previewSlogansZh" class="slogans-container">
             <!-- 標語將動態新增 -->
@@ -2613,6 +2619,18 @@ function loadCardToUI(card) {
     window.__uvacoOriginalCompanyCanonical = canonical;
     window.__uvacoCompanyLocked = (pj.companyLocked === true) && !isAdminModeFromUrl();
     if (canonical) applyCompanyToUI(canonical);
+  } catch (e) {}
+
+  // 3.1) 載入公司名稱到輸入欄位
+  try {
+    const companyZh = safeText(pj.companyZh || pj.companyCanonical || card.company || '');
+    const companyEn = safeText(pj.companyEn || pj.companyCanonical || card.company || '');
+    const zhEl = document.getElementById('previewCompanyZh');
+    const enEl = document.getElementById('previewCompanyEn');
+    if (zhEl) zhEl.textContent = companyZh;
+    if (enEl) enEl.textContent = companyEn;
+    window.__uvacoCompanyZh = companyZh;
+    window.__uvacoCompanyEn = companyEn;
   } catch (e) {}
 
   // 4) Logo / Avatar（優先 Storage path）
@@ -3637,6 +3655,25 @@ function updateTitleFromPreview() {
   const enInp = document.getElementById('titleEn');
   if (zhInp) zhInp.value = zhText;
   if (enInp) enInp.value = enText;
+}
+
+// 從預覽更新公司名稱
+function updateCompanyFromPreview() {
+  const zhEl = document.getElementById('previewCompanyZh');
+  const enEl = document.getElementById('previewCompanyEn');
+  
+  // 取得純文字並清理多餘空白
+  const companyZh = String(zhEl?.textContent || '').replace(/\s+/g, ' ').trim();
+  const companyEn = String(enEl?.textContent || '').replace(/\s+/g, ' ').trim();
+  
+  // 更新回 DOM 確保一致性
+  if (zhEl) zhEl.textContent = companyZh;
+  if (enEl) enEl.textContent = companyEn;
+  
+  // 儲存到全域變數供 saveCard 使用
+  window.__uvacoCompanyZh = companyZh;
+  window.__uvacoCompanyEn = companyEn;
+  window.__uvacoSelectedCompany = companyZh || companyEn;
 }
 
 // ===== 自動縮字：讓元素文字保持單行水平呈現（超出就縮小到 minPx）=====
@@ -5797,8 +5834,17 @@ async function saveCard() {
   const email = window.__uvacoCardEmail || '';
 
   // 偵測公司名稱 (Canonical)
-  // 優先從 Slogan DOM 抓取，若無則用選擇器的
+  // 優先從公司名稱輸入欄位抓取，其次 Slogan DOM，最後用選擇器的
   const companyCanonical = (function () {
+    // 優先使用公司名稱輸入欄位
+    const zhEl = document.getElementById('previewCompanyZh');
+    const enEl = document.getElementById('previewCompanyEn');
+    const fromFieldZh = zhEl ? zhEl.textContent.trim() : '';
+    const fromFieldEn = enEl ? enEl.textContent.trim() : '';
+    if (fromFieldZh) return fromFieldZh;
+    if (fromFieldEn) return fromFieldEn;
+    
+    // Fallback 到標語中的公司名稱
     const zhStrong = getSloganStrong('zh');
     const enStrong = getSloganStrong('en');
     const fromDomZh = getCanonicalCompanyFromStrongText(zhStrong ? zhStrong.textContent : '');
@@ -5924,10 +5970,18 @@ async function saveCard() {
       companyCanonical: companyCanonical,
       companyLocked: false, // 永遠不鎖定
       companyZh: (function () {
+        // 優先使用公司名稱輸入欄位
+        const el = document.getElementById('previewCompanyZh');
+        if (el && el.textContent.trim()) return el.textContent.trim();
+        // Fallback 到標語
         const s = getSloganStrong('zh');
         return s ? String(s.textContent || '').trim() : '';
       })(),
       companyEn: (function () {
+        // 優先使用公司名稱輸入欄位
+        const el = document.getElementById('previewCompanyEn');
+        if (el && el.textContent.trim()) return el.textContent.trim();
+        // Fallback 到標語
         const s = getSloganStrong('en');
         return s ? String(s.textContent || '').trim() : '';
       })(),
