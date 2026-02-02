@@ -2762,6 +2762,20 @@ function loadCardToUI(card) {
   // 8) 同步標語預覽（確保事件繫結與整理）
   try { if (typeof updateSlogansPreview === 'function') updateSlogansPreview(); } catch (e) {}
 
+  // 8.1) 使用事件委派確保標語刪除按鈕能正常運作
+  ['previewSlogansZh', 'previewSlogansEn'].forEach(id => {
+    const container = document.getElementById(id);
+    if (container && !container._deleteHandlerBound) {
+      container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('slogan-delete-btn')) {
+          e.stopPropagation();
+          deleteSloganFromPreview(e.target);
+        }
+      });
+      container._deleteHandlerBound = true;
+    }
+  });
+
   // 9) 恢復公司資訊區域的編輯功能
   try { restoreCompanyInfoFunctionality(); } catch (e) { console.error('restoreCompanyInfoFunctionality error:', e); }
 
@@ -4086,12 +4100,20 @@ function addSloganToPreview(lang) {
 
 // 從預覽刪除標語
 function deleteSloganFromPreview(btn) {
+  if (!btn) return;
   const zhElements = document.querySelectorAll('.lang-zh');
   const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
   const confirmMsg = currentLang === 'zh' ? '確定要刪除此標語嗎？' : 'Are you sure you want to delete this slogan?';
   
   if (confirm(confirmMsg)) {
-    btn.closest('.slogan-item').remove();
+    const item = btn.closest('.slogan-item');
+    if (item) {
+      item.remove();
+      // 觸發更新以確保資料同步
+      if (typeof updateCompanyFromSlogans === 'function') {
+        updateCompanyFromSlogans();
+      }
+    }
   }
 }
 
