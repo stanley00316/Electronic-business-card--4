@@ -2781,6 +2781,12 @@ function loadCardToUI(card) {
 
   // 10) 恢復聯絡方式區域的編輯功能
   try { restoreContactsFunctionality(); } catch (e) { console.error('restoreContactsFunctionality error:', e); }
+
+  // 11) 重新套用語言設定，確保載入的內容顯示正確語言
+  try {
+    const savedLang = localStorage.getItem('lang') || 'zh';
+    if (typeof setLang === 'function') setLang(savedLang);
+  } catch (e) {}
 }
 
 // 恢復公司資訊區域的編輯功能（載入已保存數據後重新綁定事件）
