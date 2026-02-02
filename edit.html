@@ -1889,8 +1889,8 @@ body.theme-light .link-input-cancel:hover {
           <div class="info-item info-item-company-name" id="companyNameItem" style="display: none;">
             <span class="info-label lang-zh">公司名稱：</span>
             <span class="info-label lang-en">Company Name:</span>
-            <span class="info-value lang-zh edit-clickable" id="previewCompanyNameZh" contenteditable="true" onclick="focusEdit(this)" onblur="updateCompanyFromPreview()"></span>
-            <span class="info-value lang-en edit-clickable" id="previewCompanyNameEn" contenteditable="true" onclick="focusEdit(this)" onblur="updateCompanyFromPreview()"></span>
+            <span class="info-value lang-zh edit-clickable" id="previewCompanyNameZh" contenteditable="true" onclick="focusEdit(this)" onblur="updateCompanyFromPreview()" data-placeholder="請輸入公司名稱" style="min-width: 150px; min-height: 1.2em;"></span>
+            <span class="info-value lang-en edit-clickable" id="previewCompanyNameEn" contenteditable="true" onclick="focusEdit(this)" onblur="updateCompanyFromPreview()" data-placeholder="Enter company name" style="min-width: 150px; min-height: 1.2em;"></span>
             <button class="info-delete-btn" onclick="deleteCompanyInfo('companyName')" title="刪除">×</button>
           </div>
           
@@ -5071,15 +5071,30 @@ function showCompanyNameInput() {
   const item = document.getElementById('companyNameItem');
   console.log('companyNameItem:', item);
   if (item) {
-    // 強制顯示（移除 style 並設定 display）
-    item.removeAttribute('style');
+    // 強制顯示
     item.style.display = 'flex';
     console.log('Item display set to flex');
     
     const zhEl = document.getElementById('previewCompanyNameZh');
+    const enEl = document.getElementById('previewCompanyNameEn');
+    
+    // 如果沒有內容，設定預設提示文字
+    if (zhEl && !zhEl.textContent.trim()) {
+      zhEl.textContent = '請輸入公司名稱';
+    }
+    if (enEl && !enEl.textContent.trim()) {
+      enEl.textContent = 'Enter company name';
+    }
+    
     if (zhEl) {
       setTimeout(() => {
         zhEl.focus();
+        // 選取所有文字方便編輯
+        const range = document.createRange();
+        range.selectNodeContents(zhEl);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
         if (typeof focusEdit === 'function') focusEdit(zhEl);
       }, 100);
     }
