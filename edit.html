@@ -4077,11 +4077,7 @@ function addSloganToPreview(lang) {
   // 同步整理（避免空白被清掉、確保事件存在）
   updateSlogansPreview();
 
-  // 自動切換語系並聚焦
-  const currentLang = getCurrentLang();
-  if (typeof setLang === 'function' && currentLang !== lang) {
-    setLang(lang);
-  }
+  // 不自動切換語系（保持介面語言不變），僅聚焦到新標語
   setTimeout(() => {
     try { sloganItem.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
     try { focusEdit(tagline); } catch (e) { try { tagline.focus(); } catch (_e) {} }
