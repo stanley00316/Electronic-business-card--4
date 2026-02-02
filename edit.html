@@ -5021,17 +5021,14 @@ function updateContactButtons(type, currentLink, newLink) {
 
 // 顯示公司資訊類型選擇彈窗
 function showCompanyInfoTypeModal(event) {
-  console.log('showCompanyInfoTypeModal called');
   event.preventDefault();
   event.stopPropagation();
   
   const overlay = document.getElementById('companyInfoTypeOverlay');
-  console.log('overlay element:', overlay);
   if (overlay) {
     overlay.classList.add('show');
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    console.log('Modal should now be visible');
   }
 }
 
@@ -5051,7 +5048,6 @@ function closeCompanyInfoTypeModal(event) {
 
 // 選擇公司資訊類型
 function selectCompanyInfoType(type) {
-  console.log('selectCompanyInfoType called with type:', type);
   closeCompanyInfoTypeModal();
   
   if (type === 'custom') {
@@ -5062,7 +5058,6 @@ function selectCompanyInfoType(type) {
     showTaxIdInput();
   } else if (type === 'companyName') {
     // 公司名稱：顯示公司名稱輸入
-    console.log('Calling showCompanyNameInput...');
     showCompanyNameInput();
   } else {
     // 地址類型：顯示地址編輯彈窗
@@ -5072,15 +5067,12 @@ function selectCompanyInfoType(type) {
 
 // 顯示公司名稱輸入
 function showCompanyNameInput() {
-  console.log('showCompanyNameInput called');
   const item = document.getElementById('companyNameItem');
-  console.log('companyNameItem:', item);
   if (item) {
     // 強制顯示
     item.style.display = 'flex';
     item.style.visibility = 'visible';
     item.style.opacity = '1';
-    console.log('Item display set to flex, computed style:', window.getComputedStyle(item).display);
     
     const zhEl = document.getElementById('previewCompanyNameZh');
     const enEl = document.getElementById('previewCompanyNameEn');
@@ -5112,8 +5104,6 @@ function showCompanyNameInput() {
         if (typeof focusEdit === 'function') focusEdit(zhEl);
       }, 150);
     }
-  } else {
-    console.error('companyNameItem not found!');
   }
 }
 
