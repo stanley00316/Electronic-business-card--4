@@ -4298,6 +4298,32 @@ body.theme-light .address-text {
   z-index: 10;
 }
 
+/* 公司名稱輸入欄位樣式修正 - 確保可編輯 */
+.info-item-company-name .info-value {
+  display: block !important;
+  min-height: 1.5em;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: text;
+  transition: background 0.2s;
+}
+
+.info-item-company-name .info-value:focus {
+  outline: none;
+  background: rgba(74, 222, 128, 0.1);
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3);
+}
+
+.info-item-company-name .info-value:empty:before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+}
+
+body.theme-light .info-item-company-name .info-value:empty:before {
+  color: rgba(0, 0, 0, 0.4);
+}
+
 .info-delete-btn:hover {
   background: rgba(239, 68, 68, 0.3);
   transform: scale(1.1);
