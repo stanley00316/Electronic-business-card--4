@@ -1,6 +1,6 @@
 /**
  * 數位身分平台 - 共用模組
- * @version 2026.01.26
+ * @version 2026.01.27
  * 
  * 功能：
  * - 語言切換（中/英）
@@ -8,7 +8,24 @@
  * - CSS 按需載入
  * - 錯誤監控（Sentry）
  * - 效能優化
+ * - Service Worker 自動更新
  */
+
+/* =========================================================================
+ * Service Worker 自動更新監聽
+ * 當 Service Worker 更新時，自動重新載入頁面以獲取最新版本
+ * ========================================================================= */
+(function initServiceWorkerUpdateListener() {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'SW_UPDATED') {
+        console.log('[SW] 檢測到新版本:', event.data.version);
+        // 自動重新載入頁面以獲取最新版本
+        window.location.reload();
+      }
+    });
+  }
+})();
 
 /* =========================================================================
  * 錯誤監控設定 (Sentry Configuration)
