@@ -2744,12 +2744,14 @@ function loadCardToUI(card) {
     return result;
   }
 
-  // 5) 公司資訊（直接回填 HTML，維持原版型與可編輯事件）
+  // 5) 公司資訊（載入後確保新元素存在）
   try {
     const section = document.getElementById('companyInfoSection');
     if (section && pj.companyInfoHtml) {
       section.innerHTML = filterSystemTextFromHtml(String(pj.companyInfoHtml));
     }
+    // 確保 companyNameItem 元素存在（舊資料可能沒有此元素）
+    ensureCompanyNameItemExists();
   } catch (e) {}
 
   // 6) 聯絡方式（直接回填 HTML，維持排序與顯示方式）
@@ -2818,6 +2820,32 @@ function loadCardToUI(card) {
     const savedLang = localStorage.getItem('lang') || 'zh';
     if (typeof setLang === 'function') setLang(savedLang);
   } catch (e) {}
+}
+
+// 確保 companyNameItem 元素存在（舊資料可能沒有此元素）
+function ensureCompanyNameItemExists() {
+  const section = document.getElementById('companyInfoSection');
+  if (!section) return;
+  
+  // 如果 companyNameItem 不存在，重新建立
+  if (!document.getElementById('companyNameItem')) {
+    const sectionLabel = section.querySelector('.section-label');
+    const companyNameHtml = `
+      <div class="info-item info-item-company-name" id="companyNameItem" style="display: none;">
+        <span class="info-label lang-zh">公司名稱：</span>
+        <span class="info-label lang-en">Company Name:</span>
+        <span class="info-value lang-zh edit-clickable" id="previewCompanyNameZh" contenteditable="true" onclick="focusEdit(this)" onblur="updateCompanyFromPreview()" data-placeholder="請輸入公司名稱" style="min-width: 150px; min-height: 1.2em;"></span>
+        <span class="info-value lang-en edit-clickable" id="previewCompanyNameEn" contenteditable="true" onclick="focusEdit(this)" onblur="updateCompanyFromPreview()" data-placeholder="Enter company name" style="min-width: 150px; min-height: 1.2em;"></span>
+        <button class="info-delete-btn" onclick="deleteCompanyInfo('companyName')" title="刪除">×</button>
+      </div>
+    `;
+    // 插入到 section-label 之後
+    if (sectionLabel) {
+      sectionLabel.insertAdjacentHTML('afterend', companyNameHtml);
+    } else {
+      section.insertAdjacentHTML('afterbegin', companyNameHtml);
+    }
+  }
 }
 
 // 恢復公司資訊區域的編輯功能（載入已保存數據後重新綁定事件）
