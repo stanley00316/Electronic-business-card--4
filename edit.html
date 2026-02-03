@@ -5077,15 +5077,8 @@ function showCompanyNameInput() {
     const zhEl = document.getElementById('previewCompanyNameZh');
     const enEl = document.getElementById('previewCompanyNameEn');
     
-    // 如果沒有內容，設定預設提示文字
-    if (zhEl && !zhEl.textContent.trim()) {
-      zhEl.textContent = '請輸入公司名稱';
-      zhEl.style.color = '#9ca3af';
-    }
-    if (enEl && !enEl.textContent.trim()) {
-      enEl.textContent = 'Enter company name';
-      enEl.style.color = '#9ca3af';
-    }
+    // 保持欄位為空，讓 CSS data-placeholder 顯示提示文字
+    // 不要設定 textContent，這樣用戶可以直接輸入
     
     // 滾動到可見區域
     setTimeout(() => {
@@ -5095,12 +5088,6 @@ function showCompanyNameInput() {
     if (zhEl) {
       setTimeout(() => {
         zhEl.focus();
-        // 選取所有文字方便編輯
-        const range = document.createRange();
-        range.selectNodeContents(zhEl);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
         if (typeof focusEdit === 'function') focusEdit(zhEl);
       }, 150);
     }

@@ -4289,6 +4289,14 @@ body.theme-light .address-text {
   pointer-events: auto;
 }
 
+/* 所有公司資訊項目的刪除按鈕始終可見 */
+.info-item-company-name .info-delete-btn,
+.info-item-tax .info-delete-btn,
+.info-item-location .info-delete-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .info-delete-btn:hover {
   background: rgba(239, 68, 68, 0.3);
   transform: scale(1.1);
