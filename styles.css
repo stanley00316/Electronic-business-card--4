@@ -4293,8 +4293,9 @@ body.theme-light .address-text {
 .info-item-company-name .info-delete-btn,
 .info-item-tax .info-delete-btn,
 .info-item-location .info-delete-btn {
-  opacity: 1;
-  pointer-events: auto;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 10;
 }
 
 .info-delete-btn:hover {
