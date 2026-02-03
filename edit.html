@@ -2900,6 +2900,36 @@ function restoreCompanyInfoFunctionality() {
     }
   });
 
+  // 恢復公司名稱的編輯功能
+  const companyNameItem = document.getElementById('companyNameItem');
+  if (companyNameItem) {
+    const companyNameZh = document.getElementById('previewCompanyNameZh');
+    const companyNameEn = document.getElementById('previewCompanyNameEn');
+
+    if (companyNameZh) {
+      companyNameZh.classList.add('edit-clickable');
+      companyNameZh.setAttribute('contenteditable', 'true');
+      companyNameZh.onclick = function() { focusEdit(this); };
+      companyNameZh.onblur = function() { updateCompanyFromPreview(); };
+    }
+    if (companyNameEn) {
+      companyNameEn.classList.add('edit-clickable');
+      companyNameEn.setAttribute('contenteditable', 'true');
+      companyNameEn.onclick = function() { focusEdit(this); };
+      companyNameEn.onblur = function() { updateCompanyFromPreview(); };
+    }
+
+    // 檢查並添加刪除按鈕
+    if (!companyNameItem.querySelector('.info-delete-btn')) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'info-delete-btn';
+      deleteBtn.title = '刪除';
+      deleteBtn.textContent = '×';
+      deleteBtn.onclick = function() { deleteCompanyInfo('companyName'); };
+      companyNameItem.appendChild(deleteBtn);
+    }
+  }
+
   // 恢復統一編號的編輯功能
   const taxIdItem = document.getElementById('taxIdItem');
   if (taxIdItem) {
