@@ -32,21 +32,30 @@
  * 在行動裝置上提供明顯的點擊回饋
  * ========================================================================= */
 (function initNavTapEffect() {
-  document.addEventListener('DOMContentLoaded', function() {
+  function setupNavTapEffect() {
     const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+    console.log('[NavTap] 找到導航項目數量:', navItems.length);
     
-    navItems.forEach(function(item) {
+    if (navItems.length === 0) {
+      console.log('[NavTap] 未找到導航項目，稍後重試...');
+      setTimeout(setupNavTapEffect, 500);
+      return;
+    }
+    
+    navItems.forEach(function(item, index) {
       // 觸控開始時添加高亮
       item.addEventListener('touchstart', function(e) {
+        console.log('[NavTap] touchstart - 項目', index);
         this.classList.add('tapped');
       }, { passive: true });
       
       // 觸控結束時移除高亮（延遲以確保視覺效果）
       item.addEventListener('touchend', function(e) {
+        console.log('[NavTap] touchend - 項目', index);
         const el = this;
         setTimeout(function() {
           el.classList.remove('tapped');
-        }, 150);
+        }, 300);
       }, { passive: true });
       
       // 觸控取消時移除高亮
@@ -56,21 +65,32 @@
       
       // 滑鼠點擊也支援（桌面測試用）
       item.addEventListener('mousedown', function(e) {
+        console.log('[NavTap] mousedown - 項目', index);
         this.classList.add('tapped');
       });
       
       item.addEventListener('mouseup', function(e) {
+        console.log('[NavTap] mouseup - 項目', index);
         const el = this;
         setTimeout(function() {
           el.classList.remove('tapped');
-        }, 150);
+        }, 300);
       });
       
       item.addEventListener('mouseleave', function(e) {
         this.classList.remove('tapped');
       });
     });
-  });
+    
+    console.log('[NavTap] 事件監聽器已綁定');
+  }
+  
+  // DOM 載入後執行
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupNavTapEffect);
+  } else {
+    setupNavTapEffect();
+  }
 })();
 
 /* =========================================================================
