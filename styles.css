@@ -695,6 +695,12 @@ nav.bottom-nav a.nav-item.tapped {
   border-radius: 16px !important;
 }
 
+/* .primary 類別 - 非當前頁面，不應有背景色 */
+.nav-item.primary {
+  color: var(--uvaco-green);
+  background: transparent !important;
+}
+
 /* 當前頁面高亮樣式 */
 .nav-item.active {
   color: var(--uvaco-green) !important;
@@ -709,6 +715,12 @@ body.theme-dark .nav-item.active {
 body.theme-light .nav-item.active {
   color: var(--uvaco-green) !important;
   background: rgba(var(--uvaco-green-rgb), 0.15) !important;
+}
+
+/* .primary.active - 當「我的名片」是當前頁面時 */
+.nav-item.primary.active {
+  color: var(--uvaco-green) !important;
+  background: rgba(var(--uvaco-green-rgb), 0.25) !important;
 }
 
 /* 為底部導航欄預留空間，避免內容被遮擋 */
