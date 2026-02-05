@@ -36,6 +36,28 @@
     const navItems = document.querySelectorAll('.bottom-nav .nav-item');
     console.log('[NavTap] 找到導航項目數量:', navItems.length);
     
+    // #region agent log - H1: 檢查每個導航項目的 class
+    navItems.forEach(function(item, idx) {
+      const classes = item.className;
+      const text = item.textContent.trim().replace(/\s+/g, ' ').substring(0, 20);
+      fetch('http://127.0.0.1:7245/ingest/d84f1851-975c-41ec-b8de-5eb096c007e8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'common.js:nav-debug',message:'Nav item classes',data:{idx:idx,classes:classes,text:text,hasActive:classes.includes('active'),hasPrimary:classes.includes('primary')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    });
+    // #endregion
+    
+    // #region agent log - H2: 檢查當前頁面 URL
+    fetch('http://127.0.0.1:7245/ingest/d84f1851-975c-41ec-b8de-5eb096c007e8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'common.js:page-url',message:'Current page URL',data:{url:window.location.href,pathname:window.location.pathname},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+    
+    // #region agent log - H3: 檢查每個導航項目的實際樣式
+    setTimeout(function() {
+      navItems.forEach(function(item, idx) {
+        const style = window.getComputedStyle(item);
+        const text = item.textContent.trim().replace(/\s+/g, ' ').substring(0, 20);
+        fetch('http://127.0.0.1:7245/ingest/d84f1851-975c-41ec-b8de-5eb096c007e8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'common.js:computed-style',message:'Nav item computed style',data:{idx:idx,text:text,color:style.color,backgroundColor:style.backgroundColor},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      });
+    }, 100);
+    // #endregion
+    
     if (navItems.length === 0) {
       console.log('[NavTap] 未找到導航項目，稍後重試...');
       setTimeout(setupNavTapEffect, 500);
