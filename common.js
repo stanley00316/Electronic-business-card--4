@@ -28,6 +28,52 @@
 })();
 
 /* =========================================================================
+ * 底部導航欄點擊高亮效果
+ * 在行動裝置上提供明顯的點擊回饋
+ * ========================================================================= */
+(function initNavTapEffect() {
+  document.addEventListener('DOMContentLoaded', function() {
+    const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+    
+    navItems.forEach(function(item) {
+      // 觸控開始時添加高亮
+      item.addEventListener('touchstart', function(e) {
+        this.classList.add('tapped');
+      }, { passive: true });
+      
+      // 觸控結束時移除高亮（延遲以確保視覺效果）
+      item.addEventListener('touchend', function(e) {
+        const el = this;
+        setTimeout(function() {
+          el.classList.remove('tapped');
+        }, 150);
+      }, { passive: true });
+      
+      // 觸控取消時移除高亮
+      item.addEventListener('touchcancel', function(e) {
+        this.classList.remove('tapped');
+      }, { passive: true });
+      
+      // 滑鼠點擊也支援（桌面測試用）
+      item.addEventListener('mousedown', function(e) {
+        this.classList.add('tapped');
+      });
+      
+      item.addEventListener('mouseup', function(e) {
+        const el = this;
+        setTimeout(function() {
+          el.classList.remove('tapped');
+        }, 150);
+      });
+      
+      item.addEventListener('mouseleave', function(e) {
+        this.classList.remove('tapped');
+      });
+    });
+  });
+})();
+
+/* =========================================================================
  * 錯誤監控設定 (Sentry Configuration)
  * 
  * 啟用步驟：

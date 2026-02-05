@@ -670,9 +670,11 @@ body.theme-dark .nav-item:hover {
 }
 
 /* 點擊時高亮效果 */
-body.theme-dark .nav-item:active {
-  background: rgba(var(--uvaco-green-rgb), 0.25);
-  color: var(--uvaco-green);
+body.theme-dark .nav-item:active,
+body.theme-dark .nav-item.tapped {
+  background: rgba(var(--uvaco-green-rgb), 0.35) !important;
+  color: var(--uvaco-green) !important;
+  transform: scale(0.95);
 }
 
 body.theme-light .nav-item {
@@ -686,9 +688,11 @@ body.theme-light .nav-item:hover {
 }
 
 /* 點擊時高亮效果 */
-body.theme-light .nav-item:active {
-  background: rgba(var(--uvaco-green-rgb), 0.2);
-  color: var(--uvaco-green);
+body.theme-light .nav-item:active,
+body.theme-light .nav-item.tapped {
+  background: rgba(var(--uvaco-green-rgb), 0.3) !important;
+  color: var(--uvaco-green) !important;
+  transform: scale(0.95);
 }
 
 /* 主要按鈕（電話）突出顯示 */
