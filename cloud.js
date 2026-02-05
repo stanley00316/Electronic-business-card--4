@@ -231,18 +231,10 @@ window.UVACO_CLOUD = (function () {
     return window.__uvacoSupabaseClient;
   }
 
-  // 公開客戶端（不需要身份驗證的操作使用，避免多次創建實例）
+  // 公開客戶端（不需要身份驗證的操作使用）
+  // 直接返回主客戶端以避免多個 GoTrueClient 實例警告
   function getPublicClient() {
-    if (!hasConfig()) return null;
-    if (window.__uvacoSupabasePublicClient) return window.__uvacoSupabasePublicClient;
-    if (!window.supabase || !window.supabase.createClient) return null;
-    window.__uvacoSupabasePublicClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false
-      }
-    });
-    return window.__uvacoSupabasePublicClient;
+    return getClient();
   }
 
   /* =========================================================================
