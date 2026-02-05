@@ -34,46 +34,20 @@
 (function initNavTapEffect() {
   function setupNavTapEffect() {
     const navItems = document.querySelectorAll('.bottom-nav .nav-item');
-    console.log('[NavTap] 找到導航項目數量:', navItems.length);
-    
-    // #region agent log - H1: 檢查每個導航項目的 class
-    navItems.forEach(function(item, idx) {
-      const classes = item.className;
-      const text = item.textContent.trim().replace(/\s+/g, ' ').substring(0, 20);
-      fetch('http://127.0.0.1:7245/ingest/d84f1851-975c-41ec-b8de-5eb096c007e8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'common.js:nav-debug',message:'Nav item classes',data:{idx:idx,classes:classes,text:text,hasActive:classes.includes('active'),hasPrimary:classes.includes('primary')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    });
-    // #endregion
-    
-    // #region agent log - H2: 檢查當前頁面 URL
-    fetch('http://127.0.0.1:7245/ingest/d84f1851-975c-41ec-b8de-5eb096c007e8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'common.js:page-url',message:'Current page URL',data:{url:window.location.href,pathname:window.location.pathname},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
-    
-    // #region agent log - H3: 檢查每個導航項目的實際樣式
-    setTimeout(function() {
-      navItems.forEach(function(item, idx) {
-        const style = window.getComputedStyle(item);
-        const text = item.textContent.trim().replace(/\s+/g, ' ').substring(0, 20);
-        fetch('http://127.0.0.1:7245/ingest/d84f1851-975c-41ec-b8de-5eb096c007e8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'common.js:computed-style',message:'Nav item computed style',data:{idx:idx,text:text,color:style.color,backgroundColor:style.backgroundColor},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-      });
-    }, 100);
-    // #endregion
     
     if (navItems.length === 0) {
-      console.log('[NavTap] 未找到導航項目，稍後重試...');
       setTimeout(setupNavTapEffect, 500);
       return;
     }
     
-    navItems.forEach(function(item, index) {
+    navItems.forEach(function(item) {
       // 觸控開始時添加高亮
-      item.addEventListener('touchstart', function(e) {
-        console.log('[NavTap] touchstart - 項目', index);
+      item.addEventListener('touchstart', function() {
         this.classList.add('tapped');
       }, { passive: true });
       
-      // 觸控結束時移除高亮（延遲以確保視覺效果）
-      item.addEventListener('touchend', function(e) {
-        console.log('[NavTap] touchend - 項目', index);
+      // 觸控結束時移除高亮
+      item.addEventListener('touchend', function() {
         const el = this;
         setTimeout(function() {
           el.classList.remove('tapped');
@@ -81,30 +55,26 @@
       }, { passive: true });
       
       // 觸控取消時移除高亮
-      item.addEventListener('touchcancel', function(e) {
+      item.addEventListener('touchcancel', function() {
         this.classList.remove('tapped');
       }, { passive: true });
       
-      // 滑鼠點擊也支援（桌面測試用）
-      item.addEventListener('mousedown', function(e) {
-        console.log('[NavTap] mousedown - 項目', index);
+      // 滑鼠點擊支援
+      item.addEventListener('mousedown', function() {
         this.classList.add('tapped');
       });
       
-      item.addEventListener('mouseup', function(e) {
-        console.log('[NavTap] mouseup - 項目', index);
+      item.addEventListener('mouseup', function() {
         const el = this;
         setTimeout(function() {
           el.classList.remove('tapped');
         }, 300);
       });
       
-      item.addEventListener('mouseleave', function(e) {
+      item.addEventListener('mouseleave', function() {
         this.classList.remove('tapped');
       });
     });
-    
-    console.log('[NavTap] 事件監聽器已綁定');
   }
   
   // DOM 載入後執行
