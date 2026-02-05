@@ -661,34 +661,34 @@ body.theme-light .bottom-nav {
 
 body.theme-dark .nav-item {
   color: #9ca3af;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
-body.theme-dark .nav-item:active,
 body.theme-dark .nav-item:hover {
   background: rgba(255,255,255,0.08);
   color: var(--uvaco-green);
 }
 
-/* 當前頁面高亮樣式 */
-body.theme-dark .nav-item.active {
+/* 點擊時高亮效果 */
+body.theme-dark .nav-item:active {
+  background: rgba(var(--uvaco-green-rgb), 0.25);
   color: var(--uvaco-green);
-  background: rgba(var(--uvaco-green-rgb), 0.15);
 }
 
 body.theme-light .nav-item {
   color: #6b7280;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
-body.theme-light .nav-item:active,
 body.theme-light .nav-item:hover {
   background: rgba(var(--uvaco-green-rgb), 0.08);
   color: var(--uvaco-green);
 }
 
-/* 當前頁面高亮樣式 */
-body.theme-light .nav-item.active {
+/* 點擊時高亮效果 */
+body.theme-light .nav-item:active {
+  background: rgba(var(--uvaco-green-rgb), 0.2);
   color: var(--uvaco-green);
-  background: rgba(var(--uvaco-green-rgb), 0.12);
 }
 
 /* 主要按鈕（電話）突出顯示 */
