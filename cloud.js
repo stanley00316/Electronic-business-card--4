@@ -231,6 +231,20 @@ window.UVACO_CLOUD = (function () {
     return window.__uvacoSupabaseClient;
   }
 
+  // 公開客戶端（不需要身份驗證的操作使用，避免多次創建實例）
+  function getPublicClient() {
+    if (!hasConfig()) return null;
+    if (window.__uvacoSupabasePublicClient) return window.__uvacoSupabasePublicClient;
+    if (!window.supabase || !window.supabase.createClient) return null;
+    window.__uvacoSupabasePublicClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
+    return window.__uvacoSupabasePublicClient;
+  }
+
   /* =========================================================================
    * 4. JWT 管理 (JWT Management)
    * ========================================================================= */
@@ -815,8 +829,9 @@ window.UVACO_CLOUD = (function () {
   // 公開讀取名片（給 card.html 用，不需登入）
   async function getCardPublic(userId, options = {}) {
     if (!hasConfig()) return { card: null };
-    // 使用 anon key 建立一個純公開客戶端
-    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // 使用快取的公開客戶端
+    const client = getPublicClient();
+    if (!client) return { card: null };
     const { data, error } = await client
       .from('cards')
       .select('*')
@@ -837,7 +852,8 @@ window.UVACO_CLOUD = (function () {
     if (!hasConfig() || !userId) return { success: false };
     
     try {
-      const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const client = getPublicClient();
+      if (!client) return { success: false };
       
       // 嘗試使用 card_views 表（如果存在）
       const { error: viewError } = await client
@@ -998,7 +1014,8 @@ window.UVACO_CLOUD = (function () {
   async function getCardByNfcId(nfcCardId) {
     if (!hasConfig() || !nfcCardId) return { card: null };
     
-    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const client = getPublicClient();
+    if (!client) return { card: null };
     const { data, error } = await client
       .from('cards')
       .select('*')
