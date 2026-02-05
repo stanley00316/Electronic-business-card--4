@@ -695,30 +695,20 @@ nav.bottom-nav a.nav-item.tapped {
   border-radius: 16px !important;
 }
 
-/* 主要按鈕（電話）突出顯示 */
-.nav-item.primary {
-  color: var(--uvaco-green);
+/* 當前頁面高亮樣式 */
+.nav-item.active {
+  color: var(--uvaco-green) !important;
+  background: rgba(var(--uvaco-green-rgb), 0.2) !important;
 }
 
-body.theme-dark .nav-item.primary {
-  background: rgba(var(--uvaco-green-rgb), 0.15);
+body.theme-dark .nav-item.active {
+  color: var(--uvaco-green) !important;
+  background: rgba(var(--uvaco-green-rgb), 0.25) !important;
 }
 
-body.theme-light .nav-item.primary {
-  background: rgba(var(--uvaco-green-rgb), 0.1);
-}
-
-/* 主要按鈕點擊效果 - 確保覆蓋原有背景 */
-.nav-item.primary:active,
-.nav-item.primary.tapped,
-body.theme-dark .nav-item.primary:active,
-body.theme-dark .nav-item.primary.tapped,
-body.theme-light .nav-item.primary:active,
-body.theme-light .nav-item.primary.tapped {
-  background: rgba(34, 197, 94, 0.7) !important;
-  color: #ffffff !important;
-  transform: scale(0.9) !important;
-  box-shadow: 0 0 25px rgba(34, 197, 94, 1) !important;
+body.theme-light .nav-item.active {
+  color: var(--uvaco-green) !important;
+  background: rgba(var(--uvaco-green-rgb), 0.15) !important;
 }
 
 /* 為底部導航欄預留空間，避免內容被遮擋 */
