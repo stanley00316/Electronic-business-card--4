@@ -13,9 +13,19 @@
   font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "Segoe UI", sans-serif;
 }
 
+html {
+  /* iOS Safari 滾動修正 */
+  height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 body {
   overflow-x: hidden;
   position: relative;
+  min-height: 100%;
+  /* 防止 iOS Safari 地址欄隱藏/顯示時影響固定元素 */
+  min-height: -webkit-fill-available;
 }
 
 /* ===== 語系控制（中文 / 英文） ===== */
@@ -599,6 +609,13 @@ body.theme-light .avatar{
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid rgba(255,255,255,0.1);
+  
+  /* iOS Safari 固定定位修正 */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 body.theme-dark .bottom-nav {
