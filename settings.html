@@ -266,6 +266,28 @@ body {
 <script src="cloud.js?v=20260205b"></script>
 <script src="common.js?v=20260205d"></script>
 <script>
+// #region agent log - 全域偵錯面板
+var _dbg;
+function _initDebugPanel() {
+  if (_dbg) return;
+  _dbg = document.createElement('div');
+  _dbg.id = '_agentDebugPanel';
+  _dbg.style.cssText = 'position:fixed;bottom:60px;left:8px;right:8px;max-height:35vh;overflow:auto;background:#1e1e2e;color:#0f0;font-size:11px;padding:10px;border-radius:8px;z-index:99999;font-family:monospace;white-space:pre-wrap;border:2px solid #0f0;display:block;';
+  document.body.appendChild(_dbg);
+}
+function _dlog(msg) {
+  if (!_dbg) _initDebugPanel();
+  _dbg.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
+  _dbg.scrollTop = _dbg.scrollHeight;
+}
+// 頁面載入時立即初始化偵錯面板
+if (document.body) { _initDebugPanel(); } else { document.addEventListener('DOMContentLoaded', _initDebugPanel); }
+_dlog('=== settings.html debug panel loaded ===');
+_dlog('UVACO_CLOUD exists: ' + !!window.UVACO_CLOUD);
+_dlog('location.origin: ' + window.location.origin);
+_dlog('location.pathname: ' + window.location.pathname);
+// #endregion
+
 // 前往「我的名片」頁面
 async function gotoMyCard(event) {
   if (event) {
@@ -292,10 +314,13 @@ async function gotoMyCard(event) {
 }
 
 async function initUserId() {
+  _dlog('initUserId() called');
   try {
     if (window.UVACO_CLOUD) {
+      _dlog('UVACO_CLOUD available, calling getSession...');
       const s = await UVACO_CLOUD.getSession();
       const uid = s.session ? s.session.user.id : '尚未登入';
+      _dlog('session: ' + (s.session ? 'YES' : 'NO') + ', uid: ' + uid);
       document.getElementById('myUserIdDisplay').textContent = uid;
       
       // 載入瀏覽統計
@@ -305,8 +330,11 @@ async function initUserId() {
       
       // 載入邀請連結
       if (s.session && uid) {
+        _dlog('Calling loadInviteLink with uid: ' + uid);
         loadInviteLink(uid);
         loadReferralStats();
+      } else {
+        _dlog('SKIP loadInviteLink: session=' + !!s.session + ' uid=' + uid);
       }
       
       // 檢查管理員狀態 - 僅「超級管理員」可見以下三個項目
@@ -338,6 +366,7 @@ async function initUserId() {
   } catch (e) {
     document.getElementById('myUserIdDisplay').textContent = 'Error';
     console.error('initUserId error:', e);
+    _dlog('initUserId ERROR: ' + e.name + ' - ' + e.message);
   }
 }
 
@@ -382,12 +411,17 @@ async function loadViewStats(userId) {
 // 載入邀請連結
 let myInviteLink = '';
 function loadInviteLink(userId) {
-  if (!UVACO_CLOUD.generateInviteLink) return;
+  _dlog('loadInviteLink() called, userId=' + userId);
+  if (!UVACO_CLOUD.generateInviteLink) {
+    _dlog('ERROR: generateInviteLink not available');
+    return;
+  }
   
   const inviteItem = document.getElementById('inviteLinkItem');
   const inviteDisplay = document.getElementById('inviteLinkDisplay');
   
   myInviteLink = UVACO_CLOUD.generateInviteLink(userId);
+  _dlog('Generated invite link: ' + myInviteLink);
   inviteItem.style.display = 'flex';
   
   // 顯示縮短版的連結
@@ -397,17 +431,6 @@ function loadInviteLink(userId) {
 
 // 分享邀請連結（優先使用系統分享介面）
 async function shareInviteLink() {
-  // #region agent log - 頁面可見偵錯面板
-  var _dbg = document.getElementById('_agentDebugPanel');
-  if (!_dbg) {
-    _dbg = document.createElement('div');
-    _dbg.id = '_agentDebugPanel';
-    _dbg.style.cssText = 'position:fixed;bottom:60px;left:8px;right:8px;max-height:40vh;overflow:auto;background:#1e1e2e;color:#0f0;font-size:11px;padding:10px;border-radius:8px;z-index:99999;font-family:monospace;white-space:pre-wrap;border:2px solid #0f0;';
-    document.body.appendChild(_dbg);
-  }
-  function _dlog(msg) { _dbg.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n'; _dbg.scrollTop = _dbg.scrollHeight; }
-  // #endregion
-
   try {
     _dlog('shareInviteLink() called');
     _dlog('myInviteLink = ' + (myInviteLink || '(empty)'));
