@@ -104,9 +104,11 @@
    - 取得：
      - `LINE_CHANNEL_ID`
      - `LINE_CHANNEL_SECRET`
-   - 設定 Callback URL（固定，不帶 next）：
-     - GitHub Pages：`https://<user>.github.io/<repo>/auth.html?provider=line`
+   - 設定 Callback URL（固定，不帶 query string）：
+     - GitHub Pages：`https://<user>.github.io/<repo>/auth.html`
+     - 例如：`https://stanley00316.github.io/Electronic-business-card--4/auth.html`
      - 本機：建議用 ngrok 的 https 網址（LINE 不接受 http://localhost）
+     - ⚠️ 注意：URL 必須與程式碼中 `getLineRedirectUri()` 產生的完全一致
 
 2. **Supabase SQL**
    - 執行 `supabase-setup.sql`（會建立 `public.line_identities`）

@@ -266,28 +266,6 @@ body {
 <script src="cloud.js?v=20260205b"></script>
 <script src="common.js?v=20260205d"></script>
 <script>
-// #region agent log - 全域偵錯面板
-var _dbg;
-function _initDebugPanel() {
-  if (_dbg) return;
-  _dbg = document.createElement('div');
-  _dbg.id = '_agentDebugPanel';
-  _dbg.style.cssText = 'position:fixed;bottom:60px;left:8px;right:8px;max-height:35vh;overflow:auto;background:#1e1e2e;color:#0f0;font-size:11px;padding:10px;border-radius:8px;z-index:99999;font-family:monospace;white-space:pre-wrap;border:2px solid #0f0;display:block;';
-  document.body.appendChild(_dbg);
-}
-function _dlog(msg) {
-  if (!_dbg) _initDebugPanel();
-  _dbg.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
-  _dbg.scrollTop = _dbg.scrollHeight;
-}
-// 頁面載入時立即初始化偵錯面板
-if (document.body) { _initDebugPanel(); } else { document.addEventListener('DOMContentLoaded', _initDebugPanel); }
-_dlog('=== settings.html debug panel loaded ===');
-_dlog('UVACO_CLOUD exists: ' + !!window.UVACO_CLOUD);
-_dlog('location.origin: ' + window.location.origin);
-_dlog('location.pathname: ' + window.location.pathname);
-// #endregion
-
 // 前往「我的名片」頁面
 async function gotoMyCard(event) {
   if (event) {
@@ -314,13 +292,10 @@ async function gotoMyCard(event) {
 }
 
 async function initUserId() {
-  _dlog('initUserId() called');
   try {
     if (window.UVACO_CLOUD) {
-      _dlog('UVACO_CLOUD available, calling getSession...');
       const s = await UVACO_CLOUD.getSession();
       const uid = s.session ? s.session.user.id : '尚未登入';
-      _dlog('session: ' + (s.session ? 'YES' : 'NO') + ', uid: ' + uid);
       document.getElementById('myUserIdDisplay').textContent = uid;
       
       // 載入瀏覽統計
@@ -330,11 +305,8 @@ async function initUserId() {
       
       // 載入邀請連結
       if (s.session && uid) {
-        _dlog('Calling loadInviteLink with uid: ' + uid);
         loadInviteLink(uid);
         loadReferralStats();
-      } else {
-        _dlog('SKIP loadInviteLink: session=' + !!s.session + ' uid=' + uid);
       }
       
       // 檢查管理員狀態 - 僅「超級管理員」可見以下三個項目
@@ -366,7 +338,6 @@ async function initUserId() {
   } catch (e) {
     document.getElementById('myUserIdDisplay').textContent = 'Error';
     console.error('initUserId error:', e);
-    _dlog('initUserId ERROR: ' + e.name + ' - ' + e.message);
   }
 }
 
@@ -411,17 +382,12 @@ async function loadViewStats(userId) {
 // 載入邀請連結
 let myInviteLink = '';
 function loadInviteLink(userId) {
-  _dlog('loadInviteLink() called, userId=' + userId);
-  if (!UVACO_CLOUD.generateInviteLink) {
-    _dlog('ERROR: generateInviteLink not available');
-    return;
-  }
+  if (!UVACO_CLOUD.generateInviteLink) return;
   
   const inviteItem = document.getElementById('inviteLinkItem');
   const inviteDisplay = document.getElementById('inviteLinkDisplay');
   
   myInviteLink = UVACO_CLOUD.generateInviteLink(userId);
-  _dlog('Generated invite link: ' + myInviteLink);
   inviteItem.style.display = 'flex';
   
   // 顯示縮短版的連結
@@ -431,60 +397,38 @@ function loadInviteLink(userId) {
 
 // 分享邀請連結（優先使用系統分享介面）
 async function shareInviteLink() {
-  try {
-    _dlog('shareInviteLink() called');
-    _dlog('myInviteLink = ' + (myInviteLink || '(empty)'));
-    _dlog('navigator.share = ' + (typeof navigator.share));
-    _dlog('navigator.clipboard = ' + (typeof navigator.clipboard));
-
-    if (!myInviteLink) {
-      _dlog('ERROR: myInviteLink is empty, returning');
-      return;
-    }
-    
-    const savedLang = localStorage.getItem('lang') || 'zh';
-    const shareData = {
-      title: savedLang === 'zh' ? '加入數位身分平台' : 'Join Digital Identity Platform',
-      text: savedLang === 'zh' 
-        ? '我邀請你加入數位身分平台，一起建立專屬電子名片！' 
-        : 'I invite you to join the Digital Identity Platform!',
-      url: myInviteLink
-    };
-    
-    _dlog('shareData.url = ' + shareData.url);
-    
-    // 優先使用系統分享（支援 LINE、訊息、Email 等）
-    if (navigator.share) {
-      try {
-        _dlog('Calling navigator.share()...');
-        await navigator.share(shareData);
-        _dlog('navigator.share() succeeded');
-        return;
-      } catch (err) {
-        _dlog('navigator.share() error: ' + err.name + ' - ' + err.message);
-        // 用戶取消分享，直接返回
-        if (err.name === 'AbortError') {
-          _dlog('User cancelled share (AbortError)');
-          return;
-        }
-        // 其他錯誤，fallback 到複製
-        _dlog('Falling back to clipboard...');
-      }
-    }
-    
-    // Fallback: 複製到剪貼簿
+  if (!myInviteLink) return;
+  
+  const savedLang = localStorage.getItem('lang') || 'zh';
+  const shareData = {
+    title: savedLang === 'zh' ? '加入數位身分平台' : 'Join Digital Identity Platform',
+    text: savedLang === 'zh' 
+      ? '我邀請你加入數位身分平台，一起建立專屬電子名片！' 
+      : 'I invite you to join the Digital Identity Platform!',
+    url: myInviteLink
+  };
+  
+  // 優先使用系統分享（支援 LINE、訊息、Email 等）
+  if (navigator.share) {
     try {
-      await navigator.clipboard.writeText(myInviteLink);
-      _dlog('Clipboard copy succeeded');
-      alert(savedLang === 'zh' 
-        ? '邀請連結已複製！\n分享給朋友即可邀請他們加入。' 
-        : 'Invite link copied!\nShare with friends to invite them.');
+      await navigator.share(shareData);
+      return;
     } catch (err) {
-      _dlog('Clipboard error: ' + err.name + ' - ' + err.message);
-      prompt(savedLang === 'zh' ? '請手動複製連結：' : 'Please copy the link:', myInviteLink);
+      // 用戶取消分享，直接返回
+      if (err.name === 'AbortError') return;
+      // 其他錯誤，fallback 到複製
+      console.log('Share failed, fallback to copy:', err);
     }
-  } catch (outerErr) {
-    _dlog('UNEXPECTED ERROR: ' + outerErr.name + ' - ' + outerErr.message + '\n' + outerErr.stack);
+  }
+  
+  // Fallback: 複製到剪貼簿
+  try {
+    await navigator.clipboard.writeText(myInviteLink);
+    alert(savedLang === 'zh' 
+      ? '邀請連結已複製！\n分享給朋友即可邀請他們加入。' 
+      : 'Invite link copied!\nShare with friends to invite them.');
+  } catch (err) {
+    prompt(savedLang === 'zh' ? '請手動複製連結：' : 'Please copy the link:', myInviteLink);
   }
 }
 
