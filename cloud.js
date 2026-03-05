@@ -76,6 +76,9 @@ window.UVACO_CLOUD = (function () {
   const SUPABASE_URL = 'https://nqxibryjhgftyxttopuo.supabase.co';
   // Supabase Dashboard → Settings → API Keys → Publishable key (default)
   const SUPABASE_ANON_KEY = 'sb_publishable_iTgIYinO82u_nwhdzvS8EQ_zDtNKpdH';
+  // Legacy JWT 格式的 anon key（Edge Functions 的 Authorization header 需要 JWT 格式）
+  // Supabase Dashboard → Settings → API Keys → Legacy anon, service_role API keys → anon public
+  const SUPABASE_ANON_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xeGlicnlqaGdmdHl4dHRvcHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxNTY0MDksImV4cCI6MjA4MjczMjQwOX0.b8Vp__OY70wLmRv96LFjiGuqqMfcR06q0yf6VlB6ikU';
 
   // ===== 儲存設定 =====
   // STORAGE_PROVIDER: 'supabase' 或 'r2'
@@ -472,7 +475,7 @@ window.UVACO_CLOUD = (function () {
             'apikey': SUPABASE_ANON_KEY,
             // 若 Supabase Edge Function 開啟「Verify JWT with legacy secret」，
             // 需要 Authorization header（使用 anon key 即可）
-            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+            'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
           },
           body: JSON.stringify({ code, redirect_uri: redirectUri })
         }, 15000);
@@ -521,7 +524,7 @@ window.UVACO_CLOUD = (function () {
         method: 'GET',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         }
       }, 8000);
       const data = await r.json().catch(() => ({}));
@@ -570,6 +573,8 @@ window.UVACO_CLOUD = (function () {
       const initResult = await initLiff();
       if (!initResult.ok) return initResult;
 
+      if (!liff.isInClient()) return { ok: false, error: 'LIFF_NOT_IN_CLIENT' };
+
       if (!liff.isLoggedIn()) {
         liff.login({ redirectUri: getBaseUrl() + 'auth.html?next=' + encodeURIComponent(nextPage || 'directory.html') + '&liff=1' });
         return { ok: true, handled: true, action: 'redirecting_to_login' };
@@ -584,7 +589,7 @@ window.UVACO_CLOUD = (function () {
         headers: {
           'content-type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         },
         body: JSON.stringify({ liff_access_token: accessToken })
       }, 15000);
@@ -677,7 +682,7 @@ window.UVACO_CLOUD = (function () {
           headers: {
             'content-type': 'application/json',
             'apikey': SUPABASE_ANON_KEY,
-            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+            'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
           },
           body: JSON.stringify({ code, redirect_uri: redirectUri })
         }, 15000);
@@ -724,7 +729,7 @@ window.UVACO_CLOUD = (function () {
         method: 'GET',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         }
       }, 8000);
       const data = await r.json().catch(() => ({}));
@@ -811,7 +816,7 @@ window.UVACO_CLOUD = (function () {
           headers: {
             'content-type': 'application/json',
             'apikey': SUPABASE_ANON_KEY,
-            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+            'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
           },
           body: JSON.stringify({ code, redirect_uri: redirectUri, id_token: idToken })
         }, 15000);
@@ -858,7 +863,7 @@ window.UVACO_CLOUD = (function () {
         method: 'GET',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         }
       }, 8000);
       const data = await r.json().catch(() => ({}));
@@ -1385,7 +1390,7 @@ window.UVACO_CLOUD = (function () {
       headers: {
         'content-type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + (customJwt || SUPABASE_ANON_KEY)
+        'Authorization': 'Bearer ' + (customJwt || SUPABASE_ANON_JWT)
       },
       body: JSON.stringify({
         action: 'upload',
@@ -1626,7 +1631,7 @@ window.UVACO_CLOUD = (function () {
         method: 'GET',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         }
       }, 8000);
       const data = await r.json().catch(() => ({}));
@@ -2310,7 +2315,7 @@ window.UVACO_CLOUD = (function () {
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         },
         body: JSON.stringify({
           user_id: ctx.userId,
@@ -2348,7 +2353,7 @@ window.UVACO_CLOUD = (function () {
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         },
         body: JSON.stringify({
           user_id: ctx.userId,

@@ -453,7 +453,9 @@
           setStatus('ok', '正在自動登入...');
           var liffRes = await UVACO_CLOUD.liffAutoLogin(getNext());
           if (liffRes && liffRes.handled) return;
-          if (liffRes && liffRes.ok === false && liffRes.error !== 'LIFF_NOT_AVAILABLE') {
+          if (liffRes && liffRes.ok === false
+              && liffRes.error !== 'LIFF_NOT_AVAILABLE'
+              && liffRes.error !== 'LIFF_NOT_IN_CLIENT') {
             console.log('[LIFF] 自動登入未成功，回退到一般登入:', liffRes.error);
           }
         } catch (e) {
