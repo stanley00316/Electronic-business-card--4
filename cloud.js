@@ -92,6 +92,11 @@ window.UVACO_CLOUD = (function () {
   // 你給的值若不是數字，代表可能貼到的是 LINE ID 而非 Channel ID（會導致登入失敗）。
   const LINE_CHANNEL_ID = '2008810712'; // LINE Login 的 Channel ID（client_id）
   
+  // ===== LIFF（LINE Front-end Framework）=====
+  // 在 LINE Developers Console → 你的 LINE Login Channel → LIFF 分頁建立 LIFF App 後，
+  // 將 LIFF ID 填入這裡。啟用後，從 LINE App 內開啟的用戶將自動登入，免輸入帳號密碼。
+  const LIFF_ID = '2008810712-bHGjgn3l'; // LIFF App ID
+  
   // ===== Google Login =====
   // 若你要啟用 Google 登入：
   // 1) 在 Google Cloud Console 建立 OAuth 2.0 Client
@@ -523,6 +528,81 @@ window.UVACO_CLOUD = (function () {
       return { ok: r.ok, status: r.status, data, endpoint };
     } catch (e) {
       return { ok: false, error: 'DIAG_FETCH_FAILED', detail: String(e?.name === 'AbortError' ? 'TIMEOUT' : (e?.message || e || '')), endpoint };
+    }
+  }
+
+  /* =========================================================================
+   * 6b. LIFF 自動登入 (LIFF Auto Login)
+   * ========================================================================= */
+
+  function hasLiffConfig() {
+    return !!LIFF_ID;
+  }
+
+  function isInLiffBrowser() {
+    try {
+      return typeof liff !== 'undefined' && liff.isInClient && liff.isInClient();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isLiffSdkLoaded() {
+    return typeof liff !== 'undefined';
+  }
+
+  async function initLiff() {
+    if (!LIFF_ID) return { ok: false, error: 'NO_LIFF_ID' };
+    if (!isLiffSdkLoaded()) return { ok: false, error: 'LIFF_SDK_NOT_LOADED' };
+
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      return { ok: true, isLoggedIn: liff.isLoggedIn(), isInClient: liff.isInClient() };
+    } catch (e) {
+      return { ok: false, error: 'LIFF_INIT_FAILED', detail: String(e?.message || e) };
+    }
+  }
+
+  async function liffAutoLogin(nextPage) {
+    if (!LIFF_ID || !isLiffSdkLoaded()) return { ok: false, error: 'LIFF_NOT_AVAILABLE' };
+
+    try {
+      const initResult = await initLiff();
+      if (!initResult.ok) return initResult;
+
+      if (!liff.isLoggedIn()) {
+        liff.login({ redirectUri: getBaseUrl() + 'auth.html?next=' + encodeURIComponent(nextPage || 'directory.html') + '&liff=1' });
+        return { ok: true, handled: true, action: 'redirecting_to_login' };
+      }
+
+      const accessToken = liff.getAccessToken();
+      if (!accessToken) return { ok: false, error: 'LIFF_NO_TOKEN' };
+
+      const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
+      const resp = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ liff_access_token: accessToken })
+      }, 15000);
+
+      let data = {};
+      try { data = await resp.json(); } catch (_e) { data = { non_json_response: true }; }
+      if (!resp.ok) return { ok: false, error: 'LIFF_EXCHANGE_FAILED', detail: data, status: resp.status };
+
+      const token = String(data?.access_token || '').trim();
+      const userId = String(data?.user_id || '').trim();
+      if (!token || !userId) return { ok: false, error: 'LIFF_NO_JWT', detail: data };
+
+      setCustomJwt(token);
+      const target = nextPage || 'directory.html';
+      window.location.replace(target);
+      return { ok: true, handled: true };
+    } catch (e) {
+      return { ok: false, error: 'LIFF_AUTO_LOGIN_ERROR', detail: String(e?.message || e) };
     }
   }
 
@@ -2322,6 +2402,12 @@ window.UVACO_CLOUD = (function () {
     startLineLogin,
     finishLineLoginFromUrl,
     lineAuthDiag,
+    
+    // LIFF 自動登入
+    hasLiffConfig,
+    isInLiffBrowser,
+    initLiff,
+    liffAutoLogin,
     
     // Google Login
     hasGoogleConfig,

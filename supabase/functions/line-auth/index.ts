@@ -204,16 +204,25 @@ serve(async (req) => {
 
   const code = String(body?.code || "").trim();
   const redirectUri = String(body?.redirect_uri || "").trim();
-  if (!code) return bad("MISSING_CODE");
-  if (!redirectUri) return bad("MISSING_REDIRECT_URI");
+  const liffAccessToken = String(body?.liff_access_token || "").trim();
 
-  // 1) Exchange code → access_token
-  const tokenRes = await exchangeLineCodeForToken(code, redirectUri, LINE_CHANNEL_ID, LINE_CHANNEL_SECRET);
-  if (!tokenRes.ok) {
-    return json({ error: "LINE_TOKEN_EXCHANGE_FAILED", detail: tokenRes.data }, { status: 400 });
+  let accessToken = "";
+
+  if (liffAccessToken) {
+    // LIFF 模式：前端已取得 access_token，直接使用
+    accessToken = liffAccessToken;
+  } else {
+    // OAuth 模式：用 code 換 access_token
+    if (!code) return bad("MISSING_CODE");
+    if (!redirectUri) return bad("MISSING_REDIRECT_URI");
+
+    const tokenRes = await exchangeLineCodeForToken(code, redirectUri, LINE_CHANNEL_ID, LINE_CHANNEL_SECRET);
+    if (!tokenRes.ok) {
+      return json({ error: "LINE_TOKEN_EXCHANGE_FAILED", detail: tokenRes.data }, { status: 400 });
+    }
+    accessToken = String((tokenRes.data as any)?.access_token || "");
+    if (!accessToken) return bad("LINE_NO_ACCESS_TOKEN", { detail: tokenRes.data });
   }
-  const accessToken = String((tokenRes.data as any)?.access_token || "");
-  if (!accessToken) return bad("LINE_NO_ACCESS_TOKEN", { detail: tokenRes.data });
 
   // 2) Get LINE profile → userId
   const profRes = await fetchLineProfile(accessToken);

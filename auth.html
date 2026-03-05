@@ -7,9 +7,13 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://nqxibryjhgftyxttopuo.supabase.co" crossorigin>
   <link rel="preconnect" href="https://access.line.me" crossorigin>
+  <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <link rel="dns-prefetch" href="https://nqxibryjhgftyxttopuo.supabase.co">
   <link rel="dns-prefetch" href="https://access.line.me">
+  <link rel="dns-prefetch" href="https://static.line-scdn.net">
+  <!-- LIFF SDK（LINE Front-end Framework）→ LINE App 內自動登入 -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <!-- Sentry 錯誤監控 SDK -->
   <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
   <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
@@ -441,6 +445,22 @@
       if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
         setStatus('err', '尚未設定 Supabase（請在 cloud.js 填入 SUPABASE_URL / SUPABASE_ANON_KEY）。');
         return;
+      }
+
+      // LIFF 自動登入：從 LINE App 內開啟時免輸入帳號密碼
+      if (UVACO_CLOUD.hasLiffConfig && UVACO_CLOUD.hasLiffConfig()) {
+        try {
+          setStatus('ok', '正在自動登入...');
+          var liffRes = await UVACO_CLOUD.liffAutoLogin(getNext());
+          if (liffRes && liffRes.handled) return;
+          if (liffRes && liffRes.ok === false && liffRes.error !== 'LIFF_NOT_AVAILABLE') {
+            console.log('[LIFF] 自動登入未成功，回退到一般登入:', liffRes.error);
+          }
+        } catch (e) {
+          console.log('[LIFF] 初始化失敗，回退到一般登入:', e);
+        }
+        // LIFF 失敗時清除狀態提示，繼續一般登入流程
+        document.getElementById('statusBox').className = 'auth-status';
       }
 
       // 處理 LINE OAuth callback
