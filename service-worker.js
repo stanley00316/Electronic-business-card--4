@@ -1,6 +1,6 @@
 // 數位身分平台 - Service Worker
 // 版本號：每次更新資源時需要更新此版本
-const CACHE_VERSION = 'v1.20.0';
+const CACHE_VERSION = 'v1.21.0';
 const CACHE_NAME = `digital-identity-${CACHE_VERSION}`;
 
 // 需要快取的靜態資源
@@ -11,6 +11,10 @@ const STATIC_ASSETS = [
   './edit.html',
   './card.html',
   './directory.html',
+  './my-card.html',
+  './subscription.html',
+  './admin.html',
+  './company-admin.html',
   './settings.html',
   './privacy.html',
   './styles.css',
@@ -44,7 +48,10 @@ const STATIC_ASSETS = [
   './phone-icon.svg',
   './mobile-icon.svg',
   './website-icon.svg',
-  './file-icon.svg'
+  './file-icon.svg',
+  // 編輯頁外置樣式
+  './css/edit-head.css',
+  './css/edit-wizard.css'
 ];
 
 // 安裝事件：快取靜態資源
@@ -98,11 +105,16 @@ self.addEventListener('activate', (event) => {
 
 // 判斷是否為靜態資源
 function isStaticAsset(pathname) {
-  // 檢查是否為已知的靜態資源
-  return STATIC_ASSETS.some(asset => {
+  if (STATIC_ASSETS.some(asset => {
     const assetPath = asset.replace('./', '/');
     return pathname === assetPath || pathname.endsWith(assetPath);
-  });
+  })) {
+    return true;
+  }
+  // 模組化腳本（js/cloud、js/common、js/pages）— 與根目錄 esbuild 產物並存
+  if (/\/js\/(cloud|common|pages)\//.test(pathname)) return true;
+  if (/\/css\/edit-/.test(pathname)) return true;
+  return false;
 }
 
 // 請求攔截：靜態資源快取優先，其他網路優先

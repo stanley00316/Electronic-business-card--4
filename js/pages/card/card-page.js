@@ -1,335 +1,19 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<!-- Sentry 錯誤監控 SDK -->
-<script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
-<!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
-<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-  <meta name="robots" content="noindex" />
-  <title>數位身分 | Digital Identity</title>
-  <link rel="stylesheet" href="styles.css?v=20260205">
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#22c55e">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="數位身分">
-  <link rel="apple-touch-icon" href="icon-192.svg">
-<!-- Supabase JS（CDN） -->
-  <script src="supabase.min.js"></script>
-  <!-- QR Code 生成器 -->
-<script src="cloud.js?v=20260324c"></script>
-  <script src="common.js?v=20260324c"></script>
-  <style>
-    .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
-    .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; max-width:90%; }
-    .qr-box h3 { margin: 0 0 15px 0; font-size: 1.2em; }
-    #qrcode { margin: 20px auto; }
-    #qrcode canvas { border-radius: 8px; }
-    
-    /* Toast 動畫 */
-    @keyframes toastFadeIn {
-      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-    @keyframes toastFadeOut {
-      from { opacity: 1; transform: translateX(-50%) translateY(0); }
-      to { opacity: 0; transform: translateX(-50%) translateY(20px); }
-    }
-    
-    /* 移除 LOGO 區的黃色外框 */
-    .hero-frame {
-      background: transparent !important;
-      border: none !important;
-      box-shadow: none !important;
-      animation: none !important;
-    }
-    .hero-frame::before {
-      display: none !important;
-    }
-    
-    /* 返回按鈕 */
-    .back-btn {
-      position: fixed;
-      top: 16px;
-      left: 16px;
-      z-index: 100;
-      background: rgba(0,0,0,0.5);
-      color: #fff;
-      border: none;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      font-size: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      transition: background 0.2s;
-    }
-    .back-btn:hover {
-      background: rgba(0,0,0,0.7);
-    }
-    
-    /* 加入主畫面提示橫幅 */
-    .add-home-banner {
-      display: none;
-      position: fixed;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: calc(100% - 32px);
-      max-width: 400px;
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95));
-      border-radius: 16px;
-      padding: 16px 20px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      z-index: 9998;
-      animation: bannerSlideUp 0.4s ease-out;
-    }
-    @keyframes bannerSlideUp {
-      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-    .add-home-banner.show {
-      display: block;
-    }
-    .add-home-banner-content {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-    }
-    .add-home-banner-icon {
-      font-size: 28px;
-      flex-shrink: 0;
-    }
-    .add-home-banner-text {
-      flex: 1;
-    }
-    .add-home-banner-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 4px;
-    }
-    .add-home-banner-desc {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.9);
-      line-height: 1.4;
-    }
-    .add-home-banner-close {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: #fff;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-    }
-    .add-home-banner-close:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-    .add-home-banner-action {
-      margin-top: 12px;
-      display: flex;
-      gap: 8px;
-    }
-    .add-home-banner-btn {
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s;
-    }
-    .add-home-banner-btn.primary {
-      background: #fff;
-      color: #16a34a;
-    }
-    .add-home-banner-btn.primary:hover {
-      background: rgba(255, 255, 255, 0.9);
-    }
-    .add-home-banner-btn.secondary {
-      background: rgba(255, 255, 255, 0.2);
-      color: #fff;
-    }
-    .add-home-banner-btn.secondary:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  </style>
-</head>
+const UVACO_QRCODE_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+let __uvacoQrLibPromise = null;
+function loadQRCodeScript() {
+  if (typeof QRCode !== 'undefined') return Promise.resolve();
+  if (__uvacoQrLibPromise) return __uvacoQrLibPromise;
+  __uvacoQrLibPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = UVACO_QRCODE_SCRIPT;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('QRCode script failed'));
+    document.head.appendChild(s);
+  });
+  return __uvacoQrLibPromise;
+}
 
-<body class="theme-dark lang-zh">
-
-<!-- 加入主畫面提示橫幅 -->
-<div id="addHomeBanner" class="add-home-banner">
-  <button class="add-home-banner-close" onclick="dismissAddHomeBanner()" title="關閉">✕</button>
-  <div class="add-home-banner-content">
-    <div class="add-home-banner-icon">📱</div>
-    <div class="add-home-banner-text">
-      <div class="add-home-banner-title lang-zh">加入主畫面，快速開啟名片</div>
-      <div class="add-home-banner-title lang-en" style="display:none;">Add to Home Screen</div>
-      <div class="add-home-banner-desc lang-zh">將名片加入手機主畫面，下次點擊圖示即可直接開啟您的名片！</div>
-      <div class="add-home-banner-desc lang-en" style="display:none;">Add your card to home screen for quick access!</div>
-      <div class="add-home-banner-action">
-        <button class="add-home-banner-btn primary" onclick="showAddHomeInstructions()">
-          <span class="lang-zh">了解如何加入</span>
-          <span class="lang-en" style="display:none;">Learn How</span>
-        </button>
-        <button class="add-home-banner-btn secondary" onclick="dismissAddHomeBanner()">
-          <span class="lang-zh">稍後再說</span>
-          <span class="lang-en" style="display:none;">Later</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 背景泡泡 -->
-<div class="bg-blob blob1"></div>
-<div class="bg-blob blob2"></div>
-
-<!-- LOGO 區 -->
-<div class="hero">
-  <div class="hero-frame">
-    <img src="uvaco-logo.svg?v=20260125" class="hero-logo" alt="數位身分平台" id="viewerLogo" loading="lazy">
-          </div>
-        </div>
-
-<!-- 資料卡（與 yuyuko.html 完全一致的結構） -->
-<div class="card" id="previewCard">
-
-  <!-- 大頭照（放置於卡片右上角） -->
-  <img class="avatar" src="default-avatar.svg" alt="Avatar" loading="lazy" id="viewerAvatar">
-
-  <!-- 姓名 -->
-  <div class="name lang-zh" id="viewerNameZh">-</div>
-  <div class="name lang-en" id="viewerNameEn">-</div>
-
-  <!-- 職務 -->
-  <div class="tagline lang-zh" id="viewerTitleZh">-</div>
-  <div class="tagline lang-en" id="viewerTitleEn">-</div>
-
-  <!-- 標語（由 JS 動態填入，或 fallback 到預設） -->
-  <div id="viewerSlogansZh">
-    <div class="tagline lang-zh">健康・事業・未來</div>
-    <div class="tagline lang-zh"><strong id="viewerCompanyStrongZh">-</strong></div>
-  </div>
-
-  <div id="viewerSlogansEn">
-    <div class="tagline lang-en">Health • Business • Future</div>
-    <div class="tagline lang-en"><strong id="viewerCompanyStrongEn">-</strong></div>
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- 公司資訊區塊（直接使用 edit.html 儲存的 companyInfoHtml） -->
-  <div class="company-info-section" id="companyInfoSection" style="display:none"></div>
-
-  <div class="divider"></div>
-
-  <!-- 標題：聯絡方式 -->
-  <div class="section-label lang-zh">聯絡方式 CONTACT</div>
-  <div class="section-label lang-en">CONTACT</div>
-
-  <!-- 按鈕群組 -->
-  <div class="btn-group" id="viewerContacts">
-    <!-- 會由 profile_json.contactsHtml 動態填入；若不存在則 fallback 使用 phone/email -->
-  </div>
-
-  <!-- 提示文字 -->
-    <div class="hint lang-zh">
-      如需申請實體 <strong>NFC 名片</strong>，請洽 <a href="https://line.me/R/ti/p/@632nedvu" target="_blank" style="color: #06c755; text-decoration: underline;">LINE 官方帳號</a>與我們聯繫。
-    </div>
-    <div class="hint lang-en">
-      To apply for a physical <strong>NFC card</strong>, please contact us via <a href="https://line.me/R/ti/p/@632nedvu" target="_blank" style="color: #06c755; text-decoration: underline;">LINE Official Account</a>.
-    </div>
-    
-    <!-- 分享名片功能 -->
-    <div style="margin-top: 20px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center;">
-      <button class="btn btn-primary" onclick="shareMyCard()" style="background-color: var(--uvaco-green); color: white; display: inline-flex; align-items: center; gap: 8px; width: auto; min-width: 160px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
-        </svg>
-        <span class="lang-zh">分享名片</span>
-        <span class="lang-en">Share Card</span>
-      </button>
-      
-      <!-- 快速操作按鈕組 -->
-      <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-        <!-- QR Code -->
-        <button class="btn btn-secondary" onclick="showQRCode()" style="display: inline-flex; align-items: center; gap: 8px; width: auto;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M0 .5A.5.5 0 0 1 .5 0h3a.5.5 0 0 1 0 1H1v2.5a.5.5 0 0 1-1 0v-3Zm12 0a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0V1h-2.5a.5.5 0 0 1-.5-.5ZM.5 12a.5.5 0 0 1 .5.5V15h2.5a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5Zm15 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1H15v-2.5a.5.5 0 0 1 .5-.5ZM4 4h1v1H4V4Z"/>
-            <path d="M7 2H2v5h5V2ZM3 3h3v3H3V3Zm2 8H4v1h1v-1Z"/>
-            <path d="M7 9H2v5h5V9Zm-4 1h3v3H3v-3Zm8-6h1v1h-1V4Z"/>
-            <path d="M9 2h5v5H9V2Zm1 1v3h3V3h-3ZM8 8v2h1v1H8v1h2v-2h1v2h1v-1h2v-1h-3V8H8Zm2 2H9V9h1v1Zm4 2h-1v1h-2v1h3v-2Zm-4 2v-1H8v1h2Z"/>
-            <path d="M12 9h2V8h-2v1Z"/>
-          </svg>
-          <span class="lang-zh">QR Code</span>
-          <span class="lang-en">QR Code</span>
-        </button>
-      </div>
-    </div>
-
-</div>
-
-<!-- QR Code 彈窗 -->
-<div id="qrModal" class="qr-modal" onclick="closeQRModal()">
-  <div class="qr-box" onclick="event.stopPropagation()">
-    <h3 class="lang-zh">我的名片 QR Code</h3>
-    <h3 class="lang-en">My Card QR Code</h3>
-    <div id="qrcode"></div>
-    <p class="lang-zh" style="color:#666;font-size:0.9em;">掃描此 QR Code 可直接開啟名片</p>
-    <p class="lang-en" style="color:#666;font-size:0.9em;">Scan to open this business card</p>
-    <div style="display:flex;gap:10px;justify-content:center;margin-top:15px;flex-wrap:wrap;">
-      <button class="btn btn-primary" onclick="downloadQRCode()" style="background-color: var(--uvaco-green); color: white;">
-        <span class="lang-zh">下載 QR Code</span>
-        <span class="lang-en">Download</span>
-      </button>
-      <button class="btn btn-secondary" onclick="closeQRModal()">
-        <span class="lang-zh">關閉</span>
-        <span class="lang-en">Close</span>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- 底部導航欄 -->
-<nav class="bottom-nav">
-  <a href="#" class="nav-item primary active" id="navMyCard" onclick="gotoMyCard(event)">
-    <span class="nav-icon">👤</span>
-    <span class="nav-label lang-zh">我的名片</span>
-    <span class="nav-label lang-en">My Card</span>
-  </a>
-  <a href="directory.html" class="nav-item">
-    <span class="nav-icon">📋</span>
-    <span class="nav-label lang-zh">通訊錄</span>
-    <span class="nav-label lang-en">Directory</span>
-  </a>
-  <a href="settings.html" class="nav-item">
-    <span class="nav-icon">⚙️</span>
-    <span class="nav-label lang-zh">設定</span>
-    <span class="nav-label lang-en">Settings</span>
-  </a>
-</nav>
-
-<script>
 // 返回上一頁
 function goBack() {
   if (window.history.length > 1) {
@@ -363,9 +47,7 @@ async function gotoMyCard(event) {
     return false;
   }
 }
-</script>
 
-<script>
 function safeText(v) {
   return String(v ?? '').replace(/\s+/g, ' ').trim();
 }
@@ -797,7 +479,14 @@ function shareToEmail() {
 // QR Code 功能
 let qrCodeInstance = null;
 
-function showQRCode() {
+async function showQRCode() {
+  try {
+    await loadQRCodeScript();
+  } catch (e) {
+    console.error(e);
+    alert('QR Code 函式庫載入失敗');
+    return;
+  }
   const modal = document.getElementById('qrModal');
   const qrcodeContainer = document.getElementById('qrcode');
   const url = window.location.href;
@@ -988,7 +677,3 @@ document.addEventListener('DOMContentLoaded', function() {
   // 延遲執行，等待頁面資料載入
   setTimeout(checkAndShowAddHomeBanner, 1000);
 });
-</script>
-
-</body>
-</html>

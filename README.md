@@ -1,6 +1,14 @@
 # 商務電子名片Ｖ4（GitHub Pages 部署版）
 
-此專案為**純靜態網站**（HTML/CSS/JS/Assets），可直接部署到 **GitHub Pages**，不需要額外 build。
+此專案為**純靜態網站**（HTML/CSS/JS/Assets），可直接部署到 **GitHub Pages**。
+
+### 原始碼結構與建置
+
+- **模組約定**：`js/cloud/*.js`、`js/common/*.js` 與 `js/pages/**/*.js` 等**原始檔**維持每檔約 **≤900 行**，方便維護。
+- **根目錄 `cloud.js` / `common.js`**：為 **esbuild** 由 `js/cloud/index.js`、`js/common/index.js` 打包產生的 **IIFE**（已 minify）。修改雲端或共用邏輯後請執行：
+  - `npm install`（僅需一次，安裝開發依賴）
+  - `npm run build:static`
+- 再將變更推送至遠端以完成部署。
 
 ## 部署方式（GitHub Pages）
 

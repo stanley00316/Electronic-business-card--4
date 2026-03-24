@@ -1,0 +1,12 @@
+{
+  "name": "digital-identity-cards",
+  "private": true,
+  "scripts": {
+    "build:cloud": "esbuild js/cloud/index.js --bundle --format=iife --platform=browser --outfile=cloud.js --allow-overwrite --minify",
+    "build:common": "esbuild js/common/index.js --bundle --format=iife --platform=browser --outfile=common.js --allow-overwrite --minify",
+    "build:static": "npm run build:cloud && npm run build:common"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
