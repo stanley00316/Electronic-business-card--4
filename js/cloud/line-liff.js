@@ -9,6 +9,14 @@ import { fetchWithTimeout } from './http.js';
 import { setCustomJwt } from './jwt.js';
 import { getBaseUrl } from './clients.js';
 
+// Auth timing: forward to auth.html debug panel only (no localhost ingest).
+function logLineAuthDebug(hypothesisId, location, message, data = {}, runId = 'initial') {
+  try {
+    if (typeof window !== 'undefined' && typeof window.__uvacoAuthDebugPanelLog === 'function') {
+      window.__uvacoAuthDebugPanelLog(location, message, data);
+    }
+  } catch (_) {}
+}
 
 export function getLineRedirectUri(nextRelativeUrl) {
   // LINE callback 必須與 LINE Developers 設定完全一致。
@@ -40,6 +48,18 @@ export function startLineLogin(nextRelativeUrl) {
   params.set('state', state);
   params.set('scope', 'profile openid');
 
+  // #region agent log
+  logLineAuthDebug(
+    'H4',
+    'js/cloud/line-liff.js:startLineLogin',
+    'redirecting to line oauth',
+    {
+      next,
+      redirectUriLength: redirectUri.length,
+      stateLength: state.length
+    }
+  );
+  // #endregion
   window.location.href = 'https://access.line.me/oauth2/v2.1/authorize?' + params.toString();
   return true;
 }
@@ -73,6 +93,7 @@ export async function finishLineLoginFromUrl() {
     const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
     const redirectUri = getLineRedirectUri();
     let resp;
+    const exchangeStartedAt = performance.now();
     try {
       resp = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -100,6 +121,20 @@ export async function finishLineLoginFromUrl() {
     } catch (_e) {
       data = { non_json_response: true };
     }
+    // #region agent log
+    logLineAuthDebug(
+      'H2',
+      'js/cloud/line-liff.js:finishLineLoginFromUrl:exchange',
+      'line callback exchange finished',
+      {
+        durationMs: Number((performance.now() - exchangeStartedAt).toFixed(1)),
+        ok: resp.ok,
+        status: resp.status,
+        hasToken: !!String(data?.access_token || '').trim(),
+        hasUserId: !!String(data?.user_id || '').trim()
+      }
+    );
+    // #endregion
     if (!resp.ok) return { ok: false, error: 'LINE_EXCHANGE_FAILED', detail: data, status: resp.status };
 
     const token = String(data?.access_token || '').trim();
@@ -176,7 +211,22 @@ export async function liffAutoLogin(nextPage) {
   if (!LIFF_ID || !isLiffSdkLoaded()) return { ok: false, error: 'LIFF_NOT_AVAILABLE' };
 
   try {
+    const initStartedAt = performance.now();
     const initResult = await initLiff();
+    // #region agent log
+    logLineAuthDebug(
+      'H1',
+      'js/cloud/line-liff.js:liffAutoLogin:init',
+      'liff init finished',
+      {
+        durationMs: Number((performance.now() - initStartedAt).toFixed(1)),
+        ok: !!initResult.ok,
+        error: initResult.error || null,
+        isLoggedIn: initResult.isLoggedIn ?? null,
+        isInClient: initResult.isInClient ?? null
+      }
+    );
+    // #endregion
     if (!initResult.ok) return initResult;
 
     if (!liff.isInClient()) return { ok: false, error: 'LIFF_NOT_IN_CLIENT' };
@@ -190,6 +240,7 @@ export async function liffAutoLogin(nextPage) {
     if (!accessToken) return { ok: false, error: 'LIFF_NO_TOKEN' };
 
     const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/line-auth';
+    const exchangeStartedAt = performance.now();
     const resp = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
@@ -202,6 +253,20 @@ export async function liffAutoLogin(nextPage) {
 
     let data = {};
     try { data = await resp.json(); } catch (_e) { data = { non_json_response: true }; }
+    // #region agent log
+    logLineAuthDebug(
+      'H1',
+      'js/cloud/line-liff.js:liffAutoLogin:exchange',
+      'liff token exchange finished',
+      {
+        durationMs: Number((performance.now() - exchangeStartedAt).toFixed(1)),
+        ok: resp.ok,
+        status: resp.status,
+        hasToken: !!String(data?.access_token || '').trim(),
+        hasUserId: !!String(data?.user_id || '').trim()
+      }
+    );
+    // #endregion
     if (!resp.ok) return { ok: false, error: 'LIFF_EXCHANGE_FAILED', detail: data, status: resp.status };
 
     const token = String(data?.access_token || '').trim();

@@ -1,6 +1,102 @@
 /**
  * auth.html
  */
+    const authDebugPageStartedAt = performance.now();
+
+    function getAuthDebugPanelStorageKey() {
+      return 'UVACO_AUTH_DEBUG_PANEL_EVENTS';
+    }
+
+    function clearAuthDebugPanelEvents() {
+      try {
+        localStorage.removeItem(getAuthDebugPanelStorageKey());
+      } catch (e) {}
+    }
+
+    function readAuthDebugPanelEvents() {
+      try {
+        const raw = localStorage.getItem(getAuthDebugPanelStorageKey());
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function writeAuthDebugPanelEvent(line) {
+      try {
+        const events = readAuthDebugPanelEvents();
+        events.push(line);
+        localStorage.setItem(getAuthDebugPanelStorageKey(), JSON.stringify(events.slice(-12)));
+      } catch (e) {}
+      renderAuthDebugPanel();
+    }
+
+    function ensureAuthDebugPanel() {
+      let panel = document.getElementById('authDebugPanel');
+      if (panel) return panel;
+      panel = document.createElement('pre');
+      panel.id = 'authDebugPanel';
+      panel.style.cssText = [
+        'position:fixed',
+        'left:10px',
+        'right:10px',
+        'bottom:10px',
+        'z-index:9999',
+        'max-height:34vh',
+        'overflow:auto',
+        'padding:10px 12px',
+        'margin:0',
+        'border-radius:12px',
+        'background:rgba(0,0,0,.82)',
+        'border:1px solid rgba(34,197,94,.45)',
+        'color:#d1fae5',
+        'font:12px/1.45 monospace',
+        'white-space:pre-wrap',
+        'word-break:break-word',
+        'box-shadow:0 8px 24px rgba(0,0,0,.25)'
+      ].join(';');
+      document.body.appendChild(panel);
+      return panel;
+    }
+
+    function renderAuthDebugPanel() {
+      if (!document.body) return;
+      const panel = ensureAuthDebugPanel();
+      const lines = readAuthDebugPanelEvents();
+      panel.textContent = lines.length ? lines.join('\n') : 'Auth debug panel ready';
+    }
+
+    window.__uvacoAuthDebugPanelLog = function(location, message, data) {
+      const compact = [];
+      if (data && data.durationMs != null) compact.push('ms=' + data.durationMs);
+      if (data && data.sinceStartLineMs != null) compact.push('sinceStart=' + data.sinceStartLineMs);
+      if (data && data.pageInitMs != null) compact.push('page=' + data.pageInitMs);
+      if (data && data.error) compact.push('error=' + data.error);
+      if (data && data.status != null) compact.push('status=' + data.status);
+      if (data && data.hasSession != null) compact.push('hasSession=' + data.hasSession);
+      if (data && data.handled != null) compact.push('handled=' + data.handled);
+      if (data && data.action) compact.push('action=' + data.action);
+      writeAuthDebugPanelEvent(message + ' [' + location + ']' + (compact.length ? ' ' + compact.join(' ') : ''));
+    };
+
+    function logAuthDebug(hypothesisId, location, message, data = {}, runId = 'initial') {
+      try {
+        if (typeof window.__uvacoAuthDebugPanelLog === 'function') {
+          window.__uvacoAuthDebugPanelLog(location, message, data);
+        }
+      } catch (_) {}
+    }
+
+    function readStartLineDebug() {
+      try {
+        const raw = Number(localStorage.getItem('UVACO_DEBUG_AUTH_START_TS') || '');
+        return Number.isFinite(raw) && raw > 0 ? raw : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
     // 語言切換
     function switchLang(lang) {
       setLang(lang);
@@ -65,6 +161,27 @@
     }
 
     async function bootstrap() {
+      const startedFromLineAt = readStartLineDebug();
+      const hasCode = /[?&]code=/.test(window.location.search || '');
+      const hasState = /[?&]state=/.test(window.location.search || '');
+      if (!hasCode) clearAuthDebugPanelEvents();
+      renderAuthDebugPanel();
+      // #region agent log
+      logAuthDebug(
+        'H1',
+        'js/pages/auth/main.js:bootstrap:start',
+        'auth bootstrap start',
+        {
+          hasLiffConfig: !!(window.UVACO_CLOUD && UVACO_CLOUD.hasLiffConfig && UVACO_CLOUD.hasLiffConfig()),
+          hasCode,
+          hasState,
+          next: getNext(),
+          sinceStartLineMs: startedFromLineAt ? Date.now() - startedFromLineAt : null,
+          pageInitMs: Number(performance.now().toFixed(1))
+        }
+      );
+      // #endregion
+
       // 初始化語言按鈕狀態
       const savedLang = localStorage.getItem('lang') || 'zh';
       updateLangButtons(savedLang);
@@ -84,7 +201,22 @@
       if (UVACO_CLOUD.hasLiffConfig && UVACO_CLOUD.hasLiffConfig()) {
         try {
           setStatus('ok', '正在自動登入...');
+          const liffStartedAt = performance.now();
           var liffRes = await UVACO_CLOUD.liffAutoLogin(getNext());
+          // #region agent log
+          logAuthDebug(
+            'H1',
+            'js/pages/auth/main.js:bootstrap:after-liff',
+            'liff auto login finished',
+            {
+              durationMs: Number((performance.now() - liffStartedAt).toFixed(1)),
+              ok: !!(liffRes && liffRes.ok),
+              handled: !!(liffRes && liffRes.handled),
+              error: liffRes && liffRes.error ? liffRes.error : null,
+              action: liffRes && liffRes.action ? liffRes.action : null
+            }
+          );
+          // #endregion
           if (liffRes && liffRes.handled) return;
           if (liffRes && liffRes.ok === false
               && liffRes.error !== 'LIFF_NOT_AVAILABLE'
@@ -99,7 +231,22 @@
       }
 
       // 處理 LINE OAuth callback
+      const lineCallbackStartedAt = performance.now();
       var lineRes = await UVACO_CLOUD.finishLineLoginFromUrl();
+      // #region agent log
+      logAuthDebug(
+        'H2',
+        'js/pages/auth/main.js:bootstrap:after-line-callback',
+        'line callback handling finished',
+        {
+          durationMs: Number((performance.now() - lineCallbackStartedAt).toFixed(1)),
+          ok: !!(lineRes && lineRes.ok),
+          handled: !!(lineRes && lineRes.handled),
+          error: lineRes && lineRes.error ? lineRes.error : null,
+          status: lineRes && lineRes.status ? lineRes.status : null
+        }
+      );
+      // #endregion
       if (lineRes && lineRes.ok === false) {
         var detail = '';
         try {
@@ -116,7 +263,21 @@
         return;
       }
 
+      const getSessionStartedAt = performance.now();
       var s = await UVACO_CLOUD.getSession();
+      // #region agent log
+      logAuthDebug(
+        'H3',
+        'js/pages/auth/main.js:bootstrap:after-session',
+        'session lookup finished',
+        {
+          durationMs: Number((performance.now() - getSessionStartedAt).toFixed(1)),
+          hasSession: !!(s && s.session),
+          mode: s && s.session && s.session.user ? 'authenticated' : 'anonymous',
+          totalSinceBootstrapMs: Number((performance.now() - authDebugPageStartedAt).toFixed(1))
+        }
+      );
+      // #endregion
       if (s.session) {
         // 記錄推薦關係（如果有）
         await recordReferralIfNeeded();
@@ -135,6 +296,18 @@
 
     function startLine() {
       try {
+        try { localStorage.setItem('UVACO_DEBUG_AUTH_START_TS', String(Date.now())); } catch (e) {}
+        // #region agent log
+        logAuthDebug(
+          'H4',
+          'js/pages/auth/main.js:startLine',
+          'line login button pressed',
+          {
+            next: getNext(),
+            pageAliveMs: Number((performance.now() - authDebugPageStartedAt).toFixed(1))
+          }
+        );
+        // #endregion
         UVACO_CLOUD.startLineLogin(getNext());
       } catch (e) {
         setStatus('err', 'LINE 登入尚未設定完成。');
