@@ -11,6 +11,7 @@
 - **空狀態說明**：若平台上只有自己一張名片且無本機聯絡人，改為清楚說明原因（非資料消失），透過 emptyHint 與 directory-b.js 的 updateDirectoryResults 搭配。
 - **程式結構**：getStoredFriends / setStoredFriends 集中於 directory-a.js（先載入），directory-b.js 移除重複定義；directory.html 腳本版本改為 v=20260413a。
 - **預覽按鈕**：修正誤用 Python 格式 `\\U0001f440`（JavaScript 不支援）導致畫面顯示 `U0001f440` 文字而非圖示；改為 ES6 `\\u{1F440}` 以正確顯示眼睛圖示。
+- **編碼設定**：新增 `.editorconfig`與 `.vscode/settings.json`，統一以 UTF-8 開啟與儲存檔案，降低 Cursor 或其他編輯器誤判編碼導致的亂碼。
 ## 2026-03-24
 
 ### 偵錯
