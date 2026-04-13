@@ -311,7 +311,20 @@ async function reloadData() {
   // 批次向資料庫取得「他人開啟」統計，合併後再渲染表格
   let statsMap = new Map();
   if (typeof UVACO_CLOUD.getCardViewSummariesForAdmin === 'function') {
-    statsMap = await UVACO_CLOUD.getCardViewSummariesForAdmin(ids);
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'E',location:'admin.html:reloadData:beforeViewSummaryRpc',message:'準備查詢名片開啟統計 RPC',data:{idsLen:ids.length,showSubscriptionView},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    try {
+      statsMap = await UVACO_CLOUD.getCardViewSummariesForAdmin(ids);
+      // #region agent log
+      fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'E',location:'admin.html:reloadData:afterViewSummaryRpc',message:'名片開啟統計 RPC 成功',data:{mapSize:typeof statsMap.size==='number'?statsMap.size:-1},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+    } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'E',location:'admin.html:reloadData:viewSummaryRpcError',message:'名片開啟統計 RPC 失敗',data:{error:String(e&&e.message?e.message:e)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      throw e;
+    }
   }
   list.forEach((r) => {
     const s = statsMap.get(String(r.user_id));
@@ -775,6 +788,9 @@ function toggleSubscriptionView() {
 }
 
 async function loadSubscriptions() {
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'F',location:'admin.html:loadSubscriptions:entry',message:'進入訂閱資料載入流程',data:{showSubscriptionView},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const tbody = document.querySelector('#userTable tbody');
   tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">載入訂閱資料中...</td></tr>';
   
