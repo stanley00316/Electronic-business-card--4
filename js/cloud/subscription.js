@@ -339,6 +339,103 @@ export async function extendSubscription(targetUserId, days, reason) {
   }
 }
 
+// 管理員減少訂閱天數
+export async function reduceSubscription(targetUserId, days, reason) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) {
+    return { success: false, error: 'NOT_ADMIN' };
+  }
+
+  const reduceDays = Number.parseInt(days, 10);
+  if (!Number.isInteger(reduceDays) || reduceDays < 1) {
+    return { success: false, error: 'INVALID_DAYS' };
+  }
+
+  const safeReason = String(reason || '管理員手動減少訂閱').trim().slice(0, 120);
+
+  // 企業管理員只能操作自己公司的人
+  if (adminStatus.managedCompany) {
+    const { data: targetCard } = await ctx.client
+      .from('cards')
+      .select('company')
+      .eq('user_id', targetUserId)
+      .maybeSingle();
+
+    const targetCompany = targetCard?.company || '';
+    if (!targetCompany.toLowerCase().includes(adminStatus.managedCompany.toLowerCase())) {
+      return { success: false, error: 'PERMISSION_DENIED_COMPANY_MISMATCH' };
+    }
+  }
+
+  try {
+    const { data: sub } = await ctx.client
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', targetUserId)
+      .maybeSingle();
+
+    if (!sub) {
+      return { success: false, error: 'SUBSCRIPTION_NOT_FOUND' };
+    }
+
+    // 先算出目前到期日，再往前扣天數
+    let currentEnd;
+    if (sub.subscription_end_at) {
+      currentEnd = new Date(sub.subscription_end_at);
+    } else if (sub.trial_end_at) {
+      currentEnd = new Date(sub.trial_end_at);
+    } else {
+      currentEnd = new Date();
+    }
+
+    if (sub.referral_bonus_days > 0) {
+      currentEnd.setDate(currentEnd.getDate() + sub.referral_bonus_days);
+    }
+
+    const newEnd = new Date(currentEnd);
+    newEnd.setDate(newEnd.getDate() - reduceDays);
+
+    const isExpiredAfterReduce = newEnd <= new Date();
+
+    // 扣到到期或過期時，自動停用並隱藏名片
+    const updatePayload = {
+      status: isExpiredAfterReduce ? 'cancelled' : 'active',
+      subscription_end_at: newEnd.toISOString(),
+      extend_reason: safeReason,
+      extended_by: ctx.userId,
+      extended_at: new Date().toISOString()
+    };
+
+    const { error: subError } = await ctx.client
+      .from('subscriptions')
+      .update(updatePayload)
+      .eq('user_id', targetUserId);
+
+    if (subError) throw subError;
+
+    const { error: cardError } = await ctx.client
+      .from('cards')
+      .update({ is_visible: !isExpiredAfterReduce })
+      .eq('user_id', targetUserId);
+
+    if (cardError) {
+      console.error('[Subscription] 更新名片可見性失敗:', cardError);
+    }
+
+    return {
+      success: true,
+      newEndDate: newEnd.toISOString(),
+      autoCancelled: isExpiredAfterReduce
+    };
+  } catch (e) {
+    console.error('[Subscription] 減少訂閱失敗:', e);
+    return { success: false, error: e.message || String(e) };
+  }
+}
+
 // 停用訂閱（管理員用）
 export async function deactivateSubscription(targetUserId, reason) {
   const ctx = await getAuthContext();

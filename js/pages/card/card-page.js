@@ -616,7 +616,7 @@ function showAddHomeInstructions() {
   
   if (lang === 'zh') {
     if (isIOS) {
-      instructions = `📱 iOS 加入主畫面步驟：
+      instructions = `iOS 加入主畫面步驟：
 
 1. 點擊瀏覽器底部的「分享」按鈕 (方形+箭頭圖示)
 2. 向下滑動找到「加入主畫面」
@@ -624,15 +624,15 @@ function showAddHomeInstructions() {
 
 完成後，主畫面會出現「我的名片」圖示，點擊即可快速開啟您的名片！`;
     } else if (isAndroid) {
-      instructions = `📱 Android 加入主畫面步驟：
+      instructions = `Android 加入主畫面步驟：
 
-1. 點擊瀏覽器右上角的「選單」(⋮)
+1. 點擊瀏覽器右上角的「選單」（三點）
 2. 選擇「加入主畫面」或「安裝應用程式」
 3. 點擊「新增」確認
 
 完成後，主畫面會出現「我的名片」圖示，點擊即可快速開啟您的名片！`;
     } else {
-      instructions = `📱 加入主畫面步驟：
+      instructions = `加入主畫面步驟：
 
 1. 在瀏覽器中找到「分享」或「選單」按鈕
 2. 選擇「加入主畫面」或「安裝」
@@ -642,7 +642,7 @@ function showAddHomeInstructions() {
     }
   } else {
     if (isIOS) {
-      instructions = `📱 iOS - Add to Home Screen:
+      instructions = `iOS - Add to Home Screen:
 
 1. Tap the "Share" button at the bottom (square with arrow)
 2. Scroll down and tap "Add to Home Screen"
@@ -650,15 +650,15 @@ function showAddHomeInstructions() {
 
 Done! You'll see "My Card" icon on your home screen.`;
     } else if (isAndroid) {
-      instructions = `📱 Android - Add to Home Screen:
+      instructions = `Android - Add to Home Screen:
 
-1. Tap the menu button (⋮) in the browser
+1. Tap the browser menu button (three dots)
 2. Select "Add to Home Screen" or "Install App"
 3. Tap "Add" to confirm
 
 Done! You'll see "My Card" icon on your home screen.`;
     } else {
-      instructions = `📱 Add to Home Screen:
+      instructions = `Add to Home Screen:
 
 1. Find the "Share" or "Menu" button in your browser
 2. Select "Add to Home Screen" or "Install"

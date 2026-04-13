@@ -3,6 +3,12 @@
 
 ## 2026-04-13
 
+### 新增（後台減少訂閱）
+
+- **訂閱管理**：`admin.html` 在每筆可操作訂閱新增「減少訂閱」按鈕，管理員可直接輸入要扣除的天數，並沿用同一個彈窗完成操作。
+- **扣天數規則**：`js/cloud/subscription.js` 新增 `reduceSubscription`，會先做管理員與公司範圍權限檢查，再扣除天數；若扣完已到期，系統會自動改成停用狀態並隱藏名片。
+- **雲端 API**：`js/cloud/index.js` 已掛載 `reduceSubscription`，讓後台頁面可直接呼叫。
+
 ### 修正（後台訂閱搜尋）
 
 - **`admin.html`**：在「訂閱管理」模式下，搜尋欄改為篩選 `subscriptionData` 並呼叫 `renderSubscriptionTable`，不再誤用名片用的 `allData` + `renderTable`（避免一輸入搜尋就跳回名片管理表頭與列表）。

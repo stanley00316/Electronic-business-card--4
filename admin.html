@@ -67,7 +67,7 @@
   </style>
   <script src="supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="cloud.js?v=20260324c"></script>
+  <script src="cloud.js?v=20260413c"></script>
 </head>
 <body>
 
@@ -203,7 +203,7 @@
     <div id="subUserInfo" style="color:#9ca3af;font-size:13px;margin-bottom:16px;"></div>
     
     <div style="margin-bottom:16px;">
-      <label style="display:block;color:#9ca3af;font-size:13px;margin-bottom:6px;">延長天數</label>
+      <label id="subDaysLabel" style="display:block;color:#9ca3af;font-size:13px;margin-bottom:6px;">延長天數</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-outline" onclick="setExtendDays(30)">30 天</button>
         <button class="btn btn-outline" onclick="setExtendDays(90)">90 天</button>
@@ -214,7 +214,7 @@
     </div>
     
     <div style="margin-bottom:16px;">
-      <label style="display:block;color:#9ca3af;font-size:13px;margin-bottom:6px;">延長原因（選填）</label>
+      <label id="subReasonLabel" style="display:block;color:#9ca3af;font-size:13px;margin-bottom:6px;">延長原因（選填）</label>
       <input type="text" id="extendReasonInput" placeholder="例如：VIP 客戶優惠" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1b1b1b;color:#fff;font-size:14px;box-sizing:border-box;">
     </div>
     
@@ -724,6 +724,7 @@ async function reactivatePricingPlan(planId) {
 // ===== 訂閱管理功能 =====
 let showSubscriptionView = false;
 let subscriptionData = [];
+let subscriptionModalMode = 'extend';
 
 function toggleSubscriptionView() {
   showSubscriptionView = !showSubscriptionView;
@@ -797,9 +798,11 @@ function renderSubscriptionTable(data) {
     
     // 根據狀態決定顯示的按鈕
     const isCancelled = row.status === 'cancelled';
+    const canReduce = !isCancelled && Number(row.daysLeft || 0) > 0;
     const actionButtons = isCancelled
       ? `<button class="btn btn-green" onclick="openReactivateModal('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}')">重新啟用</button>`
       : `<button class="btn btn-green" onclick="openExtendModal('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}', ${row.daysLeft}, '${endDate}')">延長訂閱</button>
+         ${canReduce ? `<button class="btn btn-outline" style="color:#f59e0b;border-color:#f59e0b;" onclick="openReduceModal('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}', ${row.daysLeft}, '${endDate}')">減少訂閱</button>` : ''}
          <button class="btn btn-outline" style="color:#ef4444;border-color:#ef4444;" onclick="confirmDeactivate('${row.user_id}', '${(row.userName || '').replace(/'/g, "\\'")}')">停用</button>`;
     
     const tr = document.createElement('tr');
@@ -828,19 +831,65 @@ function openExtendModal(userId, userName, daysLeft, endDate) {
   document.getElementById('subTargetUserId').value = userId;
   document.getElementById('extendDaysInput').value = '';
   document.getElementById('extendReasonInput').value = '';
-  
-  // 確保按鈕是延長訂閱
-  const confirmBtn = document.querySelector('#subscriptionModal .btn-green');
-  if (confirmBtn) {
-    confirmBtn.textContent = '確認延長';
-    confirmBtn.onclick = confirmExtendSubscription;
-  }
-  
+  setSubscriptionModalMode('extend');
   document.getElementById('subscriptionModal').style.display = 'flex';
+}
+
+// 這裡統一控制彈窗是延長、減少或重新啟用，避免按鈕與提示文字錯亂
+function setSubscriptionModalMode(mode) {
+  subscriptionModalMode = mode;
+  const daysLabel = document.getElementById('subDaysLabel');
+  const reasonLabel = document.getElementById('subReasonLabel');
+  const daysInput = document.getElementById('extendDaysInput');
+  const reasonInput = document.getElementById('extendReasonInput');
+  const confirmBtn = document.querySelector('#subscriptionModal .btn-green');
+
+  if (!daysLabel || !reasonLabel || !daysInput || !reasonInput || !confirmBtn) return;
+
+  if (mode === 'reduce') {
+    daysLabel.textContent = '減少天數';
+    reasonLabel.textContent = '減少原因（選填）';
+    daysInput.placeholder = '要扣除的天數';
+    reasonInput.placeholder = '例如：誤加天數修正';
+    confirmBtn.textContent = '確認減少';
+    confirmBtn.onclick = confirmReduceSubscription;
+    return;
+  }
+
+  if (mode === 'reactivate') {
+    daysLabel.textContent = '啟用天數';
+    reasonLabel.textContent = '啟用原因（選填）';
+    daysInput.placeholder = '預設 30 天';
+    reasonInput.placeholder = '例如：管理員重新啟用';
+    confirmBtn.textContent = '確認啟用';
+    confirmBtn.onclick = confirmReactivateSubscription;
+    return;
+  }
+
+  daysLabel.textContent = '延長天數';
+  reasonLabel.textContent = '延長原因（選填）';
+  daysInput.placeholder = '自訂天數';
+  reasonInput.placeholder = '例如：VIP 客戶優惠';
+  confirmBtn.textContent = '確認延長';
+  confirmBtn.onclick = confirmExtendSubscription;
 }
 
 function setExtendDays(days) {
   document.getElementById('extendDaysInput').value = days;
+}
+
+function openReduceModal(userId, userName, daysLeft, endDate) {
+  document.getElementById('subModalTitle').textContent = (userName || '用戶') + ' - 減少訂閱';
+  document.getElementById('subUserInfo').innerHTML = `
+    目前剩餘：<strong style="color:#22c55e;">${daysLeft}</strong> 天<br>
+    目前到期日：${endDate}<br>
+    <span style="color:#f59e0b;">若扣到 0 天以下，會自動停用並隱藏名片</span>
+  `;
+  document.getElementById('subTargetUserId').value = userId;
+  document.getElementById('extendDaysInput').value = '';
+  document.getElementById('extendReasonInput').value = '';
+  setSubscriptionModalMode('reduce');
+  document.getElementById('subscriptionModal').style.display = 'flex';
 }
 
 async function confirmExtendSubscription() {
@@ -874,6 +923,47 @@ async function confirmExtendSubscription() {
   }
 }
 
+// 這裡是送出減少訂閱請求，扣到過期時系統會自動停用名片
+async function confirmReduceSubscription() {
+  const userId = document.getElementById('subTargetUserId').value;
+  const days = parseInt(document.getElementById('extendDaysInput').value, 10);
+  const reason = document.getElementById('extendReasonInput').value.trim();
+
+  if (!userId) {
+    alert('錯誤：找不到用戶 ID');
+    return;
+  }
+
+  if (!days || days < 1) {
+    alert('請輸入有效的減少天數');
+    return;
+  }
+
+  try {
+    const result = await UVACO_CLOUD.reduceSubscription(userId, days, reason || '管理員手動減少訂閱');
+    if (result.success) {
+      if (result.autoCancelled) {
+        alert(`已減少 ${days} 天\n此用戶已到期，系統已自動停用並隱藏名片`);
+      } else {
+        const newEnd = new Date(result.newEndDate).toLocaleDateString('zh-TW');
+        alert(`訂閱已減少 ${days} 天\n新到期日：${newEnd}`);
+      }
+      document.getElementById('subscriptionModal').style.display = 'none';
+      setSubscriptionModalMode('extend');
+      loadSubscriptions();
+    } else {
+      if (result.error === 'SUBSCRIPTION_NOT_FOUND') {
+        alert('減少失敗：此用戶尚未建立訂閱紀錄');
+      } else {
+        alert('減少失敗：' + (result.error || '未知錯誤'));
+      }
+    }
+  } catch (e) {
+    console.error('減少訂閱錯誤:', e);
+    alert('減少失敗：' + (e.message || e));
+  }
+}
+
 // 停用訂閱確認
 async function confirmDeactivate(userId, userName) {
   const reason = prompt(`確定要停用「${userName}」的訂閱嗎？\n\n停用後：\n- 名片將無法被外部瀏覽\n- 用戶自己仍可查看\n\n請輸入停用原因（選填）：`);
@@ -904,14 +994,7 @@ function openReactivateModal(userId, userName) {
   document.getElementById('subTargetUserId').value = userId;
   document.getElementById('extendDaysInput').value = '30';
   document.getElementById('extendReasonInput').value = '';
-  
-  // 修改確認按鈕為重新啟用
-  const confirmBtn = document.querySelector('#subscriptionModal .btn-green');
-  if (confirmBtn) {
-    confirmBtn.textContent = '確認啟用';
-    confirmBtn.onclick = confirmReactivateSubscription;
-  }
-  
+  setSubscriptionModalMode('reactivate');
   document.getElementById('subscriptionModal').style.display = 'flex';
 }
 
@@ -932,14 +1015,7 @@ async function confirmReactivateSubscription() {
       const newEnd = new Date(result.newEndDate).toLocaleDateString('zh-TW');
       alert(`訂閱已重新啟用\n有效期：${days} 天\n到期日：${newEnd}`);
       document.getElementById('subscriptionModal').style.display = 'none';
-      
-      // 恢復確認按鈕為延長訂閱
-      const confirmBtn = document.querySelector('#subscriptionModal .btn-green');
-      if (confirmBtn) {
-        confirmBtn.textContent = '確認延長';
-        confirmBtn.onclick = confirmExtendSubscription;
-      }
-      
+      setSubscriptionModalMode('extend');
       loadSubscriptions();
     } else {
       alert('啟用失敗：' + (result.error || '未知錯誤'));
