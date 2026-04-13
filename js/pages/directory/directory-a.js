@@ -320,8 +320,8 @@ function renderDirectoryResults(rows) {
           </div>
         </div>
         <div style="flex:0 0 auto;display:flex;gap:8px;">
-          <a class="btn btn-secondary lang-zh" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\U0001f440 \u9810\u89bd</a>
-          <a class="btn btn-secondary lang-en" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\U0001f440 Preview</a>
+          <a class="btn btn-secondary lang-zh" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\u{1F440} \u9810\u89bd</a>
+          <a class="btn btn-secondary lang-en" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\u{1F440} Preview</a>
         </div>
       </div>
     `;
