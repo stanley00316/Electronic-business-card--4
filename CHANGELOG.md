@@ -16,7 +16,7 @@
 - **瀏覽統計**：`settings.html` 的「名片瀏覽統計」會顯示最後一次被他人瀏覽的時間，以及「多久沒有新的瀏覽」白話說明（中／英）；若尚無紀錄則顯示對應提示。
 - **統計資料**：`getCardViewStats` 會多回傳 `lastViewedAt`（全期間最後一筆 `card_views.viewed_at`）。
 - **本人不自灌次數**：`getCardPublic` 在開啟追蹤時，若目前登入者就是名片擁有者，不再寫入 `card_views`，避免自己開自己名片灌高瀏覽次數。
-- **快取**：`cloud.js` 查詢參數 `?v=20260413d`；`card.html` 與 `settings.html` 腳本版本同步；`service-worker.js` 的 `CACHE_VERSION` 為 `v1.21.3`。
+- **快取**：`cloud.js`／`common.js` 查詢參數 `?v=20260413d`；`card.html` 與 `settings.html`（含 `js/pages/settings/main.js`）腳本版本同步；`service-worker.js` 的 `CACHE_VERSION` 為 `v1.21.4`。
 
 ### 新增（後台減少訂閱）
 
@@ -32,7 +32,7 @@
 
 - **QR Code**：`card.html` 補齊與 `js/pages/card/card-page.js` 相同的 `loadQRCodeScript`，並將 `showQRCode` 改為 `async`，點選時才動態載入 cdnjs 的 qrcodejs，修正線上 `QRCode is not defined`。
 - **card_views**：`recordCardView` trim `card_user_id`；僅在有值時寫入 `referrer` / `user_agent`（並限長度）；`viewed_at` 交由資料庫預設，降低與遠端 schema 不一致時的 400；失敗時 console 顯示較具體的訊息。
-- **快取**：`cloud.js` 查詢參數 `?v=20260413d`；`service-worker.js` 的 `CACHE_VERSION` 遞增至 `v1.21.3`。
+- **快取**：`cloud.js` 查詢參數 `?v=20260413d`；`service-worker.js` 的 `CACHE_VERSION` 遞增至 `v1.21.4`。
 
 ### 修正（通訊錄腳本編碼）
 
