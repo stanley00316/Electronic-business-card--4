@@ -55,6 +55,7 @@ import {
 } from './cards-referrals-nfc.js';
 import {
   getAllCardsAdmin,
+  getCardViewSummariesForAdmin,
   deleteCard,
   getAdminUsers,
   upsertAdminUser,
@@ -131,6 +132,7 @@ window.UVACO_CLOUD = {
   getCardByUserId,
   getCardPublic,
   getAllCardsAdmin,
+  getCardViewSummariesForAdmin,
   searchCards,
   upsertMyCard,
   deleteCard,

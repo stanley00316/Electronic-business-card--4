@@ -2,6 +2,45 @@ import { getAuthContext } from './session.js';
 import { isAdmin } from './admin-roles.js';
 
 
+// 後台批次查詢：名片被他人開啟的次數與最後一次時間（card_views 聚合）
+export async function getCardViewSummariesForAdmin(userIds) {
+  const empty = new Map();
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return empty;
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) return empty;
+
+  const ids = [
+    ...new Set(
+      (userIds || [])
+        .map((id) => String(id || '').trim())
+        .filter(Boolean)
+    )
+  ];
+  if (!ids.length) return empty;
+
+  const { data, error } = await ctx.client.rpc('get_card_view_summaries_for_admin', {
+    p_user_ids: ids
+  });
+
+  if (error) {
+    console.error('[Admin] get_card_view_summaries_for_admin:', error.message || error);
+    return empty;
+  }
+
+  const map = new Map();
+  for (const row of data || []) {
+    const uid = row.user_id;
+    if (!uid) continue;
+    map.set(String(uid), {
+      openCount: Number(row.open_count || 0),
+      lastOpenedAt: row.last_opened_at || null
+    });
+  }
+  return map;
+}
+
 // 管理員取得所有名片（給 admin.html 用）
 export async function getAllCardsAdmin() {
   const ctx = await getAuthContext();

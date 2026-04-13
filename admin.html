@@ -67,7 +67,7 @@
   </style>
   <script src="supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="cloud.js?v=20260413c"></script>
+  <script src="cloud.js?v=20260414a"></script>
 </head>
 <body>
 
@@ -301,7 +301,19 @@ async function init() {
 
 async function reloadData() {
   const { rows } = await UVACO_CLOUD.getAllCardsAdmin();
-  allData = rows || [];
+  // 批次向資料庫取得「他人開啟」統計，合併後再渲染表格
+  const ids = list.map((r) => r.user_id).filter(Boolean);
+  // 批次向資料庫取得「他人開啟」統計，合併後再渲染表格
+  let statsMap = new Map();
+  if (typeof UVACO_CLOUD.getCardViewSummariesForAdmin === 'function') {
+    statsMap = await UVACO_CLOUD.getCardViewSummariesForAdmin(ids);
+  }
+  list.forEach((r) => {
+    const s = statsMap.get(String(r.user_id));
+    r._viewOpenCount = s ? s.openCount : 0;
+    r._viewLastOpenedAt = s ? s.lastOpenedAt : null;
+  });
+  allData = list;
   renderTable(allData);
 }
 
@@ -323,9 +335,14 @@ function renderTable(data) {
     const nfcId = row.nfc_card_id || '';
     const nfcDisplay = nfcId ? `<span style="color:#22c55e;font-family:monospace;">${nfcId}</span>` : '<span style="color:#6b7280;">未綁定</span>';
     
+    const vCount = typeof row._viewOpenCount === 'number' ? row._viewOpenCount : 0;
+    const vLast = row._viewLastOpenedAt
+      ? new Date(row._viewLastOpenedAt).toLocaleString('zh-TW')
+      : '尚無紀錄';
+    const nameSub = `<br><small style="color:#9ca3af">最後開啟（他人）：${vLast}</small><br><small style="color:#9ca3af">次數：${vCount}</small>`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td data-label="姓名">${row.name || '未命名'}</td>
+      <td data-label="姓名">${row.name || '未命名'}${nameSub}</td>
       <td data-label="公司/職稱">${row.company || '-'} <br> <small style="color:#9ca3af">${row.title || '-'}</small></td>
       <td data-label="NFC 卡片 ID">
         ${nfcDisplay}
