@@ -3,12 +3,20 @@
 
 ## 2026-04-13
 
+### 調整（統一 JSON 為 UTF-8 宣告）
+
+- **Edge Functions**：Stripe、LINE Pay 等支付與核查相關函式的 JSON 回應，`Content-Type` 一律為 `application/json; charset=utf-8`；Google、Apple、LINE 授權相關函式對 Supabase 的 POST 亦同。
+- **前端**：`js/cloud/subscription.js`、`subscription.html` 送出 JSON 時同步標明 `charset=utf-8`。
+- **雲端模組**：`line-liff.js`、`search-storage.js`、`oauth-google-apple.js` 對 Supabase／外部 API 的 JSON 請求標頭同步加上 `charset=utf-8`。
+- **除錯探針**：`js/cloud/index.js` 的 ingest 請求已將 `runId` 設為 `post-fix`；請重新執行 `npm run build:cloud` 以更新根目錄的 `cloud.js`。
+
+
 ### 新增（設定頁：名片最後被瀏覽／多久未被開）
 
 - **瀏覽統計**：`settings.html` 的「名片瀏覽統計」會顯示最後一次被他人瀏覽的時間，以及「多久沒有新的瀏覽」白話說明（中／英）；若尚無紀錄則顯示對應提示。
 - **統計資料**：`getCardViewStats` 會多回傳 `lastViewedAt`（全期間最後一筆 `card_views.viewed_at`）。
 - **本人不自灌次數**：`getCardPublic` 在開啟追蹤時，若目前登入者就是名片擁有者，不再寫入 `card_views`，避免自己開自己名片灌高瀏覽次數。
-- **快取**：`cloud.js` 查詢參數 `?v=20260413c`；`service-worker.js` 的 `CACHE_VERSION` 遞增至 `v1.21.3`；`settings.html` 腳本版本同步更新。
+- **快取**：`cloud.js` 查詢參數 `?v=20260413d`；`card.html` 與 `settings.html` 腳本版本同步；`service-worker.js` 的 `CACHE_VERSION` 為 `v1.21.3`。
 
 ### 新增（後台減少訂閱）
 
@@ -24,7 +32,7 @@
 
 - **QR Code**：`card.html` 補齊與 `js/pages/card/card-page.js` 相同的 `loadQRCodeScript`，並將 `showQRCode` 改為 `async`，點選時才動態載入 cdnjs 的 qrcodejs，修正線上 `QRCode is not defined`。
 - **card_views**：`recordCardView` trim `card_user_id`；僅在有值時寫入 `referrer` / `user_agent`（並限長度）；`viewed_at` 交由資料庫預設，降低與遠端 schema 不一致時的 400；失敗時 console 顯示較具體的訊息。
-- **快取**：`cloud.js` 查詢參數 `?v=20260413c`；`service-worker.js` 的 `CACHE_VERSION` 遞增至 `v1.21.3`。
+- **快取**：`cloud.js` 查詢參數 `?v=20260413d`；`service-worker.js` 的 `CACHE_VERSION` 遞增至 `v1.21.3`。
 
 ### 修正（通訊錄腳本編碼）
 
