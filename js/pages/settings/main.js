@@ -85,6 +85,23 @@ function copyMyUserId() {
   }
 }
 
+// 依最後瀏覽時間組出「多久沒有新的瀏覽」說明（給設定頁用）
+function phraseSinceLastView(iso, lang) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (lang === 'zh') {
+    if (sec < 60) return '剛剛有人瀏覽';
+    if (sec < 3600) return `已超過 ${Math.floor(sec / 60)} 分鐘沒有新的瀏覽`;
+    if (sec < 86400) return `已超過 ${Math.floor(sec / 3600)} 小時沒有新的瀏覽`;
+    return `已超過 ${Math.floor(sec / 86400)} 天沒有新的瀏覽`;
+  }
+  if (sec < 60) return 'Viewed just now';
+  if (sec < 3600) return `No new views for ${Math.floor(sec / 60)}+ min`;
+  if (sec < 86400) return `No new views for ${Math.floor(sec / 3600)}+ hours`;
+  return `No new views for ${Math.floor(sec / 86400)}+ days`;
+}
+
 // 載入瀏覽統計
 async function loadViewStats(userId) {
   const statsItem = document.getElementById('viewStatsItem');
@@ -101,10 +118,28 @@ async function loadViewStats(userId) {
       const recentViews = (stats.views || []).filter(v => new Date(v.viewed_at) > sevenDaysAgo).length;
       
       const savedLang = localStorage.getItem('lang') || 'zh';
+      const lastIso = stats.lastViewedAt || null;
+      let lastBlock = '';
+      if ((stats.count || 0) === 0) {
+        lastBlock = savedLang === 'zh'
+          ? '<br><small>尚無他人瀏覽紀錄</small>'
+          : '<br><small>No views from others yet</small>';
+      } else if (lastIso) {
+        const d = new Date(lastIso);
+        const abs = savedLang === 'zh'
+          ? d.toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'short' })
+          : d.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+        const idle = phraseSinceLastView(lastIso, savedLang);
+        if (savedLang === 'zh') {
+          lastBlock = `<br><small>最後被他人瀏覽：${abs}<br>${idle}</small>`;
+        } else {
+          lastBlock = `<br><small>Last viewed by others: ${abs}<br>${idle}</small>`;
+        }
+      }
       if (savedLang === 'zh') {
-        statsDisplay.innerHTML = `<strong>${stats.count}</strong> 次總瀏覽<br><small>近 7 天：${recentViews} 次</small>`;
+        statsDisplay.innerHTML = `<strong>${stats.count}</strong> 次總瀏覽<br><small>近 7 天：${recentViews} 次</small>${lastBlock}`;
       } else {
-        statsDisplay.innerHTML = `<strong>${stats.count}</strong> total views<br><small>Last 7 days: ${recentViews}</small>`;
+        statsDisplay.innerHTML = `<strong>${stats.count}</strong> total views<br><small>Last 7 days: ${recentViews}</small>${lastBlock}`;
       }
     }
   } catch (e) {

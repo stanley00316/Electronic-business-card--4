@@ -42,9 +42,14 @@ export async function getCardPublic(userId, options = {}) {
     .maybeSingle();
   if (error) return { card: null, error };
   
-  // 如果啟用瀏覽追蹤，記錄此次瀏覽
+  // 若啟用瀏覽追蹤：記錄此次瀏覽（本人開自己名片不計入，統計才符合「被他人瀏覽」）
   if (options.trackView && data) {
-    recordCardView(userId).catch(() => {}); // 異步記錄，不影響頁面載入
+    const ownerId = String(userId).trim();
+    const ctx = await getAuthContext();
+    const viewerId = ctx.ok ? String(ctx.userId || '').trim() : '';
+    if (!viewerId || viewerId !== ownerId) {
+      recordCardView(userId).catch(() => {}); // 異步記錄，不影響頁面載入
+    }
   }
   
   return { card: data || null };
@@ -70,10 +75,6 @@ export async function recordCardView(userId) {
 
     const { error: viewError } = await client.from('card_views').insert(row);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'cards-referrals-nfc.js:recordCardView',message:'card_views insert 結果',data:{hasError:!!viewError,errCode:viewError&&viewError.code,errMsg:viewError&&String(viewError.message||''),cardUserIdLen:uid.length},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H3'})}).catch(function(){});
-    // #endregion
-
     if (viewError) {
       console.log('[Views] card_views 寫入略過:', viewError.message || viewError);
       return { success: false, error: viewError };
@@ -88,44 +89,58 @@ export async function recordCardView(userId) {
 
 // 取得名片瀏覽統計
 export async function getCardViewStats(userId) {
-  if (!hasConfig() || !userId) return { count: 0, views: [] };
-  
+  const empty = { count: 0, views: [], lastViewedAt: null };
+  if (!hasConfig() || !userId) return empty;
+
   const ctx = await getAuthContext();
-  if (!ctx.ok) return { count: 0, views: [] };
-  
+  if (!ctx.ok) return empty;
+
   try {
     const client = ctx.client;
-    
+
     // 取得瀏覽總數
     const { count, error: countError } = await client
       .from('card_views')
       .select('*', { count: 'exact', head: true })
       .eq('card_user_id', userId);
-    
+
     if (countError) {
       console.log('[Views] 無法取得瀏覽統計:', countError.message);
-      return { count: 0, views: [] };
+      return empty;
     }
-    
+
     // 取得最近 30 天的瀏覽記錄（按日期分組）
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const { data: recentViews, error: viewsError } = await client
       .from('card_views')
       .select('viewed_at')
       .eq('card_user_id', userId)
       .gte('viewed_at', thirtyDaysAgo.toISOString())
       .order('viewed_at', { ascending: false });
-    
+
+    // 取得全期間最後一次被瀏覽時間（設定頁顯示「多久未被瀏覽」）
+    const { data: lastRow, error: lastErr } = await client
+      .from('card_views')
+      .select('viewed_at')
+      .eq('card_user_id', userId)
+      .order('viewed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (lastErr) {
+      console.log('[Views] 無法取得最後瀏覽時間:', lastErr.message);
+    }
+
     return {
       count: count || 0,
       views: recentViews || [],
+      lastViewedAt: (lastRow && lastRow.viewed_at) ? lastRow.viewed_at : null,
       error: viewsError
     };
   } catch (e) {
     console.error('[Views] 取得統計失敗:', e);
-    return { count: 0, views: [], error: e };
+    return { count: 0, views: [], lastViewedAt: null, error: e };
   }
 }
 
