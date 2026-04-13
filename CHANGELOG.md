@@ -3,6 +3,10 @@
 
 ## 2026-04-13
 
+### 修正（後台訂閱搜尋）
+
+- **`admin.html`**：在「訂閱管理」模式下，搜尋欄改為篩選 `subscriptionData` 並呼叫 `renderSubscriptionTable`，不再誤用名片用的 `allData` + `renderTable`（避免一輸入搜尋就跳回名片管理表頭與列表）。
+
 ### 修正（名片頁 QR、瀏覽紀錄）
 
 - **QR Code**：`card.html` 補齊與 `js/pages/card/card-page.js` 相同的 `loadQRCodeScript`，並將 `showQRCode` 改為 `async`，點選時才動態載入 cdnjs 的 qrcodejs，修正線上 `QRCode is not defined`。

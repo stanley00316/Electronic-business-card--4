@@ -306,6 +306,9 @@ async function reloadData() {
 }
 
 function renderTable(data) {
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'acea73'},body:JSON.stringify({sessionId:'acea73',location:'admin.html:renderTable',message:'renderTable 被呼叫（名片列表）',data:{rowCount:data.length,showSubscriptionView:typeof showSubscriptionView!=='undefined'?showSubscriptionView:null,firstIsCardShape:!!(data[0]&&('name'in data[0]||'nfc_card_id'in data[0]))},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const tbody = document.querySelector('#userTable tbody');
   tbody.innerHTML = '';
   
@@ -347,10 +350,30 @@ function renderTable(data) {
 
 function filterTable() {
   const q = document.getElementById('searchInput').value.toLowerCase();
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'acea73'},body:JSON.stringify({sessionId:'acea73',location:'admin.html:filterTable',message:'filterTable entry',data:{showSubscriptionView,qLen:q.length,allDataLen:allData.length,subscriptionDataLen:subscriptionData.length,runId:'post-fix'},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+
+  // 依目前畫面模式分開篩選：訂閱與名片列表欄位不同，不可共用 renderTable
+  if (showSubscriptionView) {
+    const filteredSub = subscriptionData.filter(r =>
+      (r.userName && r.userName.toLowerCase().includes(q)) ||
+      (r.userCompany && String(r.userCompany).toLowerCase().includes(q))
+    );
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'acea73'},body:JSON.stringify({sessionId:'acea73',location:'admin.html:filterTable',message:'subscription branch renderSubscriptionTable',data:{filteredSubRows:filteredSub.length,runId:'post-fix'},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    renderSubscriptionTable(filteredSub);
+    return;
+  }
+
   const filtered = allData.filter(r => 
     (r.name && r.name.toLowerCase().includes(q)) || 
     (r.company && r.company.toLowerCase().includes(q))
   );
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'acea73'},body:JSON.stringify({sessionId:'acea73',location:'admin.html:filterTable',message:'card branch before renderTable',data:{showSubscriptionView,filteredCardRows:filtered.length,runId:'post-fix'},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   renderTable(filtered);
 }
 
@@ -704,6 +727,9 @@ let subscriptionData = [];
 
 function toggleSubscriptionView() {
   showSubscriptionView = !showSubscriptionView;
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'acea73'},body:JSON.stringify({sessionId:'acea73',location:'admin.html:toggleSubscriptionView',message:'toggleSubscriptionView',data:{showSubscriptionViewAfterToggle:showSubscriptionView},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   const btn = document.getElementById('subscriptionAdminBtn');
   if (btn) {
     btn.textContent = showSubscriptionView ? '📋 名片管理' : '💎 訂閱管理';
