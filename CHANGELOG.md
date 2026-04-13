@@ -3,9 +3,16 @@
 
 ## 2026-04-14
 
+### 移除（設定頁：名片瀏覽統計區塊）
+
+- **settings.html**：已移除「名片瀏覽統計」區塊（`viewStatsItem`）。
+- **腳本**：`js/pages/settings/main.js` 已移除 `loadViewStats`、`phraseSinceLastView` 及對 `getCardViewStats` 的呼叫（雲端仍保留 `getCardViewStats` 供後台等用途）。
+- **註解**：`cards-referrals-nfc.js` 中 `lastViewedAt` 查詢說明改為供後台或報表使用。
+- **快取**：`settings.html` 腳本版本 `?v=20260413f`；`service-worker.js` 的 `CACHE_VERSION` 為 `v1.21.7`。
+
 ### 新增（後台名片列表：他人開啟時間與次數）
 
-- **管理表格**：`admin.html` 在每位使用者姓名下方顯示「最後開啟（他人）」與「次數」，語意與 `card_views`、設定頁瀏覽統計一致（本人開自己名片不計入）。
+- **管理表格**：`admin.html` 在每位使用者姓名下方顯示「最後開啟（他人）」與「次數」，語意與 `card_views`、後台統計一致（本人開自己名片不計入）。
 - **前端**：`js/cloud/admin-operations.js` 新增 `getCardViewSummariesForAdmin`，呼叫 RPC `get_card_view_summaries_for_admin`；`js/cloud/index.js` 掛載並已執行 `npm run build:cloud` 更新 `cloud.js`。
 - **資料庫**：新增腳本 [card_view_summaries_admin_rpc.sql](card_view_summaries_admin_rpc.sql)，請在 Supabase SQL Editor 執行後，後台統計才會有正確數據（未執行前 RPC 失敗時畫面仍顯示次數 0、尚無紀錄）。
 - **快取**：`admin.html` 的 `cloud.js` 查詢參數改為 `?v=20260414a`。

@@ -120,7 +120,7 @@ export async function getCardViewStats(userId) {
       .gte('viewed_at', thirtyDaysAgo.toISOString())
       .order('viewed_at', { ascending: false });
 
-    // 取得全期間最後一次被瀏覽時間（設定頁顯示「多久未被瀏覽」）
+    // 取得全期間最後一次被瀏覽時間（供後台或報表使用）
     const { data: lastRow, error: lastErr } = await client
       .from('card_views')
       .select('viewed_at')
