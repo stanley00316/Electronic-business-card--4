@@ -301,6 +301,11 @@ async function init() {
 
 async function reloadData() {
   const { rows } = await UVACO_CLOUD.getAllCardsAdmin();
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'D',location:'admin.html:reloadData:afterGetAllCardsAdmin',message:'名片資料已取得，準備進入合併統計流程',data:{rowsLen:Array.isArray(rows)?rows.length:-1},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  // 這裡把後端回來的 rows 轉成安全陣列，避免切回名片管理時因未定義變數造成畫面殘留
+  const list = Array.isArray(rows) ? rows : [];
   // 批次向資料庫取得「他人開啟」統計，合併後再渲染表格
   const ids = list.map((r) => r.user_id).filter(Boolean);
   // 批次向資料庫取得「他人開啟」統計，合併後再渲染表格
@@ -318,6 +323,9 @@ async function reloadData() {
 }
 
 function renderTable(data) {
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'A',location:'admin.html:renderTable:entry',message:'進入名片管理渲染',data:{showSubscriptionView,rowCount:Array.isArray(data)?data.length:-1,theadText:(document.querySelector('#userTable thead tr')?.innerText||'').replace(/\s+/g,' ').trim().slice(0,80),firstRowKeys:data&&data[0]?Object.keys(data[0]).slice(0,8):[]},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   // #region agent log
   fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'acea73'},body:JSON.stringify({sessionId:'acea73',location:'admin.html:renderTable',message:'renderTable 被呼叫（名片列表）',data:{rowCount:data.length,showSubscriptionView:typeof showSubscriptionView!=='undefined'?showSubscriptionView:null,firstIsCardShape:!!(data[0]&&('name'in data[0]||'nfc_card_id'in data[0]))},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
   // #endregion
@@ -744,7 +752,13 @@ let subscriptionData = [];
 let subscriptionModalMode = 'extend';
 
 function toggleSubscriptionView() {
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'A',location:'admin.html:toggleSubscriptionView:beforeToggle',message:'切換前狀態',data:{showSubscriptionViewBefore:showSubscriptionView,buttonText:document.getElementById('subscriptionAdminBtn')?.textContent||''},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   showSubscriptionView = !showSubscriptionView;
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'A',location:'admin.html:toggleSubscriptionView:afterToggle',message:'切換後狀態',data:{showSubscriptionViewAfter:showSubscriptionView},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   // #region agent log
   fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'acea73'},body:JSON.stringify({sessionId:'acea73',location:'admin.html:toggleSubscriptionView',message:'toggleSubscriptionView',data:{showSubscriptionViewAfterToggle:showSubscriptionView},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
   // #endregion
@@ -767,6 +781,9 @@ async function loadSubscriptions() {
   try {
     const result = await UVACO_CLOUD.getAllSubscriptionsAdmin();
     subscriptionData = result.rows || [];
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'B',location:'admin.html:loadSubscriptions:afterFetch',message:'訂閱資料已取得',data:{rowsLen:subscriptionData.length,firstRowKeys:subscriptionData[0]?Object.keys(subscriptionData[0]).slice(0,8):[]},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     renderSubscriptionTable(subscriptionData);
   } catch (e) {
     console.error('載入訂閱失敗:', e);
@@ -775,6 +792,9 @@ async function loadSubscriptions() {
 }
 
 function renderSubscriptionTable(data) {
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'C',location:'admin.html:renderSubscriptionTable:entry',message:'進入訂閱管理渲染',data:{showSubscriptionView,rowCount:Array.isArray(data)?data.length:-1,theadTextBeforeSet:(document.querySelector('#userTable thead tr')?.innerText||'').replace(/\s+/g,' ').trim().slice(0,80)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const thead = document.querySelector('#userTable thead tr');
   thead.innerHTML = `
     <th>姓名</th>
@@ -1059,7 +1079,14 @@ reloadData = async function() {
       <th>NFC 網址</th>
       <th>操作</th>
     `;
-    await originalReloadData();
+    try {
+      await originalReloadData();
+    } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f56a34'},body:JSON.stringify({sessionId:'f56a34',runId:'initial',hypothesisId:'D',location:'admin.html:reloadData:wrappedError',message:'切回名片管理時重載失敗',data:{error:String(e&&e.message?e.message:e)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      throw e;
+    }
   }
 };
 
