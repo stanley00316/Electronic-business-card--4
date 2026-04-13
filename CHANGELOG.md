@@ -1,6 +1,20 @@
 # 變更紀錄
 
+
+## 2026-04-13
+
+### 修正（通訊錄腳本編碼）
+
+- **平台通訊錄**：修正 `js/pages/directory/directory-a.js` 與 `directory-b.js` 因 `safeSlug` 被拆成兩個檔案而各自無法解析的問題；並清理註解中因編碼損壞導致的亂碼與語法錯誤。已在 `directory-a.js` 補齊完整 `safeSlug`，移除 `directory-b.js` 開頭重複片段，並重新執行 `npm run build:static` 產出 `cloud.js`。
+
+- **通訊錄列表**：雲端名片搜尋結果（仍排除本人，避免與上方「我的名片」重複）合併「+ 新增好友」寫入 localStorage（directoryFriends）的本機聯絡人；列表顯示電話、Email，並標示為手動儲存（無線上名片預覽）。
+- **空狀態說明**：若平台上只有自己一張名片且無本機聯絡人，改為清楚說明原因（非資料消失），透過 emptyHint 與 directory-b.js 的 updateDirectoryResults 搭配。
+- **程式結構**：getStoredFriends / setStoredFriends 集中於 directory-a.js（先載入），directory-b.js 移除重複定義；directory.html 腳本版本改為 v=20260413a。
 ## 2026-03-24
+
+### 偵錯
+
+- `auth.html` 登入／註冊流程加入執行期追蹤，量測 `bootstrap -> LIFF 自動登入 -> LINE callback code 交換 -> session 判定` 各階段耗時，並在登入頁顯示臨時 timing 面板，供手機端直接觀察慢點位置。
 
 ### 清理與部署
 

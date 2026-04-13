@@ -1,8 +1,3 @@
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\-]/g, '')
-    .slice(0, 60);
-}
-
 function addOptionsToSelect(selectEl, options) {
   options.forEach(opt => {
     const option = document.createElement('option');
@@ -273,22 +268,6 @@ function initRegionCascade(zoneSel, citySel, distSel, opts) {
   // 自訂邏輯已由 initDirectoryIndexes() 以 targets 方式統一掛載
 }
 
-function getStoredFriends() {
-  try {
-    const raw = localStorage.getItem('directoryFriends');
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function setStoredFriends(list) {
-  try {
-    localStorage.setItem('directoryFriends', JSON.stringify(list));
-  } catch (e) {}
-}
-
 function refreshCompanyIndex() {
   const filterCompany = document.getElementById('filterCompany');
   if (!filterCompany) return;
@@ -450,7 +429,23 @@ function updateDirectoryResults(count) {
   
   const resultsDiv = document.getElementById('directoryResults');
   if (count === 0) {
-    resultsDiv.innerHTML = `
+    // 與 directory-a 設定的 emptyHint 搭配：平台上只有自己一張名片時提示原因
+    const onlySelf =
+      window.__uvacoDirectoryState && window.__uvacoDirectoryState.emptyHint === 'only_self';
+    if (onlySelf) {
+      resultsDiv.innerHTML = `
+      <div class="directory-empty-icon">ℹ️</div>
+      <div class="directory-empty-text lang-zh">
+        目前平台上沒有其他會員的名片可列出（此處已隱藏您自己的名片，避免與上方重複）。<br>
+        請使用「+ 新增好友」儲存聯絡人，或邀請他人建立名片。
+      </div>
+      <div class="directory-empty-text lang-en">
+        No other members' cards to list yet (your own card is hidden here to avoid duplicating the panel above).<br>
+        Use "+ Add Friend" to save contacts, or invite others to create a card.
+      </div>
+    `;
+    } else {
+      resultsDiv.innerHTML = `
       <div class="directory-empty-icon">🔍</div>
       <div class="directory-empty-text lang-zh">
         找不到符合條件的名片<br>
@@ -461,6 +456,7 @@ function updateDirectoryResults(count) {
         Please try adjusting your search keywords or filters.
       </div>
     `;
+    }
     // 更新語言顯示
     const zhElements = document.querySelectorAll('.lang-zh');
     const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';

@@ -139,6 +139,44 @@ window.__uvacoDirectoryState = window.__uvacoDirectoryState || {
   loading: false
 };
 
+// 從 localStorage 讀取「新增好友」手動存下的本機聯絡人（與 directory-b 共用 directoryFriends）
+function getStoredFriends() {
+  try {
+    const raw = localStorage.getItem('directoryFriends');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setStoredFriends(list) {
+  try {
+    localStorage.setItem('directoryFriends', JSON.stringify(list));
+  } catch (e) {}
+}
+
+// 判斷本機聯絡人是否符合搜尋關鍵字（比對姓名、公司、職務、電話、Email 與分類等欄位）
+function localFriendMatchesQuery(f, q) {
+  const qn = String(q || '').trim().toLowerCase();
+  if (!qn) return true;
+  const parts = [
+    f.name,
+    f.company,
+    f.position,
+    f.phone,
+    f.email,
+    f.categoryDisplay,
+    f.category,
+    f.fieldDisplay,
+    f.field,
+    f.regionZone,
+    f.regionCity,
+    f.regionDistrict
+  ].map(x => String(x || '').toLowerCase());
+  return parts.some(p => p.includes(qn));
+}
+
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -166,9 +204,36 @@ async function refreshDirectoryResults() {
     const myId = String(window.__uvacoDirectoryState.myUserId || '').trim();
     // 排除自己（我的名片已在上方面板顯示）
     const filtered = myId ? all.filter(r => String(r?.user_id || '') !== myId) : all;
-    window.__uvacoDirectoryState.rows = filtered;
-    renderDirectoryResults(window.__uvacoDirectoryState.rows);
+
+    // 合併雲端搜尋結果與「新增好友」手動存下的本機聯絡人，避免只有本地資料時主列表永遠為 0
+    const pals = getStoredFriends();
+    const localRows = pals
+      .filter(f => f && localFriendMatchesQuery(f, q))
+      .map((f, idx) => ({
+        __localFriend: true,
+        localKey: 'lf-' + String(f.createdAt != null ? f.createdAt : idx) + '-' + idx,
+        name: String(f.name || '').trim(),
+        company: String(f.company || '').trim(),
+        title: String(f.position || '').trim(),
+        phone: String(f.phone || '').trim(),
+        email: String(f.email || '').trim()
+      }));
+
+    const merged = filtered.concat(localRows);
+    window.__uvacoDirectoryState.rows = merged;
+
+    // 平台上只有自己一張公開名片、且雲端結果為空也無本地好友時，用 emptyHint 標明原因
+    const onlySelf =
+      Boolean(myId) &&
+      all.length === 1 &&
+      String(all[0]?.user_id || '') === myId &&
+      filtered.length === 0 &&
+      localRows.length === 0;
+    window.__uvacoDirectoryState.emptyHint = onlySelf ? 'only_self' : null;
+
+    renderDirectoryResults(merged);
   } catch (e) {
+    window.__uvacoDirectoryState.emptyHint = null;
     if (resultsDiv) {
       resultsDiv.innerHTML = `
         <div class="directory-empty-icon">⚠️</div>
@@ -203,6 +268,44 @@ function renderDirectoryResults(rows) {
   }
 
   const itemsHtml = list.map(r => {
+    if (r && r.__localFriend) {
+      const name = escapeHtml(r.name || '');
+      const company = escapeHtml(r.company || '');
+      const title = escapeHtml(r.title || '');
+      const rawPhone = String(r.phone || '').trim();
+      const mail = String(r.email || '').trim();
+      const telHref = rawPhone ? 'tel:' + rawPhone.replace(/\s+/g, '') : '';
+      const mailHref = mail ? 'mailto:' + mail : '';
+
+      const phoneBtns = telHref
+        ? `<a class="btn btn-secondary lang-zh" href="${escapeHtml(telHref)}">\u96fb\u8a71</a>` +
+          `<a class="btn btn-secondary lang-en" href="${escapeHtml(telHref)}">Call</a>`
+        : '';
+      const mailBtns = mailHref
+        ? `<a class="btn btn-secondary lang-zh" href="${escapeHtml(mailHref)}">Email</a>` +
+          `<a class="btn btn-secondary lang-en" href="${escapeHtml(mailHref)}">Email</a>`
+        : '';
+
+      const actionsWrap =
+        phoneBtns || mailBtns
+          ? `<div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${phoneBtns}${mailBtns}</div>`
+          : `<div style="flex:0 0 auto;opacity:.75;font-size:12px;" class="lang-zh">\u7121\u96fb\u8a71\uff0fEmail</div><div style="flex:0 0 auto;opacity:.75;font-size:12px;display:none;" class="lang-en">No phone / email</div>`;
+
+      return `
+      <div class="directory-card-item" data-local-friend="1" style="width:100%;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,22,24,0.65);margin:10px 0;box-sizing:border-box;">
+        <div style="min-width:0;flex:1;text-align:center;">
+          <div style="font-weight:800;color:#e5e7eb;line-height:1.3;word-break:break-word;">${name || '-'}</div>
+          <div style="opacity:.9;color:#cbd5e1;font-size:13px;line-height:1.3;margin-top:2px;word-break:break-word;">
+            ${company ? company : ''}${(company && title) ? '\uff5c' : ''}${title ? title : ''}
+          </div>
+          <div style="opacity:.65;color:#94a3b8;font-size:11px;margin-top:4px;" class="lang-zh">\u624b\u52d5\u5132\u5b58\u806f\u7d61\u4eba\uff08\u7121\u7dda\u4e0a\u540d\u7247\uff09</div>
+          <div style="opacity:.65;color:#94a3b8;font-size:11px;margin-top:4px;display:none;" class="lang-en">Saved contact (no online card)</div>
+        </div>
+        ${actionsWrap}
+      </div>
+    `;
+    }
+
     const name = escapeHtml(r?.name || '');
     const company = escapeHtml(r?.company || '');
     const title = escapeHtml(r?.title || '');
@@ -213,12 +316,12 @@ function renderDirectoryResults(rows) {
         <div style="min-width:0;flex:1;text-align:center;">
           <div style="font-weight:800;color:#e5e7eb;line-height:1.3;word-break:break-word;">${name || '-'}</div>
           <div style="opacity:.9;color:#cbd5e1;font-size:13px;line-height:1.3;margin-top:2px;word-break:break-word;">
-            ${company ? company : ''}${(company && title) ? '｜' : ''}${title ? title : ''}
+            ${company ? company : ''}${(company && title) ? '\uff5c' : ''}${title ? title : ''}
           </div>
         </div>
         <div style="flex:0 0 auto;display:flex;gap:8px;">
-          <a class="btn btn-secondary lang-zh" href="${previewUrl}" target="_blank" rel="noopener noreferrer">👀 預覽</a>
-          <a class="btn btn-secondary lang-en" href="${previewUrl}" target="_blank" rel="noopener noreferrer">👀 Preview</a>
+          <a class="btn btn-secondary lang-zh" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\U0001f440 \u9810\u89bd</a>
+          <a class="btn btn-secondary lang-en" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\U0001f440 Preview</a>
         </div>
       </div>
     `;
@@ -578,7 +681,12 @@ const REGION_CASCADE = {
   }
 };
 
+// 將使用者輸入的字串轉成只含 a-z、數字、連字號的 slug（供選項 value 使用）
 function safeSlug(input) {
   return String(input || '')
     .trim()
     .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\-]/g, '')
+    .slice(0, 60);
+}
