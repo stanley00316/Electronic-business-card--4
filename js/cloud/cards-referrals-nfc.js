@@ -58,23 +58,27 @@ export async function recordCardView(userId) {
     const client = getPublicClient();
     if (!client) return { success: false };
     
-    // 嘗試使用 card_views 表（如果存在）
-    const { error: viewError } = await client
-      .from('card_views')
-      .insert({
-        card_user_id: userId,
-        viewed_at: new Date().toISOString(),
-        referrer: document.referrer || null,
-        user_agent: navigator.userAgent || null
-      });
-    
+    // 記錄瀏覽（匿名也可 insert，依 RLS）；viewed_at 交由資料庫預設
+    const uid = String(userId).trim();
+    if (!uid) return { success: false };
+
+    const row = { card_user_id: uid };
+    const ref = (typeof document !== 'undefined' && document.referrer) ? String(document.referrer).trim() : '';
+    if (ref) row.referrer = ref.slice(0, 4096);
+    const ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? String(navigator.userAgent).trim() : '';
+    if (ua) row.user_agent = ua.slice(0, 4096);
+
+    const { error: viewError } = await client.from('card_views').insert(row);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'cards-referrals-nfc.js:recordCardView',message:'card_views insert 結果',data:{hasError:!!viewError,errCode:viewError&&viewError.code,errMsg:viewError&&String(viewError.message||''),cardUserIdLen:uid.length},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H3'})}).catch(function(){});
+    // #endregion
+
     if (viewError) {
-      // 如果 card_views 表不存在，使用 RPC 來增加 view_count
-      // 這需要在 Supabase 設置一個 increment_view_count 函數
-      console.log('[Views] card_views 表未設置，跳過瀏覽記錄');
+      console.log('[Views] card_views 寫入略過:', viewError.message || viewError);
       return { success: false, error: viewError };
     }
-    
+
     return { success: true };
   } catch (e) {
     console.error('[Views] 記錄瀏覽失敗:', e);

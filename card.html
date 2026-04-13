@@ -22,7 +22,7 @@
 <!-- Supabase JS（CDN） -->
   <script src="supabase.min.js"></script>
   <!-- QR Code 生成器 -->
-<script src="cloud.js?v=20260324c"></script>
+<script src="cloud.js?v=20260413b"></script>
   <script src="common.js?v=20260324c"></script>
   <style>
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
@@ -366,6 +366,27 @@ async function gotoMyCard(event) {
 </script>
 
 <script>
+// #region agent log
+fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:script2:boot',message:'第二段腳本開始執行',data:{readyState:document.readyState,QRCodeType:typeof QRCode,qrcodeSrcScripts:Array.prototype.slice.call(document.querySelectorAll('script[src]')).map(function(n){return n.src;}).filter(function(u){return /qrcode/i.test(u);})},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1-H4'})}).catch(function(){});
+// #endregion
+
+// 使用者點選 QR 時才動態載入 qrcodejs（與 js/pages/card/card-page.js 相同）
+const UVACO_QRCODE_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+let __uvacoQrLibPromise = null;
+function loadQRCodeScript() {
+  if (typeof QRCode !== 'undefined') return Promise.resolve();
+  if (__uvacoQrLibPromise) return __uvacoQrLibPromise;
+  __uvacoQrLibPromise = new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = UVACO_QRCODE_SCRIPT;
+    s.async = true;
+    s.onload = function () { resolve(); };
+    s.onerror = function () { reject(new Error('QRCode script failed')); };
+    document.head.appendChild(s);
+  });
+  return __uvacoQrLibPromise;
+}
+
 function safeText(v) {
   return String(v ?? '').replace(/\s+/g, ' ').trim();
 }
@@ -797,25 +818,49 @@ function shareToEmail() {
 // QR Code 功能
 let qrCodeInstance = null;
 
-function showQRCode() {
-  const modal = document.getElementById('qrModal');
-  const qrcodeContainer = document.getElementById('qrcode');
-  const url = window.location.href;
-  
-  // 清除舊的 QR Code
-  qrcodeContainer.innerHTML = '';
-  
-  // 生成新的 QR Code
-  qrCodeInstance = new QRCode(qrcodeContainer, {
-    text: url,
-    width: 220,
-    height: 220,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H
-  });
-  
-  modal.style.display = 'flex';
+async function showQRCode() {
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:showQRCode:entry',message:'showQRCode 被呼叫',data:{QRCodeType:typeof QRCode,loadQRCodeScriptType:typeof loadQRCodeScript,hasModal:!!document.getElementById('qrModal'),hasQrcodeEl:!!document.getElementById('qrcode')},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1-H2'})}).catch(function(){});
+  // #endregion
+  try {
+    await loadQRCodeScript();
+  } catch (err) {
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:showQRCode:load-fail',message:'qrcodejs 載入失敗',data:{errName:err&&err.name,errMsg:err&&String(err.message)},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1'})}).catch(function(){});
+    // #endregion
+    console.error(err);
+    alert('QR Code 載入失敗，請稍後再試或檢查網路連線。');
+    return;
+  }
+  try {
+    const modal = document.getElementById('qrModal');
+    const qrcodeContainer = document.getElementById('qrcode');
+    const url = window.location.href;
+
+    // 清除舊的 QR Code
+    qrcodeContainer.innerHTML = '';
+
+    // 生成新的 QR Code
+    qrCodeInstance = new QRCode(qrcodeContainer, {
+      text: url,
+      width: 220,
+      height: 220,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    modal.style.display = 'flex';
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:showQRCode:success',message:'QR modal shown',data:{modalDisplay:modal&&modal.style.display,QRCodeType:typeof QRCode},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1'})}).catch(function(){});
+    // #endregion
+  } catch (err) {
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:showQRCode:catch',message:'showQRCode error',data:{errName:err&&err.name,errMsg:err&&String(err.message)},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1-H2'})}).catch(function(){});
+    // #endregion
+    console.error(err);
+    alert('無法產生 QR Code。');
+  }
 }
 
 function closeQRModal() {
@@ -922,12 +967,19 @@ function showAddHomeInstructions() {
   const lang = localStorage.getItem('lang') || 'zh';
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isAndroid = /Android/.test(navigator.userAgent);
+  const debugRunId = 'run-1';
   
   let instructions = '';
+  let branch = 'unknown';
+
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'66ef2f'},body:JSON.stringify({sessionId:'66ef2f',runId:debugRunId,hypothesisId:'H1-H2-H5',location:'card.html:showAddHomeInstructions:entry',message:'add-home dialog context',data:{lang:lang,isIOS:isIOS,isAndroid:isAndroid,userAgent:navigator.userAgent,href:window.location.href},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   
   if (lang === 'zh') {
     if (isIOS) {
-      instructions = `📱 iOS 加入主畫面步驟：
+      branch = 'zh-ios';
+      instructions = `iOS 加入主畫面步驟：
 
 1. 點擊瀏覽器底部的「分享」按鈕 (方形+箭頭圖示)
 2. 向下滑動找到「加入主畫面」
@@ -935,15 +987,17 @@ function showAddHomeInstructions() {
 
 完成後，主畫面會出現「我的名片」圖示，點擊即可快速開啟您的名片！`;
     } else if (isAndroid) {
-      instructions = `📱 Android 加入主畫面步驟：
+      branch = 'zh-android';
+      instructions = `Android 加入主畫面步驟：
 
-1. 點擊瀏覽器右上角的「選單」(⋮)
+1. 點擊瀏覽器右上角的「選單」（三點）
 2. 選擇「加入主畫面」或「安裝應用程式」
 3. 點擊「新增」確認
 
 完成後，主畫面會出現「我的名片」圖示，點擊即可快速開啟您的名片！`;
     } else {
-      instructions = `📱 加入主畫面步驟：
+      branch = 'zh-other';
+      instructions = `加入主畫面步驟：
 
 1. 在瀏覽器中找到「分享」或「選單」按鈕
 2. 選擇「加入主畫面」或「安裝」
@@ -953,7 +1007,8 @@ function showAddHomeInstructions() {
     }
   } else {
     if (isIOS) {
-      instructions = `📱 iOS - Add to Home Screen:
+      branch = 'en-ios';
+      instructions = `iOS - Add to Home Screen:
 
 1. Tap the "Share" button at the bottom (square with arrow)
 2. Scroll down and tap "Add to Home Screen"
@@ -961,15 +1016,17 @@ function showAddHomeInstructions() {
 
 Done! You'll see "My Card" icon on your home screen.`;
     } else if (isAndroid) {
-      instructions = `📱 Android - Add to Home Screen:
+      branch = 'en-android';
+      instructions = `Android - Add to Home Screen:
 
-1. Tap the menu button (⋮) in the browser
+1. Tap the browser menu button (three dots)
 2. Select "Add to Home Screen" or "Install App"
 3. Tap "Add" to confirm
 
 Done! You'll see "My Card" icon on your home screen.`;
     } else {
-      instructions = `📱 Add to Home Screen:
+      branch = 'en-other';
+      instructions = `Add to Home Screen:
 
 1. Find the "Share" or "Menu" button in your browser
 2. Select "Add to Home Screen" or "Install"
@@ -978,14 +1035,24 @@ Done! You'll see "My Card" icon on your home screen.`;
 Done! You'll see the icon on your home screen.`;
     }
   }
+
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'66ef2f'},body:JSON.stringify({sessionId:'66ef2f',runId:debugRunId,hypothesisId:'H1-H3-H4',location:'card.html:showAddHomeInstructions:payload',message:'dialog payload built',data:{branch:branch,containsReplacement:instructions.includes('�'),containsPhoneEmoji:instructions.includes('📱'),containsVerticalEllipsis:instructions.includes('⋮'),firstLine:(instructions.split('\n')[0]||''),firstLineCodePoints:Array.from((instructions.split('\n')[0]||'')).map((ch)=>`U+${ch.codePointAt(0).toString(16).toUpperCase()}`).slice(0,18)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   
   alert(instructions);
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'66ef2f'},body:JSON.stringify({sessionId:'66ef2f',runId:debugRunId,hypothesisId:'H1',location:'card.html:showAddHomeInstructions:after-alert',message:'native alert closed',data:{branch:branch},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   dismissAddHomeBanner();
 }
 
 // 頁面載入後檢查是否顯示提示
 document.addEventListener('DOMContentLoaded', function() {
   // 延遲執行，等待頁面資料載入
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:DOMContentLoaded',message:'page ready globals',data:{showQRCodeType:typeof showQRCode,QRCodeType:typeof QRCode,qrcodeSrcScripts:Array.prototype.slice.call(document.querySelectorAll('script[src]')).map(function(n){return n.src;}).filter(function(u){return /qrcode/i.test(u);})},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H4-H5'})}).catch(function(){});
+  // #endregion
   setTimeout(checkAndShowAddHomeBanner, 1000);
 });
 </script>

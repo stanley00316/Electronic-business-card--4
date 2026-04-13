@@ -3,6 +3,12 @@
 
 ## 2026-04-13
 
+### 修正（名片頁 QR、瀏覽紀錄）
+
+- **QR Code**：`card.html` 補齊與 `js/pages/card/card-page.js` 相同的 `loadQRCodeScript`，並將 `showQRCode` 改為 `async`，點選時才動態載入 cdnjs 的 qrcodejs，修正線上 `QRCode is not defined`。
+- **card_views**：`recordCardView` trim `card_user_id`；僅在有值時寫入 `referrer` / `user_agent`（並限長度）；`viewed_at` 交由資料庫預設，降低與遠端 schema 不一致時的 400；失敗時 console 顯示較具體的訊息。
+- **快取**：`cloud.js` 查詢參數 `?v=20260413b`；`service-worker.js` 的 `CACHE_VERSION` 遞增至 `v1.21.2`。
+
 ### 修正（通訊錄腳本編碼）
 
 - **平台通訊錄**：修正 `js/pages/directory/directory-a.js` 與 `directory-b.js` 因 `safeSlug` 被拆成兩個檔案而各自無法解析的問題；並清理註解中因編碼損壞導致的亂碼與語法錯誤。已在 `directory-a.js` 補齊完整 `safeSlug`，移除 `directory-b.js` 開頭重複片段，並重新執行 `npm run build:static` 產出 `cloud.js`。
@@ -13,6 +19,7 @@
 - **預覽按鈕**：修正誤用 Python 格式 `\\U0001f440`（JavaScript 不支援）導致畫面顯示 `U0001f440` 文字而非圖示；改為 ES6 `\\u{1F440}` 以正確顯示眼睛圖示。
 - **編碼設定**：新增 `.editorconfig`與 `.vscode/settings.json`，統一以 UTF-8 開啟與儲存檔案，降低 Cursor 或其他編輯器誤判編碼導致的亂碼。
 - **除錯清理**：移除 `line-liff.js` 與 `auth/main.js` 對本機 `127.0.0.1:7665` ingest 的追蹤請求；登入頁仍可透過底部面板與 localStorage 查看時間軸。
+- **對話框亂碼修正**：`card.html` 與 `js/pages/card/card-page.js` 的「加入主畫面」說明文字，將 `📱`、`⋮` 這類在部分手機原生對話框可能顯示為 `�` 的符號改成純文字（如「三點」），避免開啟新介面提示時出現亂碼。
 ## 2026-03-24
 
 ### 偵錯
