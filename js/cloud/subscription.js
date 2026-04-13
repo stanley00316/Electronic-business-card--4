@@ -768,7 +768,7 @@ export async function createStripeCheckout(planId) {
     const resp = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
       },
@@ -806,7 +806,7 @@ export async function createLinePayCheckout(planId) {
     const resp = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
       },

@@ -179,3 +179,39 @@ window.UVACO_CLOUD = {
   createStripeCheckout,
   createLinePayCheckout
 };
+
+// #region agent log
+// Debug: log document encoding after cloud bundle loads (UTF-8 verification)
+(function () {
+  try {
+    var meta = document.querySelector('meta[charset]');
+    var t = document.title || '';
+    var hasReplacement = t.indexOf('\uFFFD') >= 0;
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Debug-Session-Id': 'a5a55e'
+      },
+      body: JSON.stringify({
+        sessionId: 'a5a55e',
+        location: 'js/cloud/index.js:encoding-boot',
+        message: 'UTF-8 runtime probe（cloud 載入後）',
+        data: {
+          characterSet: document.characterSet,
+          compatMode: document.compatMode,
+          metaCharset: meta ? meta.getAttribute('charset') : null,
+          href: String(location.href),
+          hasReplacementInTitle: hasReplacement,
+          titleSampleCodePoints: Array.from(t.slice(0, 12)).map(function (ch) {
+            return 'U+' + ch.codePointAt(0).toString(16).toUpperCase();
+          })
+        },
+        timestamp: Date.now(),
+        hypothesisId: 'H1-H4-H5',
+        runId: 'post-fix'
+      })
+    }).catch(function () {});
+  } catch (_e) {}
+})();
+// #endregion

@@ -80,7 +80,7 @@ export async function uploadToR2(ctx, kind, blob, opts) {
   const resp = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
+      'content-type': 'application/json; charset=utf-8',
       'apikey': SUPABASE_ANON_KEY,
       'Authorization': 'Bearer ' + (customJwt || SUPABASE_ANON_JWT)
     },

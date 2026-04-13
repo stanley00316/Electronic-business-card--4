@@ -29,7 +29,7 @@ serve(async (req: Request) => {
     if (!stripeSecretKey) {
       return new Response(
         JSON.stringify({ error: 'Stripe not configured' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 500 }
       )
     }
 
@@ -46,7 +46,7 @@ serve(async (req: Request) => {
     if (!user_id || !plan_id) {
       return new Response(
         JSON.stringify({ error: 'Missing user_id or plan_id' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 400 }
       )
     }
 
@@ -61,7 +61,7 @@ serve(async (req: Request) => {
     if (planError || !plan) {
       return new Response(
         JSON.stringify({ error: 'Plan not found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 404 }
       )
     }
 
@@ -107,7 +107,7 @@ serve(async (req: Request) => {
         session_id: session.id
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
         status: 200
       }
     )
@@ -120,7 +120,7 @@ serve(async (req: Request) => {
         error: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
         status: 500
       }
     )

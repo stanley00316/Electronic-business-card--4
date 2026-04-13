@@ -129,7 +129,7 @@ serve(async (req: Request) => {
         }
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
         status: 200
       }
     )
@@ -142,7 +142,7 @@ serve(async (req: Request) => {
         error: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
         status: 500
       }
     )

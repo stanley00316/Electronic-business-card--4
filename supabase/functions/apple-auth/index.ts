@@ -323,7 +323,7 @@ serve(async (req) => {
   if (!existingUserId) {
     const iResp = await supabaseRest(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, `/rest/v1/apple_identities`, {
       method: "POST",
-      headers: { "content-type": "application/json", "prefer": "return=minimal" },
+      headers: { "content-type": "application/json; charset=utf-8", "prefer": "return=minimal" },
       body: JSON.stringify([{
         apple_user_id: appleUserId,
         user_id: userId,
@@ -341,7 +341,7 @@ serve(async (req) => {
       `/rest/v1/apple_identities?apple_user_id=eq.${encodeURIComponent(appleUserId)}`,
       {
         method: "PATCH",
-        headers: { "content-type": "application/json", "prefer": "return=minimal" },
+        headers: { "content-type": "application/json; charset=utf-8", "prefer": "return=minimal" },
         body: JSON.stringify({ last_login_at: nowIso }),
       },
     );

@@ -26,7 +26,7 @@ serve(async (req: Request) => {
     if (!stripeSecretKey || !webhookSecret) {
       return new Response(
         JSON.stringify({ error: 'Stripe not configured' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 500 }
       )
     }
 
@@ -42,7 +42,7 @@ serve(async (req: Request) => {
     if (!signature) {
       return new Response(
         JSON.stringify({ error: 'Missing stripe-signature' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 400 }
       )
     }
 
@@ -55,7 +55,7 @@ serve(async (req: Request) => {
       console.error('Webhook signature verification failed:', err)
       return new Response(
         JSON.stringify({ error: 'Invalid signature' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 400 }
       )
     }
 
@@ -71,7 +71,7 @@ serve(async (req: Request) => {
         console.error('Missing user_id in session')
         return new Response(
           JSON.stringify({ error: 'Missing user_id' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 400 }
         )
       }
 
@@ -167,7 +167,7 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({ received: true }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
         status: 200
       }
     )
@@ -180,7 +180,7 @@ serve(async (req: Request) => {
         error: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
         status: 500
       }
     )

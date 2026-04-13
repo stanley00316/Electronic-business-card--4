@@ -98,7 +98,7 @@ export async function finishLineLoginFromUrl() {
       resp = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
-          'content-type': 'application/json',
+          'content-type': 'application/json; charset=utf-8',
           'apikey': SUPABASE_ANON_KEY,
           // 若 Supabase Edge Function 開啟「Verify JWT with legacy secret」，
           // 需要 Authorization header（使用 anon key 即可）
@@ -244,7 +244,7 @@ export async function liffAutoLogin(nextPage) {
     const resp = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        'content-type': 'application/json; charset=utf-8',
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
       },

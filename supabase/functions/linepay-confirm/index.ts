@@ -38,7 +38,7 @@ serve(async (req: Request) => {
     if (!channelId || !channelSecret) {
       return new Response(
         JSON.stringify({ error: 'LINE Pay not configured' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 500 }
       )
     }
 
@@ -50,7 +50,7 @@ serve(async (req: Request) => {
     if (!transaction_id || !order_id) {
       return new Response(
         JSON.stringify({ error: 'Missing transaction_id or order_id' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 400 }
       )
     }
 
@@ -65,7 +65,7 @@ serve(async (req: Request) => {
     if (paymentError || !payment) {
       return new Response(
         JSON.stringify({ error: 'Payment not found or already processed' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 404 }
       )
     }
 
@@ -89,7 +89,7 @@ serve(async (req: Request) => {
     const response = await fetch(`${baseUrl}${requestUri}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         'X-LINE-ChannelId': channelId,
         'X-LINE-Authorization-Nonce': nonce,
         'X-LINE-Authorization': signature
@@ -110,7 +110,7 @@ serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify({ error: data.returnMessage || 'LINE Pay confirm failed' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 400 }
       )
     }
 
@@ -206,7 +206,7 @@ serve(async (req: Request) => {
         subscription_end: endDate.toISOString()
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
         status: 200
       }
     )
@@ -219,7 +219,7 @@ serve(async (req: Request) => {
         error: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
         status: 500
       }
     )

@@ -220,7 +220,7 @@ serve(async (req) => {
   if (!existingUserId) {
     const iResp = await supabaseRest(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, `/rest/v1/google_identities`, {
       method: "POST",
-      headers: { "content-type": "application/json", "prefer": "return=minimal" },
+      headers: { "content-type": "application/json; charset=utf-8", "prefer": "return=minimal" },
       body: JSON.stringify([{
         google_user_id: googleUserId,
         user_id: userId,
@@ -239,7 +239,7 @@ serve(async (req) => {
       `/rest/v1/google_identities?google_user_id=eq.${encodeURIComponent(googleUserId)}`,
       {
         method: "PATCH",
-        headers: { "content-type": "application/json", "prefer": "return=minimal" },
+        headers: { "content-type": "application/json; charset=utf-8", "prefer": "return=minimal" },
         body: JSON.stringify({ display_name: displayName, picture: picture, last_login_at: nowIso }),
       },
     );

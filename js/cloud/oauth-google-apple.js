@@ -79,7 +79,7 @@ export async function finishGoogleLoginFromUrl() {
       resp = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
-          'content-type': 'application/json',
+          'content-type': 'application/json; charset=utf-8',
           'apikey': SUPABASE_ANON_KEY,
           'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         },
@@ -213,7 +213,7 @@ export async function finishAppleLoginFromUrl() {
       resp = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
-          'content-type': 'application/json',
+          'content-type': 'application/json; charset=utf-8',
           'apikey': SUPABASE_ANON_KEY,
           'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
         },
