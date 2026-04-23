@@ -7,6 +7,7 @@
 - **`js/pages/edit/edit-chunk-1.js`**：刪除按鈕事件改為「先呼叫既有 `deleteContactButton`，若函式不存在就直接走內建刪除流程」，避免出現 `deleteContactButton is not defined` 後無法刪除。
 - **除錯追蹤**：補上 `run-3 / H11~H13` 執行期日誌，記錄「啟用備援、刪除前數量、刪除後數量」，方便快速確認部署站行為。
 - **快取更新**：`edit.html` 的 `cloud/common/edit-chunk` 與 `edit-head/edit-wizard` 版本參數升級為 `20260423a`，`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.21.9`，避免部署站持續讀到舊版刪除邏輯。
+- **核心修復（`saveCard is not defined`）**：將原本被錯位切割的 `edit-chunk-2/3/4/5.js` 重新合併為可執行腳本（主邏輯集中於 `edit-chunk-2.js`），`edit-chunk-3/4/5.js` 改為安全佔位檔，並移除 `wizard.js` 外層 `<script>` 包裝，修正前端語法錯誤連鎖造成的功能遺失。
 
 
 ## 2026-04-14

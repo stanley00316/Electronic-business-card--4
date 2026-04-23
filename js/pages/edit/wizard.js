@@ -1,4 +1,3 @@
-<script>
 // ===== 步驟引導精靈 JavaScript =====
 let wizardCurrentStep = 1;
 const wizardTotalSteps = 5;
