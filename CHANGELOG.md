@@ -6,6 +6,7 @@
 
 - **`js/pages/edit/edit-chunk-1.js`**：刪除按鈕事件改為「先呼叫既有 `deleteContactButton`，若函式不存在就直接走內建刪除流程」，避免出現 `deleteContactButton is not defined` 後無法刪除。
 - **除錯追蹤**：補上 `run-3 / H11~H13` 執行期日誌，記錄「啟用備援、刪除前數量、刪除後數量」，方便快速確認部署站行為。
+- **快取更新**：`edit.html` 的 `cloud/common/edit-chunk` 與 `edit-head/edit-wizard` 版本參數升級為 `20260423a`，`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.21.9`，避免部署站持續讀到舊版刪除邏輯。
 
 
 ## 2026-04-14
