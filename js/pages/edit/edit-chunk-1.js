@@ -644,7 +644,28 @@ function restoreContactsFunctionality() {
         fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b370db'},body:JSON.stringify({sessionId:'b370db',runId:'run-2',hypothesisId:'H7',location:'js/pages/edit/edit-chunk-1.js:646',message:'chunk1 刪除按鈕被觸發',data:{hasAnchor:!!wrapper.querySelector('a'),href:wrapper.querySelector('a')?.getAttribute('href')||''},timestamp:Date.now()})}).catch(()=>{});
         // #endregion
         event.stopPropagation();
-        deleteContactButton(wrapper.querySelector('a'));
+        const anchor = wrapper.querySelector('a');
+        if (typeof deleteContactButton === 'function') {
+          deleteContactButton(anchor);
+          return;
+        }
+        // #region agent log
+        fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b370db'},body:JSON.stringify({sessionId:'b370db',runId:'run-3',hypothesisId:'H11',location:'js/pages/edit/edit-chunk-1.js:654',message:'deleteContactButton 未定義，啟用 onclick 內建備援',data:{hasAnchor:!!anchor,href:anchor?.getAttribute('href')||''},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        const zhElements = document.querySelectorAll('.lang-zh');
+        const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+        const confirmMsg = currentLang === 'zh' ? '確定要刪除此聯絡方式嗎？' : 'Are you sure you want to delete this contact method?';
+        if (!confirm(confirmMsg)) return;
+        const fallbackWrapper = anchor ? anchor.closest('.contact-btn-wrapper') : wrapper;
+        // #region agent log
+        fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b370db'},body:JSON.stringify({sessionId:'b370db',runId:'run-3',hypothesisId:'H12',location:'js/pages/edit/edit-chunk-1.js:663',message:'onclick 內建備援刪除前後數量',data:{wrapperFound:!!fallbackWrapper,beforeCount:document.querySelectorAll('#previewContacts .contact-btn-wrapper').length},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        if (fallbackWrapper) {
+          fallbackWrapper.remove();
+          // #region agent log
+          fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b370db'},body:JSON.stringify({sessionId:'b370db',runId:'run-3',hypothesisId:'H13',location:'js/pages/edit/edit-chunk-1.js:669',message:'onclick 內建備援刪除完成',data:{afterCount:document.querySelectorAll('#previewContacts .contact-btn-wrapper').length},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
+        }
       };
       wrapper.appendChild(deleteBtn);
     }
