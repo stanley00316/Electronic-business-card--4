@@ -33,6 +33,9 @@
 
     /* 長網址不要撐爆版面 */
     .nfc-url-cell a{color:#9ca3af;text-decoration:none;word-break:break-all;overflow-wrap:anywhere}
+    .admin-name-link{color:#e5e7eb;text-decoration:underline;text-decoration-color:rgba(34,197,94,.45);text-underline-offset:2px;font-weight:600;cursor:pointer}
+    .admin-name-link:hover{color:#22c55e;text-decoration-color:#22c55e}
+    .admin-name-link:focus-visible{outline:2px solid #22c55e;outline-offset:2px;border-radius:4px}
     .actions-cell{white-space:normal}
     .actions-cell .actions-wrap{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 
@@ -67,7 +70,7 @@
   </style>
   <script src="supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="cloud.js?v=20260414a"></script>
+  <script src="cloud.js?v=20260414b"></script>
 </head>
 <body>
 
@@ -306,9 +309,8 @@ async function reloadData() {
   // #endregion
   // 這裡把後端回來的 rows 轉成安全陣列，避免切回名片管理時因未定義變數造成畫面殘留
   const list = Array.isArray(rows) ? rows : [];
-  // 批次向資料庫取得「他人開啟」統計，合併後再渲染表格
+  // 批次向資料庫取得名片開啟統計（含本人開啟），合併後再渲染表格
   const ids = list.map((r) => r.user_id).filter(Boolean);
-  // 批次向資料庫取得「他人開啟」統計，合併後再渲染表格
   let statsMap = new Map();
   if (typeof UVACO_CLOUD.getCardViewSummariesForAdmin === 'function') {
     // #region agent log
@@ -360,10 +362,17 @@ function renderTable(data) {
     const vLast = row._viewLastOpenedAt
       ? new Date(row._viewLastOpenedAt).toLocaleString('zh-TW')
       : '尚無紀錄';
-    const nameSub = `<br><small style="color:#9ca3af">最後開啟（他人）：${vLast}</small><br><small style="color:#9ca3af">次數：${vCount}</small>`;
+    const nameSub = `<br><small style="color:#9ca3af">最後開啟：${vLast}</small><br><small style="color:#9ca3af">次數：${vCount}</small>`;
+    // 這裡將姓名做基本字元處理，避免特殊符號影響 HTML 結構
+    const displayName = String(row.name || '未命名')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td data-label="姓名">${row.name || '未命名'}${nameSub}</td>
+      <td data-label="姓名"><a class="admin-name-link" href="${url}" target="_blank" rel="noopener noreferrer">${displayName}</a>${nameSub}</td>
       <td data-label="公司/職稱">${row.company || '-'} <br> <small style="color:#9ca3af">${row.title || '-'}</small></td>
       <td data-label="NFC 卡片 ID">
         ${nfcDisplay}

@@ -82,6 +82,9 @@ function addContactButtonToPreview(type, newLink, buttonTextZh, buttonTextEn) {
   deleteBtn.textContent = '✕';
   deleteBtn.title = currentLang === 'zh' ? '刪除' : 'Delete';
   deleteBtn.onclick = function(event) {
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b370db'},body:JSON.stringify({sessionId:'b370db',runId:'run-1',hypothesisId:'H1',location:'js/pages/edit/edit-chunk-5.js:87',message:'點擊聯絡方式刪除按鈕',data:{hasWrapper:!!event?.target?.closest?.('.contact-btn-wrapper'),href:btnZh?.getAttribute('href')||''},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     event.stopPropagation();
     deleteContactButton(btnZh);
   };
@@ -130,6 +133,9 @@ function moveContact(item, direction) {
 
 // 刪除聯絡方式按鈕（從預覽區域）
 function deleteContactButton(contactBtn) {
+  // #region agent log
+  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b370db'},body:JSON.stringify({sessionId:'b370db',runId:'run-1',hypothesisId:'H2',location:'js/pages/edit/edit-chunk-5.js:136',message:'進入 deleteContactButton',data:{hasContactBtn:!!contactBtn,contactBtnTag:contactBtn?.nodeName||'',contactHref:contactBtn?.getAttribute?.('href')||'',globalEventType:typeof event},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   if (event) event.stopPropagation();
   const zhElements = document.querySelectorAll('.lang-zh');
   const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
@@ -138,8 +144,14 @@ function deleteContactButton(contactBtn) {
   if (confirm(confirmMsg)) {
     // 找到對應的包裝器並刪除（包含中文和英文按鈕）
     const wrapper = contactBtn.closest('.contact-btn-wrapper');
+    // #region agent log
+    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b370db'},body:JSON.stringify({sessionId:'b370db',runId:'run-1',hypothesisId:'H3',location:'js/pages/edit/edit-chunk-5.js:145',message:'確認刪除後檢查 wrapper',data:{wrapperFound:!!wrapper,totalWrappersBefore:document.querySelectorAll('#previewContacts .contact-btn-wrapper').length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (wrapper) {
       wrapper.remove();
+      // #region agent log
+      fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b370db'},body:JSON.stringify({sessionId:'b370db',runId:'run-1',hypothesisId:'H4',location:'js/pages/edit/edit-chunk-5.js:150',message:'已執行 wrapper.remove()',data:{totalWrappersAfter:document.querySelectorAll('#previewContacts .contact-btn-wrapper').length},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     }
   }
 }

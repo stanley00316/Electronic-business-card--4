@@ -1,5 +1,5 @@
 -- Admin: batch aggregate card_views (open count, last viewed at).
--- Matches frontend semantics: owner opening own card does not insert card_views (see getCardPublic trackView).
+-- Matches frontend semantics: each card open inserts card_views, including owner preview (see getCardPublic trackView).
 -- Permission: public.is_admin() (allowlist and/or admin_users per fix-subscription-rls.sql).
 -- Company admin: same ILIKE scope as cards_admin_* (managed_company or target_company vs cards.company).
 -- Run in Supabase SQL Editor before using rpc get_card_view_summaries_for_admin.

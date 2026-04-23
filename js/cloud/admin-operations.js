@@ -2,7 +2,7 @@ import { getAuthContext } from './session.js';
 import { isAdmin } from './admin-roles.js';
 
 
-// 後台批次查詢：名片被他人開啟的次數與最後一次時間（card_views 聚合）
+// 後台批次查詢：名片開啟次數與最後一次時間（card_views 聚合，含本人開啟）
 export async function getCardViewSummariesForAdmin(userIds) {
   const empty = new Map();
   const ctx = await getAuthContext();

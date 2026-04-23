@@ -42,14 +42,9 @@ export async function getCardPublic(userId, options = {}) {
     .maybeSingle();
   if (error) return { card: null, error };
   
-  // 若啟用瀏覽追蹤：記錄此次瀏覽（本人開自己名片不計入，統計才符合「被他人瀏覽」）
+  // 若啟用瀏覽追蹤：每次開啟名片都寫入一筆（含本人預覽，後台「最後開啟／次數」與之一致）
   if (options.trackView && data) {
-    const ownerId = String(userId).trim();
-    const ctx = await getAuthContext();
-    const viewerId = ctx.ok ? String(ctx.userId || '').trim() : '';
-    if (!viewerId || viewerId !== ownerId) {
-      recordCardView(userId).catch(() => {}); // 異步記錄，不影響頁面載入
-    }
+    recordCardView(userId).catch(() => {}); // 異步記錄，不影響頁面載入
   }
   
   return { card: data || null };

@@ -3,6 +3,19 @@
 
 ## 2026-04-14
 
+### 調整（名片開啟統計：本人開啟也計入）
+
+- **`getCardPublic`（`js/cloud/cards-referrals-nfc.js`）**：啟用 `trackView` 時，本人預覽自己的名片也會寫入 `card_views`，後台「最後開啟／次數」與訪客開啟一併統計。
+- **`admin.html`**：姓名下方文案由「最後開啟（他人）」改為「最後開啟」；`cloud.js` 查詢參數改為 `?v=20260414b`。
+- **資料庫註解**：`card_view_summaries_admin_rpc.sql` 頂部說明已改為與上述語意一致（RPC 本體無需重跑）。
+- **快取**：已執行 `npm run build:cloud` 更新根目錄 `cloud.js`；`service-worker.js` 的 `CACHE_VERSION` 為 `v1.21.8`。
+
+### 新增（後台姓名可直接開啟名片）
+
+- **`admin.html`**：名片管理列表的「姓名」改為可點擊連結，管理員可直接開啟該人的 `card.html?id=<user_id>`，不必再先按「複製連結」。
+- **互動樣式**：補上姓名連結的滑過與鍵盤焦點樣式，桌機與手機窄版都更容易辨識可點擊區塊。
+- **顯示安全性**：姓名文字先做基本字元轉換，避免特殊符號破壞畫面結構。
+
 ### 修正（後台模式切換：名片管理 / 訂閱管理）
 
 - **`admin.html`**：修正切回「📋 名片管理」時可能出現「表頭已回名片、但列表仍停留訂閱資料」的問題。主因是 `reloadData` 內使用未定義的 `list` 導致重載中斷，現在已改為安全使用 `rows` 並正常渲染名片列表。
@@ -18,7 +31,7 @@
 
 ### 新增（後台名片列表：他人開啟時間與次數）
 
-- **管理表格**：`admin.html` 在每位使用者姓名下方顯示「最後開啟（他人）」與「次數」，語意與 `card_views`、後台統計一致（本人開自己名片不計入）。
+- **管理表格**：`admin.html` 在每位使用者姓名下方顯示開啟時間與「次數」（初版文案為「最後開啟（他人）」；後續已改為含本人開啟，見同日「調整（名片開啟統計：本人開啟也計入）」）。
 - **前端**：`js/cloud/admin-operations.js` 新增 `getCardViewSummariesForAdmin`，呼叫 RPC `get_card_view_summaries_for_admin`；`js/cloud/index.js` 掛載並已執行 `npm run build:cloud` 更新 `cloud.js`。
 - **資料庫**：新增腳本 [card_view_summaries_admin_rpc.sql](card_view_summaries_admin_rpc.sql)，請在 Supabase SQL Editor 執行後，後台統計才會有正確數據（未執行前 RPC 失敗時畫面仍顯示次數 0、尚無紀錄）。
 - **快取**：`admin.html` 的 `cloud.js` 查詢參數改為 `?v=20260414a`。
