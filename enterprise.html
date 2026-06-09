@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
+  <title>企業主控台 — 數位身分平台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css?v=20260610a">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#22c55e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="數位身分">
+  <link rel="apple-touch-icon" href="icon-192.svg">
+  <style>
+    :root {
+      --g: #22c55e;
+      --g-dim: #16a34a;
+      --bg: #111;
+      --surface: #1a1a1a;
+      --surface2: #222;
+      --border: #2a2a2a;
+      --border2: #333;
+      --text: #fff;
+      --text-dim: #9ca3af;
+      --text-muted: #6b7280;
+      --red: #ef4444;
+      --orange: #f97316;
+      --radius: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* ── Page Header ─────────────────────── */
+    .ent-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .ent-header-left { display: flex; align-items: center; gap: 10px; }
+
+    .ent-logo {
+      width: 36px; height: 36px;
+      background: var(--g);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .ent-title-block .ent-title { font-size: 16px; font-weight: 700; }
+    .ent-title-block .ent-sub  { font-size: 11px; color: var(--text-dim); }
+
+    .company-badge {
+      background: rgba(34,197,94,.12);
+      border: 1px solid rgba(34,197,94,.3);
+      color: var(--g);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .header-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .nav-link {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border2);
+      background: transparent;
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: border-color .15s, color .15s;
+    }
+
+    .nav-link:hover { border-color: #555; color: var(--text); }
+
+    /* ── Container ───────────────────────── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px 16px; }
+
+    /* ── Stats ───────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--g);
+      transform: scaleX(0);
+      transition: transform .2s;
+    }
+
+    .stat-card:hover::after { transform: scaleX(1); }
+
+    .stat-icon { font-size: 20px; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 800; color: var(--g); line-height: 1; }
+    .stat-label { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
+
+    /* ── Toolbar ─────────────────────────── */
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .search-wrap {
+      flex: 1;
+      min-width: 160px;
+      position: relative;
+    }
+
+    .search-wrap input {
+      width: 100%;
+      padding: 8px 10px 8px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .search-wrap input:focus { border-color: var(--g); }
+    .search-wrap input::placeholder { color: var(--text-muted); }
+    .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
+
+    .filter-sel {
+      padding: 8px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+      min-width: 100px;
+    }
+
+    .filter-sel:focus { border-color: var(--g); }
+
+    .btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: opacity .15s, background .15s;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-green { background: var(--g); color: #fff; }
+    .btn-green:not(:disabled):hover { background: var(--g-dim); }
+    .btn-red { background: var(--red); color: #fff; }
+    .btn-red:not(:disabled):hover { background: #dc2626; }
+    .btn-outline { background: transparent; border: 1px solid var(--border2); color: var(--text-dim); }
+    .btn-outline:not(:disabled):hover { border-color: #555; color: var(--text); }
+    .btn-sm { padding: 5px 9px; font-size: 11px; }
+
+    /* ── Table ───────────────────────────── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      margin-top: 8px;
+    }
+
+    .emp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+    .emp-table th {
+      padding: 11px 13px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      white-space: nowrap;
+    }
+
+    .emp-table td {
+      padding: 11px 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .emp-table tr:last-child td { border-bottom: none; }
+    .emp-table tbody tr { transition: background .1s; }
+    .emp-table tbody tr:hover { background: rgba(255,255,255,.02); }
+    .emp-table tbody tr.row-disabled { opacity: .6; }
+
+    .cell-name { font-weight: 600; color: var(--text); font-size: 13px; }
+    .cell-title { color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+
+    .badge .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+    .badge-active   { background: rgba(34,197,94,.1);  color: #4ade80; }
+    .badge-active .dot   { background: #22c55e; }
+    .badge-disabled { background: rgba(239,68,68,.1);  color: #f87171; }
+    .badge-disabled .dot { background: var(--red); }
+
+    .badge-nfc-unbound  { background: rgba(107,114,128,.1); color: #9ca3af; }
+    .badge-nfc-unbound .dot  { background: #6b7280; }
+    .badge-nfc-bound    { background: rgba(34,197,94,.1);  color: #4ade80; }
+    .badge-nfc-bound .dot    { background: #22c55e; }
+    .badge-nfc-disabled { background: rgba(249,115,22,.1); color: #fb923c; }
+    .badge-nfc-disabled .dot { background: var(--orange); }
+    .badge-nfc-lost     { background: rgba(239,68,68,.1);  color: #f87171; }
+    .badge-nfc-lost .dot     { background: var(--red); }
+
+    .ops-cell { display: flex; gap: 5px; align-items: center; flex-wrap: nowrap; }
+
+    /* ── NFC Dropdown ────────────────────── */
+    .nfc-overlay { position: fixed; inset: 0; z-index: 490; display: none; }
+    .nfc-overlay.open { display: block; }
+
+    .nfc-menu {
+      position: fixed;
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      min-width: 160px;
+      z-index: 500;
+      box-shadow: 0 8px 28px rgba(0,0,0,.6);
+      overflow: hidden;
+      display: none;
+    }
+
+    .nfc-menu.open { display: block; }
+
+    .nfc-item {
+      padding: 9px 14px;
+      font-size: 12px;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: background .1s, color .1s;
+    }
+
+    .nfc-item:hover { background: rgba(255,255,255,.06); color: var(--text); }
+    .nfc-item.danger:hover { background: rgba(239,68,68,.1); color: #f87171; }
+
+    /* ── Mobile Cards ────────────────────── */
+    .emp-cards { display: none; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+    @media (max-width: 767px) {
+      .table-wrap { display: none; }
+      .emp-cards  { display: flex; }
+    }
+
+    .emp-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+
+    .emp-card.row-disabled { opacity: .6; }
+
+    .emp-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .emp-card-name { font-weight: 700; font-size: 14px; }
+    .emp-card-meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+    .emp-card-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .emp-card-stat { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+    .emp-card-ops { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* ── Modals ──────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.72);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.5);
+    }
+
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 5px; }
+    .modal-desc  { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.5; }
+
+    .modal label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .modal input,
+    .modal select {
+      width: 100%;
+      padding: 9px 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      margin-bottom: 14px;
+    }
+
+    .modal input:focus,
+    .modal select:focus { border-color: var(--g); }
+
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* ── Toast ───────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 13px;
+      color: var(--text);
+      z-index: 2000;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      transition: transform .25s ease, opacity .25s ease;
+      opacity: 0;
+      white-space: nowrap;
+      max-width: calc(100vw - 32px);
+      text-align: center;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.success { border-color: rgba(34,197,94,.35); color: #4ade80; }
+    .toast.error   { border-color: rgba(239,68,68,.35); color: #f87171; }
+
+    /* ── States ──────────────────────────── */
+    .empty-state {
+      padding: 50px 20px;
+      text-align: center;
+      color: var(--text-dim);
+    }
+
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-text { font-size: 14px; }
+
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid var(--border2);
+      border-top-color: var(--g);
+      border-radius: 50%;
+      animation: spin .65s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-row { padding: 50px 20px; text-align: center; color: var(--text-dim); font-size: 13px; }
+
+    #accessDenied {
+      display: none;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      gap: 14px;
+      padding: 40px 20px;
+    }
+
+    .result-info { font-size: 11px; color: var(--text-muted); margin: 4px 0 10px; }
+  </style>
+</head>
+<body>
+
+<!-- ══ 無權限 ══════════════════════════════════ -->
+<div id="accessDenied">
+  <div style="font-size:44px">🔒</div>
+  <div style="font-size:18px;font-weight:700">無法存取</div>
+  <div style="font-size:13px;color:var(--text-dim)">此頁面僅限企業管理員或超級管理員使用</div>
+  <a href="index.html" class="btn btn-outline" style="margin-top:6px">返回首頁</a>
+</div>
+
+<!-- ══ 全頁 Loading ════════════════════════════ -->
+<div id="pageLoading" style="display:flex;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:10px">
+  <div class="spinner"></div>
+  <div style="color:var(--text-dim);font-size:13px">驗證權限中…</div>
+</div>
+
+<!-- ══ 主內容 ══════════════════════════════════ -->
+<div id="mainContent" style="display:none">
+
+  <!-- 頁頭 -->
+  <header class="ent-header">
+    <div class="ent-header-left">
+      <div class="ent-logo">🏢</div>
+      <div class="ent-title-block">
+        <div class="ent-title">企業主控台</div>
+        <div class="ent-sub">數位名片管理系統</div>
+      </div>
+      <div class="company-badge" id="companyBadge">載入中…</div>
+    </div>
+    <nav class="header-nav">
+      <a href="admin.html" class="nav-link">後台管理</a>
+      <a href="settings.html" class="nav-link">設定</a>
+    </nav>
+  </header>
+
+  <div class="container">
+
+    <!-- 統計列 -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-label">總員工數</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value" id="statActive">—</div>
+        <div class="stat-label">啟用中</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🚫</div>
+        <div class="stat-value" id="statOff">—</div>
+        <div class="stat-label">已停用</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📡</div>
+        <div class="stat-value" id="statNfc">—</div>
+        <div class="stat-label">NFC 已綁定</div>
+      </div>
+    </div>
+
+    <!-- 工具列 -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchQ" placeholder="搜尋姓名、職稱…" oninput="applyFilters()">
+      </div>
+      <select class="filter-sel" id="deptSel" onchange="applyFilters()">
+        <option value="">全部部門</option>
+      </select>
+      <select class="filter-sel" id="nfcSel" onchange="applyFilters()">
+        <option value="">NFC 全部</option>
+        <option value="unbound">未綁定</option>
+        <option value="bound">已綁定</option>
+        <option value="disabled">已停用</option>
+        <option value="lost">遺失</option>
+      </select>
+      <select class="filter-sel" id="statusSel" onchange="applyFilters()">
+        <option value="">全部狀態</option>
+        <option value="active">啟用中</option>
+        <option value="off">已停用</option>
+      </select>
+      <button class="btn btn-outline" onclick="reloadData()" id="reloadBtn">↻ 重整</button>
+      <button class="btn btn-green" onclick="exportCSV()">⬇ 匯出 CSV</button>
+    </div>
+
+    <div class="result-info" id="resultInfo"></div>
+
+    <!-- 桌機表格 -->
+    <div class="table-wrap" id="tableWrap">
+      <div class="loading-row" id="tblLoading">
+        <div class="spinner"></div>
+        載入員工資料中…
+      </div>
+      <table class="emp-table" id="empTable" style="display:none">
+        <thead>
+          <tr>
+            <th>姓名 / 職稱</th>
+            <th>部門</th>
+            <th>狀態</th>
+            <th>NFC 狀態</th>
+            <th>最後瀏覽</th>
+            <th style="text-align:center">次數</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="empTbody"></tbody>
+      </table>
+      <div class="empty-state" id="tblEmpty" style="display:none">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-text">無符合條件的員工</div>
+      </div>
+    </div>
+
+    <!-- 手機卡片 -->
+    <div class="emp-cards" id="empCards"></div>
+
+  </div>
+</div>
+
+<!-- ══ 停用確認 Modal ═══════════════════════════ -->
+<div class="modal-overlay" id="disableModal">
+  <div class="modal">
+    <div class="modal-title">停用員工名片</div>
+    <div class="modal-desc" id="disableDesc">此操作將停用該員工的數位名片，NFC 掃描後將顯示停用提示頁。</div>
+    <label>停用原因（選填）</label>
+    <input type="text" id="disableReason" placeholder="例如：員工離職">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeDisableModal()">取消</button>
+      <button class="btn btn-red" id="disableOkBtn" onclick="confirmDisable()">確認停用</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NFC 移交 Modal ═══════════════════════════ -->
+<div class="modal-overlay" id="transferModal">
+  <div class="modal">
+    <div class="modal-title">📡 NFC 移交</div>
+    <div class="modal-desc" id="transferDesc"></div>
+    <label>移交給（選擇員工）</label>
+    <select id="transferTarget"></select>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeTransferModal()">取消</button>
+      <button class="btn btn-green" id="transferOkBtn" onclick="confirmTransfer()">確認移交</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NFC 下拉選單 ══════════════════════════════ -->
+<div class="nfc-overlay" id="nfcOverlay" onclick="closeNfcMenu()"></div>
+<div class="nfc-menu" id="nfcMenu">
+  <div class="nfc-item" onclick="doNfcBound()">✅ 標記已綁定</div>
+  <div class="nfc-item danger" onclick="doNfcDisable()">🚫 標記停用</div>
+  <div class="nfc-item danger" onclick="doNfcLost()">⚠️ 標記遺失</div>
+  <div class="nfc-item" onclick="doNfcTransfer()">🔄 移交給其他員工…</div>
+</div>
+
+<!-- ══ Toast ════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+<script src="supabase.min.js"></script>
+<script src="cloud.js?v=20260610e"></script>
+<script>
+/* ────────────────────────────────────────────
+   狀態變數
+──────────────────────────────────────────── */
+let allEmps = [];          // 全部員工（原始資料）
+let shown   = [];          // 篩選後顯示的員工
+let adminCompany = '';     // 管理員的公司（空 = 超管）
+let disableTarget  = null; // { userId }
+let nfcTarget      = null; // { userId }
+let transferFrom   = null; // { userId }
+let toastTid       = null;
+
+/* ────────────────────────────────────────────
+   初始化
+──────────────────────────────────────────── */
+async function init() {
+  try { await UVACO_CLOUD.requireAuth(); }
+  catch { location.href = 'auth.html?next=enterprise.html'; return; }
+
+  const admin = await UVACO_CLOUD.isAdmin();
+  if (!admin || !admin.isAdmin) {
+    hide('pageLoading');
+    show('accessDenied', 'flex');
+    return;
+  }
+
+  adminCompany = admin.managedCompany || '';
+  document.getElementById('companyBadge').textContent =
+    adminCompany ? `🏢 ${adminCompany}` : '🌐 所有公司';
+
+  hide('pageLoading');
+  show('mainContent');
+  await loadEmps();
+}
+
+/* ────────────────────────────────────────────
+   載入員工
+──────────────────────────────────────────── */
+async function loadEmps() {
+  showTableLoading(true);
+  const reloadBtn = document.getElementById('reloadBtn');
+  reloadBtn.disabled = true;
+
+  try {
+    const { rows } = await UVACO_CLOUD.getAllCardsAdmin();
+    const ids = (rows || []).map(r => r.user_id);
+    let statsMap = new Map();
+    if (ids.length) statsMap = await UVACO_CLOUD.getCardViewSummariesForAdmin(ids);
+
+    allEmps = (rows || []).map(r => ({
+      ...r,
+      openCount:    statsMap.get(r.user_id)?.openCount    || 0,
+      lastOpenedAt: statsMap.get(r.user_id)?.lastOpenedAt || null,
+      // 相容舊資料：若 nfc_status 未設定，依 nfc_card_id 補推
+      nfc_status: r.nfc_status || (r.nfc_card_id ? 'bound' : 'unbound')
+    }));
+
+    updateStats();
+    rebuildDeptFilter();
+    applyFilters();
+  } catch (e) {
+    console.error('[Enterprise] loadEmps:', e);
+    toast('載入員工資料失敗', 'error');
+  } finally {
+    showTableLoading(false);
+    reloadBtn.disabled = false;
+  }
+}
+
+async function reloadData() { await loadEmps(); }
+
+/* ────────────────────────────────────────────
+   統計
+──────────────────────────────────────────── */
+function updateStats() {
+  setText('statTotal',  allEmps.length);
+  setText('statActive', allEmps.filter(e => !e.admin_disabled).length);
+  setText('statOff',    allEmps.filter(e =>  e.admin_disabled).length);
+  setText('statNfc',    allEmps.filter(e => e.nfc_status === 'bound').length);
+}
+
+/* ────────────────────────────────────────────
+   部門篩選
+──────────────────────────────────────────── */
+function rebuildDeptFilter() {
+  const sel  = document.getElementById('deptSel');
+  const prev = sel.value;
+  const depts = [...new Set(allEmps.map(e => e.department || '').filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">全部部門</option>' +
+    depts.map(d => `<option${prev===d?' selected':''}>${esc(d)}</option>`).join('');
+}
+
+/* ────────────────────────────────────────────
+   篩選 & 渲染
+──────────────────────────────────────────── */
+function applyFilters() {
+  const q      = document.getElementById('searchQ').value.trim().toLowerCase();
+  const dept   = document.getElementById('deptSel').value;
+  const nfcF   = document.getElementById('nfcSel').value;
+  const statF  = document.getElementById('statusSel').value;
+
+  shown = allEmps.filter(e => {
+    if (q    && !`${e.name||''} ${e.title||''}`.toLowerCase().includes(q)) return false;
+    if (dept && (e.department||'') !== dept)   return false;
+    if (nfcF && e.nfc_status !== nfcF)         return false;
+    if (statF === 'active' && e.admin_disabled) return false;
+    if (statF === 'off'    && !e.admin_disabled) return false;
+    return true;
+  });
+
+  const n = shown.length, t = allEmps.length;
+  document.getElementById('resultInfo').textContent =
+    `共 ${n} 位員工` + (n < t ? `（全部 ${t} 位）` : '');
+
+  renderTable();
+  renderCards();
+}
+
+/* ────────────────────────────────────────────
+   渲染 - 桌機表格
+──────────────────────────────────────────── */
+function renderTable() {
+  const tbody = document.getElementById('empTbody');
+  const table = document.getElementById('empTable');
+  const empty = document.getElementById('tblEmpty');
+
+  if (!shown.length) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  table.style.display = 'table';
+  empty.style.display = 'none';
+
+  tbody.innerHTML = shown.map(e => {
+    const uid  = e.user_id;
+    const dName = esc(e.name || '（未填姓名）');
+    const dTitle = esc(e.title || '');
+    const dDept  = esc(e.department || '');
+    const isOff  = !!e.admin_disabled;
+    const nfcSt  = e.nfc_status || 'unbound';
+    const hasNfc = !!e.nfc_card_id;
+
+    return `<tr class="${isOff ? 'row-disabled' : ''}">
+      <td>
+        <div class="cell-name">${dName}</div>
+        ${dTitle ? `<div class="cell-title">${dTitle}</div>` : ''}
+      </td>
+      <td style="font-size:12px;color:var(--text-dim)">${dDept || '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td>${statusBadge(isOff)}</td>
+      <td>${nfcBadge(nfcSt)}</td>
+      <td style="font-size:11px;color:var(--text-dim);white-space:nowrap">${fmtDate(e.lastOpenedAt)}</td>
+      <td style="font-size:12px;text-align:center">${e.openCount || 0}</td>
+      <td>
+        <div class="ops-cell">
+          ${isOff
+            ? `<button class="btn btn-sm btn-green" onclick="quickEnable('${uid}')">啟用</button>`
+            : `<button class="btn btn-sm btn-red"   onclick="openDisable('${uid}')">停用</button>`}
+          ${hasNfc
+            ? `<button class="btn btn-sm btn-outline" onclick="openNfcMenu('${uid}',this)">NFC ▾</button>`
+            : `<span style="font-size:10px;color:var(--text-muted);padding:0 3px">無NFC</span>`}
+          <a href="card.html?id=${uid}" target="_blank" class="btn btn-sm btn-outline">查看</a>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ────────────────────────────────────────────
+   渲染 - 手機卡片
+──────────────────────────────────────────── */
+function renderCards() {
+  const box = document.getElementById('empCards');
+  if (!shown.length) {
+    box.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">無符合條件的員工</div></div>';
+    return;
+  }
+  box.innerHTML = shown.map(e => {
+    const uid    = e.user_id;
+    const dName  = esc(e.name || '（未填姓名）');
+    const dTitle = esc(e.title || '');
+    const dDept  = esc(e.department || '');
+    const isOff  = !!e.admin_disabled;
+    const nfcSt  = e.nfc_status || 'unbound';
+    const hasNfc = !!e.nfc_card_id;
+    const meta   = [dTitle, dDept].filter(Boolean).join(' · ');
+
+    return `<div class="emp-card ${isOff ? 'row-disabled' : ''}">
+      <div class="emp-card-top">
+        <div>
+          <div class="emp-card-name">${dName}</div>
+          ${meta ? `<div class="emp-card-meta">${meta}</div>` : ''}
+        </div>
+        ${statusBadge(isOff)}
+      </div>
+      <div class="emp-card-badges">${nfcBadge(nfcSt)}</div>
+      <div class="emp-card-stat">
+        ${e.openCount ? `瀏覽 ${e.openCount} 次` : '尚無瀏覽紀錄'}
+        ${e.lastOpenedAt ? ` · 最後：${fmtDate(e.lastOpenedAt)}` : ''}
+      </div>
+      <div class="emp-card-ops">
+        ${isOff
+          ? `<button class="btn btn-sm btn-green" onclick="quickEnable('${uid}')">啟用</button>`
+          : `<button class="btn btn-sm btn-red"   onclick="openDisable('${uid}')">停用</button>`}
+        ${hasNfc ? `<button class="btn btn-sm btn-outline" onclick="openNfcMenu('${uid}',this)">NFC ▾</button>` : ''}
+        <a href="card.html?id=${uid}" target="_blank" class="btn btn-sm btn-outline">查看名片</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ────────────────────────────────────────────
+   Badge 工廠
+──────────────────────────────────────────── */
+function statusBadge(isOff) {
+  return isOff
+    ? '<span class="badge badge-disabled"><span class="dot"></span>停用</span>'
+    : '<span class="badge badge-active"><span class="dot"></span>啟用</span>';
+}
+
+function nfcBadge(st) {
+  const map = {
+    unbound:  ['badge-nfc-unbound',  '未綁定'],
+    bound:    ['badge-nfc-bound',    '已綁定'],
+    disabled: ['badge-nfc-disabled', '已停用'],
+    lost:     ['badge-nfc-lost',     '遺失'],
+  };
+  const [cls, label] = map[st] || map.unbound;
+  return `<span class="badge ${cls}"><span class="dot"></span>${label}</span>`;
+}
+
+/* ────────────────────────────────────────────
+   停用 / 啟用
+──────────────────────────────────────────── */
+function openDisable(userId) {
+  const emp = findEmp(userId);
+  disableTarget = { userId };
+  document.getElementById('disableDesc').textContent =
+    `即將停用「${emp?.name || '此員工'}」的數位名片，NFC 掃描後將顯示停用提示。`;
+  document.getElementById('disableReason').value = '';
+  document.getElementById('disableModal').classList.add('open');
+}
+
+function closeDisableModal() {
+  document.getElementById('disableModal').classList.remove('open');
+  disableTarget = null;
+}
+
+async function confirmDisable() {
+  if (!disableTarget) return;
+  const { userId } = disableTarget;
+  const name   = findEmp(userId)?.name || '此員工';
+  const reason = document.getElementById('disableReason').value.trim();
+  const btn    = document.getElementById('disableOkBtn');
+  btn.disabled = true; btn.textContent = '停用中…';
+  try {
+    await UVACO_CLOUD.disableEmployeeCard(userId, reason);
+    closeDisableModal();
+    toast(`已停用「${name}」的名片`, 'success');
+    await loadEmps();
+  } catch (e) {
+    toast('停用失敗：' + (e.message || e), 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '確認停用';
+  }
+}
+
+async function quickEnable(userId) {
+  const name = findEmp(userId)?.name || '此員工';
+  try {
+    await UVACO_CLOUD.enableEmployeeCard(userId);
+    toast(`已啟用「${name}」的名片`, 'success');
+    await loadEmps();
+  } catch (e) {
+    toast('啟用失敗：' + (e.message || e), 'error');
+  }
+}
+
+/* ────────────────────────────────────────────
+   NFC 下拉選單
+──────────────────────────────────────────── */
+function openNfcMenu(userId, btn) {
+  nfcTarget    = { userId };
+  transferFrom = { userId };
+  const menu    = document.getElementById('nfcMenu');
+  const overlay = document.getElementById('nfcOverlay');
+  const rect    = btn.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 5) + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 170) + 'px';
+  menu.classList.add('open');
+  overlay.classList.add('open');
+}
+
+function closeNfcMenu() {
+  document.getElementById('nfcMenu').classList.remove('open');
+  document.getElementById('nfcOverlay').classList.remove('open');
+}
+
+async function doNfcAction(status) {
+  closeNfcMenu();
+  if (!nfcTarget) return;
+  const { userId } = nfcTarget;
+  const name = findEmp(userId)?.name || '此員工';
+  const labels = { bound:'已綁定', disabled:'停用', lost:'遺失' };
+  try {
+    await UVACO_CLOUD.updateNfcStatus(userId, status);
+    toast(`已標記「${name}」的 NFC 為${labels[status] || status}`, 'success');
+    await loadEmps();
+  } catch (e) { toast('操作失敗：' + (e.message || e), 'error'); }
+}
+
+function doNfcBound()    { doNfcAction('bound');    }
+function doNfcDisable()  { doNfcAction('disabled'); }
+function doNfcLost()     { doNfcAction('lost');     }
+function doNfcTransfer() {
+  closeNfcMenu();
+  if (!transferFrom) return;
+  const { userId } = transferFrom;
+  const name = findEmp(userId)?.name || userId;
+  openTransfer(userId, name);
+}
+
+/* ────────────────────────────────────────────
+   NFC 移交
+──────────────────────────────────────────── */
+function openTransfer(fromId, fromName) {
+  const targets = allEmps.filter(e =>
+    e.user_id !== fromId &&
+    (!e.nfc_card_id || e.nfc_status === 'unbound')
+  );
+  if (!targets.length) { toast('目前沒有可接收 NFC 的員工', 'error'); return; }
+
+  const sel = document.getElementById('transferTarget');
+  sel.innerHTML = targets.map(e =>
+    `<option value="${esc(e.user_id)}">${esc(e.name || e.user_id)}${e.title ? ` (${esc(e.title)})` : ''}</option>`
+  ).join('');
+
+  document.getElementById('transferDesc').textContent =
+    `將「${fromName}」的 NFC 實體卡移交給：`;
+  transferFrom = { userId: fromId, name: fromName };
+  document.getElementById('transferModal').classList.add('open');
+}
+
+function closeTransferModal() {
+  document.getElementById('transferModal').classList.remove('open');
+  transferFrom = null;
+}
+
+async function confirmTransfer() {
+  if (!transferFrom) return;
+  const toId   = document.getElementById('transferTarget').value;
+  const toName = findEmp(toId)?.name || toId;
+  const btn    = document.getElementById('transferOkBtn');
+  btn.disabled = true; btn.textContent = '移交中…';
+  try {
+    await UVACO_CLOUD.transferNfcCard(transferFrom.userId, toId);
+    closeTransferModal();
+    toast(`NFC 已移交給「${toName}」`, 'success');
+    await loadEmps();
+  } catch (e) {
+    toast('移交失敗：' + (e.message || e), 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '確認移交';
+  }
+}
+
+/* ────────────────────────────────────────────
+   匯出 CSV
+──────────────────────────────────────────── */
+function exportCSV() {
+  const data = shown.length ? shown : allEmps;
+  if (!data.length) { toast('沒有資料可匯出', 'error'); return; }
+
+  const nfcLabel = { unbound:'未綁定', bound:'已綁定', disabled:'已停用', lost:'遺失' };
+  const hdrs = ['姓名','職稱','部門','公司','Email','電話','員工狀態','NFC狀態','NFC_ID','最後瀏覽時間','瀏覽次數'];
+  const rows = data.map(e => [
+    e.name    || '',
+    e.title   || '',
+    e.department || '',
+    e.company || '',
+    e.email   || '',
+    e.phone   || '',
+    e.admin_disabled ? '已停用' : '啟用中',
+    nfcLabel[e.nfc_status] || '未綁定',
+    e.nfc_card_id || '',
+    e.lastOpenedAt ? new Date(e.lastOpenedAt).toLocaleString('zh-TW') : '',
+    e.openCount || 0
+  ]);
+
+  const csv = '﻿' + [hdrs, ...rows]
+    .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+    .join('\r\n');
+
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  const a   = document.createElement('a');
+  a.href = url;
+  a.download = `企業名片_${adminCompany || '全部'}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`已匯出 ${data.length} 筆員工資料`, 'success');
+}
+
+/* ────────────────────────────────────────────
+   Toast
+──────────────────────────────────────────── */
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'toast show ' + type;
+  clearTimeout(toastTid);
+  toastTid = setTimeout(() => { el.className = 'toast'; }, 3200);
+}
+
+/* ────────────────────────────────────────────
+   工具函式
+──────────────────────────────────────────── */
+function findEmp(userId) { return allEmps.find(e => e.user_id === userId) || null; }
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d    = new Date(iso);
+  const diff = Date.now() - d;
+  if (diff < 60000)     return '剛剛';
+  if (diff < 3600000)   return `${Math.floor(diff/60000)} 分前`;
+  if (diff < 86400000)  return `${Math.floor(diff/3600000)} 時前`;
+  if (diff < 604800000) return `${Math.floor(diff/86400000)} 天前`;
+  return d.toLocaleDateString('zh-TW', { month:'short', day:'numeric' });
+}
+
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function show(id, display='block') { document.getElementById(id).style.display = display; }
+function hide(id)                  { document.getElementById(id).style.display = 'none'; }
+function setText(id, val)          { document.getElementById(id).textContent = val; }
+
+function showTableLoading(on) {
+  document.getElementById('tblLoading').style.display = on ? 'block' : 'none';
+  if (on) {
+    document.getElementById('empTable').style.display = 'none';
+    document.getElementById('tblEmpty').style.display = 'none';
+    document.getElementById('empCards').innerHTML = '';
+  }
+}
+
+/* 點擊 Modal 背景關閉 */
+document.getElementById('disableModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDisableModal();
+});
+document.getElementById('transferModal').addEventListener('click', function(e) {
+  if (e.target === this) closeTransferModal();
+});
+
+/* ESC 關閉 */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeDisableModal();
+    closeTransferModal();
+    closeNfcMenu();
+  }
+});
+
+/* ────────────────────────────────────────────
+   啟動
+──────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

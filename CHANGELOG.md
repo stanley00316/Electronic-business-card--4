@@ -1,5 +1,34 @@
 # 變更紀錄
 
+## 2026-06-10（企業管理系統 Phase 1）
+
+### 新功能（企業管理後台）
+
+- **新增 `enterprise.html`（企業主控台）**：企業管理員專屬的員工名片儀表板，可查看全公司員工姓名、職稱、部門、啟用狀態、NFC 狀態、瀏覽次數。支援搜尋、部門/NFC/狀態篩選、批次匯出 CSV（含 UTF-8 BOM 支援 Excel 中文）。
+- **員工停用功能**：管理員可一鍵停用（含填寫停用原因）或重新啟用員工名片，獨立於訂閱的 `is_visible`，不影響現有訂閱邏輯。停用後 NFC 網址不變，但名片頁顯示「此名片已停用」提示頁（含公司名稱與官網連結）。
+- **NFC 狀態管理**：新增 `nfc_status` 欄位（未綁定 / 已綁定 / 已停用 / 遺失），管理員可透過下拉選單切換狀態，已有 NFC 的名片自動補標 `bound`。
+- **NFC 一鍵移交**：離職員工的 NFC 卡可直接移交給指定新員工，解除來源綁定並同步更新目標員工狀態，移交失敗自動回滾。
+- **`card.html` 停用提示頁**：名片被管理員停用（`admin_disabled = true`）時，NFC 掃描仍導到同一個網址，但顯示「此名片已停用」頁而非個人資料，避免離職員工資訊外流。
+
+### 資料庫（需在 Supabase 執行 `enterprise-phase1.sql`）
+
+- `cards` 表新增欄位：`admin_disabled`、`admin_disabled_by`、`admin_disabled_at`、`admin_disabled_reason`、`nfc_status`、`department`
+- 新增 `trg_sync_nfc_status` trigger：設定 `nfc_card_id` 時自動同步 `nfc_status`
+- 現有已綁定 NFC 的名片自動補上 `nfc_status = 'bound'`
+
+### JS 新增函式（`js/cloud/admin-operations.js`）
+
+- `disableEmployeeCard(userId, reason)` — 停用員工名片
+- `enableEmployeeCard(userId)` — 重新啟用
+- `updateNfcStatus(userId, status)` — 手動更新 NFC 狀態
+- `transferNfcCard(fromUserId, toUserId)` — NFC 一鍵移交
+
+### 其他
+
+- `service-worker.js` CACHE_VERSION 升級為 `v1.23.0`，新增 `enterprise.html` 至快取清單
+
+---
+
 ## 2026-06-10
 
 ### 維護（低風險清理與免密登入）

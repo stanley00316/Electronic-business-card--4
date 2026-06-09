@@ -60,7 +60,11 @@ import {
   getAdminUsers,
   upsertAdminUser,
   deleteAdminUser,
-  adminUpdateCard
+  adminUpdateCard,
+  disableEmployeeCard,
+  enableEmployeeCard,
+  updateNfcStatus,
+  transferNfcCard
 } from './admin-operations.js';
 import { searchCards, uploadMyAsset, getSignedAssetUrl, upsertMyCard } from './search-storage.js';
 import {
@@ -153,6 +157,10 @@ window.UVACO_CLOUD = {
   upsertAdminUser,
   deleteAdminUser,
   adminUpdateCard,
+  disableEmployeeCard,
+  enableEmployeeCard,
+  updateNfcStatus,
+  transferNfcCard,
 
   uploadMyAsset,
   getSignedAssetUrl,

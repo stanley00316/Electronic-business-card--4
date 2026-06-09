@@ -200,6 +200,15 @@
   </div>
 </div>
 
+<!-- 名片已停用提示（管理員停用時顯示，NFC 網址不變） -->
+<div id="cardDisabledPage" style="display:none; min-height:100vh; align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:40px 24px; gap:16px;">
+  <div style="font-size:64px; line-height:1;">🚫</div>
+  <h1 id="disabledCompanyName" style="font-size:20px; font-weight:700; color:#fff; margin:0;"></h1>
+  <h2 style="font-size:16px; font-weight:600; color:#9ca3af; margin:0;">此名片已停用</h2>
+  <p id="disabledHint" style="font-size:13px; color:#6b7280; max-width:260px; line-height:1.6;"></p>
+  <a id="disabledWebsiteLink" href="#" style="display:none; margin-top:8px; padding:10px 24px; background:#22c55e; color:#fff; border-radius:10px; text-decoration:none; font-size:14px; font-weight:600;">前往公司官網</a>
+</div>
+
 <!-- 背景泡泡 -->
 <div class="bg-blob blob1"></div>
 <div class="bg-blob blob2"></div>
@@ -612,6 +621,30 @@ document.addEventListener('DOMContentLoaded', function () {
       const card = res?.card || null;
       if (!card) {
         alert('找不到名片資料');
+        return;
+      }
+
+      // 管理員已停用此名片 → 顯示停用提示頁，不顯示個人資訊
+      if (card.admin_disabled) {
+        let pjTemp = card.profile_json;
+        if (typeof pjTemp === 'string') { try { pjTemp = JSON.parse(pjTemp); } catch(e) { pjTemp = null; } }
+        pjTemp = (pjTemp && typeof pjTemp === 'object') ? pjTemp : {};
+
+        const company = card.company || '';
+        const website = pjTemp.companyWebsite || pjTemp.website || '';
+
+        document.getElementById('disabledCompanyName').textContent = company || '此名片已停用';
+        document.getElementById('disabledHint').textContent =
+          company ? `如需聯絡，請洽公司：${company}` : '此員工的數位名片已由公司管理員停用。';
+
+        if (website) {
+          const link = document.getElementById('disabledWebsiteLink');
+          link.href = website.startsWith('http') ? website : 'https://' + website;
+          link.style.display = 'inline-block';
+        }
+
+        document.getElementById('cardDisabledPage').style.display = 'flex';
+        document.getElementById('addHomeBanner').style.display = 'none';
         return;
       }
 

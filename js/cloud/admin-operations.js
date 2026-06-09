@@ -172,6 +172,134 @@ export async function deleteAdminUser(targetUserId) {
   return true;
 }
 
+// 停用員工名片（人工停用，獨立於訂閱 is_visible）
+export async function disableEmployeeCard(userId, reason) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
+
+  // 企業管理員：確認員工屬於自己公司
+  if (adminStatus.managedCompany) {
+    const { data: targetCard } = await ctx.client
+      .from('cards').select('company').eq('user_id', userId).maybeSingle();
+    const targetCompany = targetCard?.company || '';
+    if (!targetCompany.toLowerCase().includes(adminStatus.managedCompany.toLowerCase())) {
+      throw new Error('PERMISSION_DENIED_COMPANY_MISMATCH');
+    }
+  }
+
+  const { error } = await ctx.client
+    .from('cards')
+    .update({
+      admin_disabled: true,
+      admin_disabled_by: ctx.userId,
+      admin_disabled_at: new Date().toISOString(),
+      admin_disabled_reason: String(reason || '').trim() || null
+    })
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  return true;
+}
+
+// 重新啟用員工名片
+export async function enableEmployeeCard(userId) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
+
+  if (adminStatus.managedCompany) {
+    const { data: targetCard } = await ctx.client
+      .from('cards').select('company').eq('user_id', userId).maybeSingle();
+    const targetCompany = targetCard?.company || '';
+    if (!targetCompany.toLowerCase().includes(adminStatus.managedCompany.toLowerCase())) {
+      throw new Error('PERMISSION_DENIED_COMPANY_MISMATCH');
+    }
+  }
+
+  const { error } = await ctx.client
+    .from('cards')
+    .update({
+      admin_disabled: false,
+      admin_disabled_by: null,
+      admin_disabled_at: null,
+      admin_disabled_reason: null
+    })
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  return true;
+}
+
+// 更新 NFC 狀態（不動 nfc_card_id，只改 nfc_status）
+// status 可為 'disabled'（停用）或 'lost'（遺失）或 'bound'（重新啟用）
+export async function updateNfcStatus(userId, status) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
+
+  const allowed = ['unbound', 'bound', 'disabled', 'lost'];
+  if (!allowed.includes(status)) throw new Error('INVALID_NFC_STATUS');
+
+  const { error } = await ctx.client
+    .from('cards')
+    .update({ nfc_status: status })
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  return true;
+}
+
+// NFC 一鍵移交（離職員工 → 新員工）
+export async function transferNfcCard(fromUserId, toUserId) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
+
+  // 讀取來源員工的 NFC ID
+  const { data: fromCard, error: readErr } = await ctx.client
+    .from('cards')
+    .select('nfc_card_id')
+    .eq('user_id', fromUserId)
+    .maybeSingle();
+
+  if (readErr) throw readErr;
+  if (!fromCard?.nfc_card_id) throw new Error('FROM_USER_HAS_NO_NFC');
+
+  const nfcId = fromCard.nfc_card_id;
+
+  // 先解除來源員工的綁定
+  const { error: err1 } = await ctx.client
+    .from('cards')
+    .update({ nfc_card_id: null, nfc_status: 'unbound' })
+    .eq('user_id', fromUserId);
+  if (err1) throw err1;
+
+  // 再綁定給目標員工
+  const { error: err2 } = await ctx.client
+    .from('cards')
+    .update({ nfc_card_id: nfcId, nfc_status: 'bound' })
+    .eq('user_id', toUserId);
+  if (err2) {
+    // 移交失敗時回滾（把 NFC 還給原員工）
+    await ctx.client
+      .from('cards')
+      .update({ nfc_card_id: nfcId, nfc_status: 'bound' })
+      .eq('user_id', fromUserId);
+    throw err2;
+  }
+
+  return true;
+}
+
 // 管理員更新名片（給 edit.html 的 adminMode 用）
 export async function adminUpdateCard(targetUserId, payload) {
   const ctx = await getAuthContext();
