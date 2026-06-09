@@ -341,7 +341,6 @@ async function reloadData() {
     allCards  = cardResult.rows || [];
     updateStats();
     renderAdminList();
-    renderPickerList('');    // 預先填充人員清單
   } catch (e) {
     console.error('載入失敗:', e);
     showListError('載入失敗：' + (e.message || e));
@@ -401,11 +400,17 @@ function renderAdminList() {
 /* ── 人員選擇器 ────────────────────────── */
 function renderPickerList(q) {
   const dropdown = document.getElementById('pickerDropdown');
-  document.getElementById('pickerLoading').style.display = 'none';
+  if (!dropdown) return;
 
-  const lower = q.toLowerCase();
+  // 還沒載入完成
+  if (!allCards.length) {
+    dropdown.innerHTML = '<div class="picker-loading">載入人員中…</div>';
+    return;
+  }
+
+  const lower = (q || '').toLowerCase();
   const filtered = allCards.filter(c =>
-    !q ||
+    !lower ||
     (c.name    || '').toLowerCase().includes(lower) ||
     (c.company || '').toLowerCase().includes(lower) ||
     (c.title   || '').toLowerCase().includes(lower)
