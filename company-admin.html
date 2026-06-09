@@ -167,6 +167,45 @@
       font-size: 14px;
     }
     
+    /* 人員選擇器 */
+    .user-picker { position: relative; }
+    .user-picker-dropdown {
+      position: absolute;
+      top: calc(100% + 4px); left: 0; right: 0;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 10px;
+      max-height: 260px;
+      overflow-y: auto;
+      z-index: 200;
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    }
+    .picker-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid #333;
+      transition: background .1s;
+    }
+    .picker-item:last-child { border-bottom: none; }
+    .picker-item:hover { background: rgba(255,255,255,.05); }
+    .picker-item.is-selected { background: rgba(34,197,94,.1); }
+    .picker-item.is-admin { opacity: .5; cursor: not-allowed; }
+    .picker-name { font-size: 13px; font-weight: 600; color: #fff; }
+    .picker-meta { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .picker-empty { padding: 14px; text-align: center; color: #6b7280; font-size: 13px; }
+    .picker-loading { padding: 14px; text-align: center; color: #9ca3af; font-size: 13px; }
+    .selected-hint {
+      font-size: 12px;
+      margin-top: 6px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(34,197,94,.1);
+      border: 1px solid rgba(34,197,94,.2);
+      color: #4ade80;
+      display: none;
+    }
+    .admin-name { font-weight: 600; color: #e5e7eb; font-size: 13px; }
+
     /* 權限警告 */
     .access-denied {
       text-align: center;
@@ -225,9 +264,19 @@
     <div id="addFormMsg"></div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">用戶 ID *</label>
-        <input type="text" class="form-input" id="newAdminUserId" placeholder="貼上用戶的 User ID">
-        <div class="form-hint">可在用戶的「設定」頁面找到 User ID</div>
+        <label class="form-label">選擇用戶 *</label>
+        <div class="user-picker" id="userPickerWrap">
+          <input type="text" class="form-input" id="pickerSearch"
+                 placeholder="輸入姓名、公司、職稱搜尋…"
+                 oninput="onPickerInput()"
+                 onfocus="openPicker()"
+                 onblur="closePicker()"
+                 autocomplete="off">
+          <div class="user-picker-dropdown" id="pickerDropdown" style="display:none">
+            <div class="picker-loading" id="pickerLoading">載入人員中…</div>
+          </div>
+        </div>
+        <div class="selected-hint" id="selectedHint"></div>
       </div>
       <div class="form-group">
         <label class="form-label">管理公司</label>
@@ -253,32 +302,24 @@
 
 <script>
 let allAdmins = [];
+let allCards  = [];        // 全部名片人員（供搜尋選擇用）
 let isSuperAdmin = false;
+let selectedUserId = '';   // 選擇器目前選中的 user_id
 
-// 頁面初始化
+/* ── 頁面初始化 ────────────────────────── */
 async function init() {
   if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
     showError('系統尚未設定，請先設定 cloud.js');
     return;
   }
-  
-  // 檢查是否為超級管理員（需在 admin_allowlist 中才有權管理管理員）
   try {
     const adminStatus = await UVACO_CLOUD.isAdmin();
-    if (!adminStatus || !adminStatus.isAdmin) {
+    if (!adminStatus || !adminStatus.isAdmin || !adminStatus.canManageAdmins) {
       document.getElementById('accessDenied').style.display = 'block';
       return;
     }
-    
-    // 檢查是否有權管理管理員（需在 admin_allowlist 中）
-    if (!adminStatus.canManageAdmins) {
-      document.getElementById('accessDenied').style.display = 'block';
-      return;
-    }
-    
     isSuperAdmin = true;
     document.getElementById('mainContent').style.display = 'block';
-    
     await reloadData();
   } catch (e) {
     console.error('初始化失敗:', e);
@@ -286,114 +327,168 @@ async function init() {
   }
 }
 
-// 重新載入資料
+/* ── 重新載入 ──────────────────────────── */
 async function reloadData() {
   if (!isSuperAdmin) return;
-  
   try {
     document.getElementById('adminList').innerHTML = '<div class="loading">載入中...</div>';
-    
-    const result = await UVACO_CLOUD.getAdminUsers();
-    allAdmins = result.admins || [];
-    
+    // 同時拉管理員列表 + 全部名片人員
+    const [admResult, cardResult] = await Promise.all([
+      UVACO_CLOUD.getAdminUsers(),
+      UVACO_CLOUD.getAllCardsAdmin()
+    ]);
+    allAdmins = admResult.rows  || [];   // 修正：原 result.admins → result.rows
+    allCards  = cardResult.rows || [];
     updateStats();
     renderAdminList();
+    renderPickerList('');    // 預先填充人員清單
   } catch (e) {
-    console.error('載入管理員列表失敗:', e);
+    console.error('載入失敗:', e);
     showListError('載入失敗：' + (e.message || e));
   }
 }
 
-// 更新統計數字
+/* ── 統計 ──────────────────────────────── */
 function updateStats() {
-  const total = allAdmins.length;
-  const superCount = allAdmins.filter(a => !a.managed_company).length;
-  const companyCount = allAdmins.filter(a => a.managed_company).length;
-  
-  document.getElementById('statTotal').textContent = total;
-  document.getElementById('statSuper').textContent = superCount;
-  document.getElementById('statCompany').textContent = companyCount;
+  document.getElementById('statTotal').textContent   = allAdmins.length;
+  document.getElementById('statSuper').textContent   = allAdmins.filter(a => !a.target_company).length;
+  document.getElementById('statCompany').textContent = allAdmins.filter(a =>  a.target_company).length;
 }
 
-// 渲染管理員列表
+/* ── 渲染管理員列表（顯示姓名）──────────── */
 function renderAdminList() {
   const container = document.getElementById('adminList');
-  
-  if (allAdmins.length === 0) {
+  if (!allAdmins.length) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">👤</div>
         <div class="empty-state-text">尚未設定任何管理員</div>
-      </div>
-    `;
+      </div>`;
     return;
   }
-  
-  // 排序：超級管理員在前，企業管理員按公司名排序
   const sorted = [...allAdmins].sort((a, b) => {
-    if (!a.managed_company && b.managed_company) return -1;
-    if (a.managed_company && !b.managed_company) return 1;
-    return (a.managed_company || '').localeCompare(b.managed_company || '');
+    if (!a.target_company && b.target_company) return -1;
+    if ( a.target_company && !b.target_company) return  1;
+    return (a.target_company || '').localeCompare(b.target_company || '');
   });
-  
   container.innerHTML = sorted.map(admin => {
-    const isSuper = !admin.managed_company;
+    const isSuper   = !admin.target_company;
     const typeClass = isSuper ? 'super' : 'company';
-    const typeIcon = isSuper ? '👑' : '🏢';
-    const typeLabel = isSuper ? '超級管理員' : admin.managed_company;
-    const userId = admin.user_id || '';
-    const shortId = userId.length > 20 ? userId.substring(0, 8) + '...' + userId.substring(userId.length - 8) : userId;
-    
-    return `
-      <div class="admin-item">
-        <div class="admin-info">
-          <div class="admin-type ${typeClass}">
-            ${typeIcon} ${typeLabel}
-          </div>
-          <div class="admin-userid" title="${userId}">${shortId}</div>
-        </div>
-        <div class="admin-actions">
-          <button class="btn btn-outline" onclick="editAdmin('${userId}', '${(admin.managed_company || '').replace(/'/g, "\\'")}')">編輯</button>
-          <button class="btn btn-red" onclick="deleteAdmin('${userId}')">刪除</button>
-        </div>
+    const typeIcon  = isSuper ? '👑' : '🏢';
+    const typeLabel = isSuper ? '超級管理員' : esc(admin.target_company);
+    const userId    = admin.user_id || '';
+    const shortId   = userId.length > 20
+      ? userId.slice(0, 8) + '…' + userId.slice(-8)
+      : userId;
+    // 從 allCards 查姓名
+    const card = allCards.find(c => c.user_id === userId);
+    const displayName = card ? esc(card.name || '（未填姓名）') : '';
+
+    return `<div class="admin-item">
+      <div class="admin-info">
+        <div class="admin-type ${typeClass}">${typeIcon} ${typeLabel}</div>
+        ${displayName ? `<div class="admin-name">${displayName}</div>` : ''}
+        <div class="admin-userid" title="${userId}">${shortId}</div>
       </div>
-    `;
+      <div class="admin-actions">
+        <button class="btn btn-outline" onclick="editAdmin('${userId}','${(admin.target_company||'').replace(/'/g,"\\'")}')">編輯</button>
+        <button class="btn btn-red" onclick="deleteAdmin('${userId}')">刪除</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
-// 新增管理員
-async function addAdmin() {
-  const userId = document.getElementById('newAdminUserId').value.trim();
-  const company = document.getElementById('newAdminCompany').value.trim();
-  
-  if (!userId) {
-    showFormError('請輸入用戶 ID');
+/* ── 人員選擇器 ────────────────────────── */
+function renderPickerList(q) {
+  const dropdown = document.getElementById('pickerDropdown');
+  document.getElementById('pickerLoading').style.display = 'none';
+
+  const lower = q.toLowerCase();
+  const filtered = allCards.filter(c =>
+    !q ||
+    (c.name    || '').toLowerCase().includes(lower) ||
+    (c.company || '').toLowerCase().includes(lower) ||
+    (c.title   || '').toLowerCase().includes(lower)
+  );
+
+  if (!filtered.length) {
+    dropdown.innerHTML = '<div class="picker-empty">找不到符合的人員</div>';
     return;
   }
-  
-  // 驗證 UUID 格式
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    showFormError('用戶 ID 格式不正確，請確認是否為有效的 UUID');
-    return;
+
+  const adminIds = new Set(allAdmins.map(a => a.user_id));
+  dropdown.innerHTML = filtered.slice(0, 60).map(c => {
+    const isAlreadyAdmin = adminIds.has(c.user_id);
+    const meta = [c.title, c.company].filter(Boolean).join(' · ');
+    const cls  = [
+      'picker-item',
+      c.user_id === selectedUserId ? 'is-selected' : '',
+      isAlreadyAdmin ? 'is-admin' : ''
+    ].join(' ').trim();
+    const badge = isAlreadyAdmin ? ' <span style="font-size:10px;color:#f59e0b">（已是管理員）</span>' : '';
+    return `<div class="${cls}" onmousedown="pickUser('${c.user_id}')">
+      <div class="picker-name">${esc(c.name || '（未填姓名）')}${badge}</div>
+      ${meta ? `<div class="picker-meta">${esc(meta)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function onPickerInput() {
+  const q = document.getElementById('pickerSearch').value;
+  if (selectedUserId) {            // 輸入後清除已選
+    selectedUserId = '';
+    document.getElementById('selectedHint').style.display = 'none';
   }
-  
-  // 檢查是否已存在
+  renderPickerList(q);
+  document.getElementById('pickerDropdown').style.display = 'block';
+}
+
+function openPicker() {
+  renderPickerList(document.getElementById('pickerSearch').value);
+  document.getElementById('pickerDropdown').style.display = 'block';
+}
+
+function closePicker() {
+  // 延遲讓 mousedown 的 pickUser 先執行
+  setTimeout(() => {
+    document.getElementById('pickerDropdown').style.display = 'none';
+  }, 180);
+}
+
+function pickUser(userId) {
   if (allAdmins.some(a => a.user_id === userId)) {
     showFormError('此用戶已是管理員');
     return;
   }
-  
+  selectedUserId = userId;
+  const card = allCards.find(c => c.user_id === userId);
+  const displayName = card?.name || userId;
+  document.getElementById('pickerSearch').value = displayName;
+  const hint = document.getElementById('selectedHint');
+  hint.textContent = `✓ ${displayName}（ID: ${userId.slice(0,8)}…）`;
+  hint.style.display = 'block';
+  document.getElementById('pickerDropdown').style.display = 'none';
+}
+
+/* ── 新增管理員 ────────────────────────── */
+async function addAdmin() {
+  if (!selectedUserId) {
+    showFormError('請先從清單選擇一位用戶');
+    return;
+  }
+  if (allAdmins.some(a => a.user_id === selectedUserId)) {
+    showFormError('此用戶已是管理員');
+    return;
+  }
+  const company = document.getElementById('newAdminCompany').value.trim();
   try {
-    const result = await UVACO_CLOUD.upsertAdminUser(userId, company || null);
-    if (result.error) {
-      throw new Error(result.error.message || '新增失敗');
-    }
-    
+    await UVACO_CLOUD.upsertAdminUser(selectedUserId, company || null);
     showFormSuccess('管理員新增成功！');
-    document.getElementById('newAdminUserId').value = '';
+    // 重置選擇器
+    selectedUserId = '';
+    document.getElementById('pickerSearch').value = '';
+    document.getElementById('selectedHint').style.display = 'none';
     document.getElementById('newAdminCompany').value = '';
-    
     await reloadData();
   } catch (e) {
     console.error('新增管理員失敗:', e);
@@ -449,6 +544,11 @@ async function deleteAdmin(userId) {
     console.error('刪除管理員失敗:', e);
     alert('刪除失敗：' + (e.message || e));
   }
+}
+
+// HTML 跳脫（防 XSS）
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // 顯示表單錯誤
