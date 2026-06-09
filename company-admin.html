@@ -301,10 +301,11 @@
 </div>
 
 <script>
-let allAdmins = [];
-let allCards  = [];        // 全部名片人員（供搜尋選擇用）
-let isSuperAdmin = false;
+let allAdmins    = [];
+let cardNameCache = {};    // user_id → { name, title, company }（搜尋後快取，供管理員列表顯示姓名）
+let isSuperAdmin  = false;
 let selectedUserId = '';   // 選擇器目前選中的 user_id
+let pickerTimer   = null;  // 防抖計時器
 
 /* ── 頁面初始化 ────────────────────────── */
 async function init() {
@@ -327,18 +328,13 @@ async function init() {
   }
 }
 
-/* ── 重新載入 ──────────────────────────── */
+/* ── 重新載入（只拉管理員列表，名片人員改由搜尋取得）── */
 async function reloadData() {
   if (!isSuperAdmin) return;
   try {
     document.getElementById('adminList').innerHTML = '<div class="loading">載入中...</div>';
-    // 同時拉管理員列表 + 全部名片人員
-    const [admResult, cardResult] = await Promise.all([
-      UVACO_CLOUD.getAdminUsers(),
-      UVACO_CLOUD.getAllCardsAdmin()
-    ]);
-    allAdmins = admResult.rows  || [];   // 修正：原 result.admins → result.rows
-    allCards  = cardResult.rows || [];
+    const admResult = await UVACO_CLOUD.getAdminUsers();
+    allAdmins = admResult.rows || [];
     updateStats();
     renderAdminList();
   } catch (e) {
@@ -379,8 +375,8 @@ function renderAdminList() {
     const shortId   = userId.length > 20
       ? userId.slice(0, 8) + '…' + userId.slice(-8)
       : userId;
-    // 從 allCards 查姓名
-    const card = allCards.find(c => c.user_id === userId);
+    // 從快取查姓名（搜尋過才有，否則不顯示）
+    const card = cardNameCache[userId];
     const displayName = card ? esc(card.name || '（未填姓名）') : '';
 
     return `<div class="admin-item">
@@ -397,32 +393,32 @@ function renderAdminList() {
   }).join('');
 }
 
-/* ── 人員選擇器 ────────────────────────── */
-function renderPickerList(q) {
+/* ── 人員選擇器（資料來源：通訊錄 searchCards）── */
+
+// 使用 searchCards 查詢（與通訊錄邏輯一致），並快取結果供管理員列表顯示姓名
+async function fetchPickerCards(q) {
+  try {
+    const result = await UVACO_CLOUD.searchCards({ q: q || '', limit: 80 });
+    const cards = result.rows || [];
+    cards.forEach(c => { cardNameCache[c.user_id] = c; });
+    return cards;
+  } catch (e) {
+    console.error('搜尋失敗:', e);
+    return [];
+  }
+}
+
+function renderPickerList(cards) {
   const dropdown = document.getElementById('pickerDropdown');
   if (!dropdown) return;
 
-  // 還沒載入完成
-  if (!allCards.length) {
-    dropdown.innerHTML = '<div class="picker-loading">載入人員中…</div>';
-    return;
-  }
-
-  const lower = (q || '').toLowerCase();
-  const filtered = allCards.filter(c =>
-    !lower ||
-    (c.name    || '').toLowerCase().includes(lower) ||
-    (c.company || '').toLowerCase().includes(lower) ||
-    (c.title   || '').toLowerCase().includes(lower)
-  );
-
-  if (!filtered.length) {
+  if (!cards.length) {
     dropdown.innerHTML = '<div class="picker-empty">找不到符合的人員</div>';
     return;
   }
 
   const adminIds = new Set(allAdmins.map(a => a.user_id));
-  dropdown.innerHTML = filtered.slice(0, 60).map(c => {
+  dropdown.innerHTML = cards.map(c => {
     const isAlreadyAdmin = adminIds.has(c.user_id);
     const meta = [c.title, c.company].filter(Boolean).join(' · ');
     const cls  = [
@@ -440,21 +436,34 @@ function renderPickerList(q) {
 
 function onPickerInput() {
   const q = document.getElementById('pickerSearch').value;
-  if (selectedUserId) {            // 輸入後清除已選
+  if (selectedUserId) {
     selectedUserId = '';
     document.getElementById('selectedHint').style.display = 'none';
   }
-  renderPickerList(q);
-  document.getElementById('pickerDropdown').style.display = 'block';
+  const dropdown = document.getElementById('pickerDropdown');
+  dropdown.style.display = 'block';
+  dropdown.innerHTML = '<div class="picker-loading">搜尋中…</div>';
+
+  clearTimeout(pickerTimer);
+  pickerTimer = setTimeout(async () => {
+    const cards = await fetchPickerCards(q);
+    renderPickerList(cards);
+  }, 300);  // 等停止輸入 300ms 再查詢
 }
 
-function openPicker() {
-  renderPickerList(document.getElementById('pickerSearch').value);
-  document.getElementById('pickerDropdown').style.display = 'block';
+async function openPicker() {
+  const dropdown = document.getElementById('pickerDropdown');
+  dropdown.style.display = 'block';
+  const q = document.getElementById('pickerSearch').value;
+  if (!q) {
+    dropdown.innerHTML = '<div class="picker-loading">載入通訊錄…</div>';
+    const cards = await fetchPickerCards('');
+    renderPickerList(cards);
+  }
 }
 
 function closePicker() {
-  // 延遲讓 mousedown 的 pickUser 先執行
+  clearTimeout(pickerTimer);
   setTimeout(() => {
     document.getElementById('pickerDropdown').style.display = 'none';
   }, 180);
@@ -466,7 +475,7 @@ function pickUser(userId) {
     return;
   }
   selectedUserId = userId;
-  const card = allCards.find(c => c.user_id === userId);
+  const card = cardNameCache[userId];
   const displayName = card?.name || userId;
   document.getElementById('pickerSearch').value = displayName;
   const hint = document.getElementById('selectedHint');
