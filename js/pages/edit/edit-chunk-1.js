@@ -104,6 +104,18 @@ if (typeof preloadAllThemes === 'function') {
         loadCardToUI(cardData);
       }
 
+      // 套用公司管理員設定的鎖定欄位（不在管理員模式時才套用）
+      if (!adminMode && cardData && cardData.company && window.UVACO_CLOUD && UVACO_CLOUD.getCompanySettings) {
+        try {
+          const cfg = await UVACO_CLOUD.getCompanySettings(cardData.company);
+          if (cfg.lockedFields && cfg.lockedFields.length) {
+            applyLockedFields(cfg.lockedFields);
+          }
+        } catch (e) {
+          console.log('[LockFields] 讀取公司設定失敗:', e.message || e);
+        }
+      }
+
       // 注入公司選擇器按鈕（與語系同步顯示）
       try {
         setTimeout(() => injectCompanyPickerButtons(), 0);
@@ -113,6 +125,86 @@ if (typeof preloadAllThemes === 'function') {
     console.error('Init failed', e);
   }
 })();
+
+// 鎖定公司管理員指定的欄位（設定為不可編輯並顯示鎖定提示）
+function applyLockedFields(fields) {
+  if (!fields || !fields.length) return;
+
+  // 欄位 → 受影響的 element ID 清單
+  const FIELD_MAP = {
+    name:       ['previewNameZh'],
+    title:      ['previewTitleZh', 'previewTitleEn'],
+    company:    ['previewCompanyNameZh', 'previewCompanyNameEn'],
+    department: [], // 部門目前無獨立 contenteditable，透過儲存時阻擋
+    email:      ['wizardEmail'],
+    phone:      ['wizardPhone'],
+    theme:      [],
+  };
+
+  const lockStyle = (el, label) => {
+    el.contentEditable  = 'false';
+    el.style.cursor     = 'not-allowed';
+    el.style.opacity    = '0.65';
+    el.style.outline    = 'none';
+    el.title            = `🔒 ${label}由公司管理員鎖定`;
+    el.dataset.locked   = '1';
+  };
+
+  const LABELS = {
+    name: '姓名', title: '職稱', company: '公司名稱',
+    department: '部門', email: 'Email', phone: '電話', theme: '名片主題'
+  };
+
+  fields.forEach(field => {
+    // contenteditable 元素
+    (FIELD_MAP[field] || []).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) lockStyle(el, LABELS[field] || field);
+    });
+
+    // 向導模式的 input
+    const wizardMap = {
+      name:  ['wizardNameZh'],
+      title: ['wizardTitleZh', 'wizardTitleEn'],
+      email: ['wizardEmail'],
+      phone: ['wizardPhone'],
+    };
+    (wizardMap[field] || []).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.disabled = true;
+      el.title    = `🔒 ${LABELS[field] || field}由公司管理員鎖定`;
+      el.style.cursor  = 'not-allowed';
+      el.style.opacity = '0.65';
+    });
+
+    // 主題鎖定：隱藏主題切換按鈕
+    if (field === 'theme') {
+      const themeBtn = document.querySelector('.theme-btn, [onclick*="openThemeSelector"], [onclick*="setTheme"]');
+      if (themeBtn) {
+        themeBtn.style.pointerEvents = 'none';
+        themeBtn.style.opacity = '0.4';
+        themeBtn.title = '🔒 名片主題由公司管理員鎖定';
+      }
+    }
+  });
+
+  // 顯示鎖定提示橫幅（只顯示一次）
+  if (!document.getElementById('lockFieldBanner')) {
+    const banner = document.createElement('div');
+    banner.id = 'lockFieldBanner';
+    banner.style.cssText = [
+      'position:fixed','top:0','left:0','right:0',
+      'background:#1a2e1a','border-bottom:1px solid rgba(34,197,94,.3)',
+      'color:#4ade80','font-size:13px','font-weight:500',
+      'text-align:center','padding:10px 16px','z-index:9000',
+      'pointer-events:none'
+    ].join(';');
+    banner.textContent = `🔒 部分欄位已由公司管理員鎖定，無法修改`;
+    document.body.appendChild(banner);
+    setTimeout(() => { if (banner) banner.style.opacity = '0'; banner.style.transition = 'opacity 1s'; }, 4000);
+  }
+}
 
 function showAdminBanner(targetUserId) {
   const div = document.createElement('div');

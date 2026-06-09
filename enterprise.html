@@ -438,6 +438,73 @@
     }
 
     .result-info { font-size: 11px; color: var(--text-muted); margin: 4px 0 10px; }
+
+    /* ── 頁籤 ─────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid #2a2a2a;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active {
+      color: var(--uvaco-green);
+      border-bottom-color: var(--uvaco-green);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── 公司設定 ─────────────────────────── */
+    .settings-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .settings-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .settings-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+      line-height: 1.6;
+    }
+    .lock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .lock-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .lock-item:hover { border-color: #444; }
+    .lock-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--uvaco-green); cursor: pointer; }
+    .lock-label { font-size: 13px; color: #d1d5db; }
+    .lock-hint  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -476,6 +543,15 @@
   </header>
 
   <div class="container">
+
+    <!-- 頁籤列 -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabEmpBtn"  onclick="switchTab('emp')">👥 員工管理</button>
+      <button class="tab-btn"        id="tabCfgBtn"  onclick="switchTab('cfg')">⚙ 公司設定</button>
+    </div>
+
+    <!-- ═══ 頁籤：員工管理 ═══════════════════════════ -->
+    <div class="tab-panel active" id="panelEmp">
 
     <!-- 統計列 -->
     <div class="stats-row">
@@ -558,7 +634,29 @@
     <!-- 手機卡片 -->
     <div class="emp-cards" id="empCards"></div>
 
-  </div>
+    </div><!-- end #panelEmp -->
+
+    <!-- ═══ 頁籤：公司設定 ═══════════════════════════ -->
+    <div class="tab-panel" id="panelCfg">
+
+      <div class="settings-card">
+        <div class="settings-title">🔒 鎖定欄位設定</div>
+        <div class="settings-desc">
+          勾選後，員工將無法自行修改該欄位。<br>
+          適合統一管理「公司名稱」、「部門」等需要一致性的資訊。
+        </div>
+        <div class="lock-grid" id="lockGrid">
+          <!-- 由 JS 產生 -->
+        </div>
+        <button class="btn btn-green" onclick="saveLockSettings()" id="saveLockBtn">
+          儲存設定
+        </button>
+        <div id="lockMsg" style="margin-top:10px;min-height:20px;font-size:13px;"></div>
+      </div>
+
+    </div><!-- end #panelCfg -->
+
+  </div><!-- end .container -->
 </div>
 
 <!-- ══ 停用確認 Modal ═══════════════════════════ -->
@@ -669,6 +767,7 @@ let disableTarget  = null; // { userId }
 let nfcTarget      = null; // { userId }
 let transferFrom   = null; // { userId }
 let toastTid       = null;
+let currentTab     = 'emp';// 目前頁籤
 
 /* ────────────────────────────────────────────
    初始化
@@ -1206,6 +1305,80 @@ function copyInviteUrl() {
     document.execCommand('copy');
     toast('已複製！', 'success');
   });
+}
+
+/* ────────────────────────────────────────────
+   頁籤切換
+──────────────────────────────────────────── */
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('panelEmp').classList.toggle('active', tab === 'emp');
+  document.getElementById('panelCfg').classList.toggle('active', tab === 'cfg');
+  document.getElementById('tabEmpBtn').classList.toggle('active', tab === 'emp');
+  document.getElementById('tabCfgBtn').classList.toggle('active', tab === 'cfg');
+  if (tab === 'cfg') loadLockSettings();
+}
+
+/* ────────────────────────────────────────────
+   公司設定：鎖定欄位
+──────────────────────────────────────────── */
+
+// 可鎖定的欄位清單（value = cards 表欄位名稱，label = 顯示名稱）
+const LOCKABLE_FIELDS = [
+  { value: 'company',    label: '公司名稱', hint: '員工無法修改公司名稱' },
+  { value: 'title',      label: '職稱',     hint: '員工無法修改職稱' },
+  { value: 'department', label: '部門',     hint: '員工無法修改部門' },
+  { value: 'email',      label: 'Email',    hint: '員工無法修改工作信箱' },
+  { value: 'phone',      label: '電話',     hint: '員工無法修改辦公電話' },
+  { value: 'theme',      label: '名片主題', hint: '員工無法更換名片樣式' },
+];
+
+async function loadLockSettings() {
+  const grid = document.getElementById('lockGrid');
+  grid.innerHTML = '<div style="color:#9ca3af;font-size:13px;padding:8px 0;">載入中…</div>';
+
+  let saved = [];
+  if (adminCompany) {
+    try {
+      const res = await UVACO_CLOUD.getCompanySettings(adminCompany);
+      saved = res.lockedFields || [];
+    } catch (e) { saved = []; }
+  }
+
+  grid.innerHTML = LOCKABLE_FIELDS.map(f => `
+    <label class="lock-item">
+      <input type="checkbox" value="${f.value}" ${saved.includes(f.value) ? 'checked' : ''}>
+      <div>
+        <div class="lock-label">${f.label}</div>
+        <div class="lock-hint">${f.hint}</div>
+      </div>
+    </label>
+  `).join('');
+}
+
+async function saveLockSettings() {
+  if (!adminCompany) {
+    document.getElementById('lockMsg').innerHTML =
+      '<span style="color:#f59e0b">⚠ 超級管理員需指定公司後才能設定鎖定欄位</span>';
+    return;
+  }
+  const btn = document.getElementById('saveLockBtn');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+  const checked = [...document.querySelectorAll('#lockGrid input[type="checkbox"]:checked')]
+    .map(el => el.value);
+  try {
+    await UVACO_CLOUD.saveCompanySettings({ company: adminCompany, lockedFields: checked });
+    document.getElementById('lockMsg').innerHTML =
+      '<span style="color:#4ade80">✅ 設定已儲存，員工編輯名片時將自動套用</span>';
+    setTimeout(() => { document.getElementById('lockMsg').textContent = ''; }, 3000);
+  } catch (e) {
+    document.getElementById('lockMsg').innerHTML =
+      `<span style="color:#f87171">儲存失敗：${esc(e.message||String(e))}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '儲存設定';
+  }
 }
 
 /* ────────────────────────────────────────────

@@ -424,6 +424,46 @@ export async function claimCardInvite(token) {
   return { success: true };
 }
 
+/* ── 公司設定（鎖定欄位）──────────────────────────────────── */
+
+// 儲存公司設定（需管理員身份）
+export async function saveCompanySettings(settings) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NOT_AUTH');
+  const me = await isAdmin();
+  if (!me || !me.isAdmin) throw new Error('NOT_ADMIN');
+
+  const company = settings.company || me.managedCompany;
+  if (!company) throw new Error('COMPANY_REQUIRED');
+
+  const { error } = await ctx.client
+    .from('company_settings')
+    .upsert({
+      company_name:  company,
+      locked_fields: settings.lockedFields || [],
+      updated_by:    ctx.userId,
+      updated_at:    new Date().toISOString()
+    }, { onConflict: 'company_name' });
+
+  if (error) throw error;
+  return { success: true };
+}
+
+// 讀取公司設定（已登入用戶皆可讀，供 edit.html 套用鎖定規則）
+export async function getCompanySettings(companyName) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return { lockedFields: [] };
+
+  const { data, error } = await ctx.client
+    .from('company_settings')
+    .select('locked_fields')
+    .eq('company_name', companyName)
+    .maybeSingle();
+
+  if (error || !data) return { lockedFields: [] };
+  return { lockedFields: data.locked_fields || [] };
+}
+
 // 取得邀請列表（管理員用，企業管理員只看自己公司的）
 export async function getCardInvites() {
   const ctx = await getAuthContext();

@@ -67,7 +67,9 @@ import {
   transferNfcCard,
   createCardInvite,
   claimCardInvite,
-  getCardInvites
+  getCardInvites,
+  saveCompanySettings,
+  getCompanySettings
 } from './admin-operations.js';
 import { searchCards, uploadMyAsset, getSignedAssetUrl, upsertMyCard } from './search-storage.js';
 import {
@@ -167,6 +169,8 @@ window.UVACO_CLOUD = {
   createCardInvite,
   claimCardInvite,
   getCardInvites,
+  saveCompanySettings,
+  getCompanySettings,
 
   uploadMyAsset,
   getSignedAssetUrl,
