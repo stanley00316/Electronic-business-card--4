@@ -3,11 +3,24 @@
  */
     const authDebugPageStartedAt = performance.now();
 
+    function isAuthDebugEnabled() {
+      try {
+        const h = window.location.hostname;
+        const isLocal = h === 'localhost' || h === '127.0.0.1' ||
+          h.startsWith('192.168.') || h.startsWith('172.') || h.startsWith('10.');
+        const p = new URLSearchParams(window.location.search || '');
+        return isLocal || p.get('debugAuth') === '1';
+      } catch (e) {
+        return false;
+      }
+    }
+
     function getAuthDebugPanelStorageKey() {
       return 'UVACO_AUTH_DEBUG_PANEL_EVENTS';
     }
 
     function clearAuthDebugPanelEvents() {
+      if (!isAuthDebugEnabled()) return;
       try {
         localStorage.removeItem(getAuthDebugPanelStorageKey());
       } catch (e) {}
@@ -24,6 +37,7 @@
     }
 
     function writeAuthDebugPanelEvent(line) {
+      if (!isAuthDebugEnabled()) return;
       try {
         const events = readAuthDebugPanelEvents();
         events.push(line);
@@ -33,6 +47,7 @@
     }
 
     function ensureAuthDebugPanel() {
+      if (!isAuthDebugEnabled()) return null;
       let panel = document.getElementById('authDebugPanel');
       if (panel) return panel;
       panel = document.createElement('pre');
@@ -61,13 +76,16 @@
     }
 
     function renderAuthDebugPanel() {
+      if (!isAuthDebugEnabled()) return;
       if (!document.body) return;
       const panel = ensureAuthDebugPanel();
+      if (!panel) return;
       const lines = readAuthDebugPanelEvents();
       panel.textContent = lines.length ? lines.join('\n') : 'Auth debug panel ready';
     }
 
     window.__uvacoAuthDebugPanelLog = function(location, message, data) {
+      if (!isAuthDebugEnabled()) return;
       const compact = [];
       if (data && data.durationMs != null) compact.push('ms=' + data.durationMs);
       if (data && data.sinceStartLineMs != null) compact.push('sinceStart=' + data.sinceStartLineMs);

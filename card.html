@@ -11,7 +11,7 @@
 <meta http-equiv="Expires" content="0" />
   <meta name="robots" content="noindex" />
   <title>數位身分 | Digital Identity</title>
-  <link rel="stylesheet" href="styles.css?v=20260205">
+  <link rel="stylesheet" href="styles.css?v=20260610a">
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#22c55e">
@@ -22,8 +22,8 @@
 <!-- Supabase JS（CDN） -->
   <script src="supabase.min.js"></script>
   <!-- QR Code 生成器 -->
-<script src="cloud.js?v=20260413d"></script>
-  <script src="common.js?v=20260324c"></script>
+<script src="cloud.js?v=20260610a"></script>
+  <script src="common.js?v=20260610a"></script>
   <style>
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
     .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; max-width:90%; }
@@ -207,7 +207,7 @@
 <!-- LOGO 區 -->
 <div class="hero">
   <div class="hero-frame">
-    <img src="uvaco-logo.svg?v=20260125" class="hero-logo" alt="數位身分平台" id="viewerLogo" loading="lazy">
+    <img src="uvaco-logo.svg?v=20260610a" class="hero-logo" alt="數位身分平台" id="viewerLogo" loading="lazy">
           </div>
         </div>
 
@@ -366,11 +366,8 @@ async function gotoMyCard(event) {
 </script>
 
 <script>
-// #region agent log
-fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:script2:boot',message:'第二段腳本開始執行',data:{readyState:document.readyState,QRCodeType:typeof QRCode,qrcodeSrcScripts:Array.prototype.slice.call(document.querySelectorAll('script[src]')).map(function(n){return n.src;}).filter(function(u){return /qrcode/i.test(u);})},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1-H4'})}).catch(function(){});
-// #endregion
 
-// 使用者點選 QR 時才動態載入 qrcodejs（與 js/pages/card/card-page.js 相同）
+// 使用者點選 QR 時才動態載入 qrcodejs，避免初次開名片時載入不必要的外部腳本。
 const UVACO_QRCODE_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
 let __uvacoQrLibPromise = null;
 function loadQRCodeScript() {
@@ -819,15 +816,9 @@ function shareToEmail() {
 let qrCodeInstance = null;
 
 async function showQRCode() {
-  // #region agent log
-  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:showQRCode:entry',message:'showQRCode 被呼叫',data:{QRCodeType:typeof QRCode,loadQRCodeScriptType:typeof loadQRCodeScript,hasModal:!!document.getElementById('qrModal'),hasQrcodeEl:!!document.getElementById('qrcode')},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1-H2'})}).catch(function(){});
-  // #endregion
   try {
     await loadQRCodeScript();
   } catch (err) {
-    // #region agent log
-    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:showQRCode:load-fail',message:'qrcodejs 載入失敗',data:{errName:err&&err.name,errMsg:err&&String(err.message)},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1'})}).catch(function(){});
-    // #endregion
     console.error(err);
     alert('QR Code 載入失敗，請稍後再試或檢查網路連線。');
     return;
@@ -851,13 +842,7 @@ async function showQRCode() {
     });
 
     modal.style.display = 'flex';
-    // #region agent log
-    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:showQRCode:success',message:'QR modal shown',data:{modalDisplay:modal&&modal.style.display,QRCodeType:typeof QRCode},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1'})}).catch(function(){});
-    // #endregion
   } catch (err) {
-    // #region agent log
-    fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:showQRCode:catch',message:'showQRCode error',data:{errName:err&&err.name,errMsg:err&&String(err.message)},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1-H2'})}).catch(function(){});
-    // #endregion
     console.error(err);
     alert('無法產生 QR Code。');
   }
@@ -971,10 +956,6 @@ function showAddHomeInstructions() {
   
   let instructions = '';
   let branch = 'unknown';
-
-  // #region agent log
-  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'66ef2f'},body:JSON.stringify({sessionId:'66ef2f',runId:debugRunId,hypothesisId:'H1-H2-H5',location:'card.html:showAddHomeInstructions:entry',message:'add-home dialog context',data:{lang:lang,isIOS:isIOS,isAndroid:isAndroid,userAgent:navigator.userAgent,href:window.location.href},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   
   if (lang === 'zh') {
     if (isIOS) {
@@ -1035,24 +1016,14 @@ Done! You'll see "My Card" icon on your home screen.`;
 Done! You'll see the icon on your home screen.`;
     }
   }
-
-  // #region agent log
-  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'66ef2f'},body:JSON.stringify({sessionId:'66ef2f',runId:debugRunId,hypothesisId:'H1-H3-H4',location:'card.html:showAddHomeInstructions:payload',message:'dialog payload built',data:{branch:branch,containsReplacement:instructions.includes('�'),containsPhoneEmoji:instructions.includes('📱'),containsVerticalEllipsis:instructions.includes('⋮'),firstLine:(instructions.split('\n')[0]||''),firstLineCodePoints:Array.from((instructions.split('\n')[0]||'')).map((ch)=>`U+${ch.codePointAt(0).toString(16).toUpperCase()}`).slice(0,18)},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   
   alert(instructions);
-  // #region agent log
-  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'66ef2f'},body:JSON.stringify({sessionId:'66ef2f',runId:debugRunId,hypothesisId:'H1',location:'card.html:showAddHomeInstructions:after-alert',message:'native alert closed',data:{branch:branch},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   dismissAddHomeBanner();
 }
 
 // 頁面載入後檢查是否顯示提示
 document.addEventListener('DOMContentLoaded', function() {
   // 延遲執行，等待頁面資料載入
-  // #region agent log
-  fetch('http://127.0.0.1:7665/ingest/1c4657e8-8c04-4e63-85b8-af5c9905415e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f660c0'},body:JSON.stringify({sessionId:'f660c0',location:'card.html:DOMContentLoaded',message:'page ready globals',data:{showQRCodeType:typeof showQRCode,QRCodeType:typeof QRCode,qrcodeSrcScripts:Array.prototype.slice.call(document.querySelectorAll('script[src]')).map(function(n){return n.src;}).filter(function(u){return /qrcode/i.test(u);})},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H4-H5'})}).catch(function(){});
-  // #endregion
   setTimeout(checkAndShowAddHomeBanner, 1000);
 });
 </script>

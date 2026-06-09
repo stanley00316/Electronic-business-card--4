@@ -1,6 +1,8 @@
-# 商務電子名片Ｖ4（GitHub Pages 部署版）
+# 電子名片 V5（GitHub Pages + Supabase 部署版）
 
-此專案為**純靜態網站**（HTML/CSS/JS/Assets），可直接部署到 **GitHub Pages**。
+此專案前台是**純靜態網站**（HTML/CSS/JS/Assets），部署在 **GitHub Pages**；登入、名片資料、Storage、訂閱與後台資料使用 **Supabase**。
+
+> 重要：目前線上網址仍使用既有 repo 路徑 `Electronic-business-card--4`。這是為了保留已發出去 NFC 名片的舊連結，不要任意改 GitHub repo 名稱或 `card.html?id=...` 網址規則。
 
 ### 原始碼結構與建置
 
@@ -15,7 +17,8 @@
 - **建議設定**：`Settings → Pages → Build and deployment`
   - **Source**：Deploy from a branch
   - **Branch**：`main` / **`/(root)`**
-- **首頁檔案**：`index.html`（已內建導向 `yuyuko.html`）
+- **目前線上網址**：`https://stanley00316.github.io/Electronic-business-card--4/`
+- **首頁檔案**：`index.html`（依登入狀態導向 `auth.html`、`my-card.html` 或 `directory.html`）
 - **404 頁面**：`404.html`（提供回主頁/名片頁的連結）
 
 部署完成後網址格式通常為：
@@ -25,8 +28,10 @@
 
 ## 專案入口與主要頁面
 
-- **主入口**：`index.html`（導向 `directory.html`）
-- **名片頁（示例）**：`yuyuko.html`
+- **主入口**：`index.html`（依登入狀態分流）
+- **我的名片入口**：`my-card.html`
+- **公開名片頁**：`card.html?id=<user_id>` 或 `card.html?nfc=<nfc_card_id>`
+- **舊示例頁**：`yuyuko.html`
 - **設定**：`settings.html`
 - **平台通訊錄**：`directory.html`
 - **編輯名片**：`edit.html`
@@ -71,11 +76,13 @@
 
 ## 新手流程（第一次開啟自動進入編輯）
 
-本專案已支援「第一次開啟網站時，若 localStorage 尚未完成建立，會自動導向編輯頁」：
+本專案已支援雲端登入與新手建立流程：
 
-- **首頁**：`index.html` → `directory.html`
-- **首次進入**：`directory.html` 會檢查 `localStorage.UVACO_ONBOARDED`
-  - 若不是 `'1'`：自動導到 `edit.html?mode=onboarding&next=directory.html`
+- **首頁**：`index.html`
+  - 未登入：導向 `auth.html`
+  - 已登入且已有名片：導向 `directory.html` 或 `my-card.html`
+  - 已登入但尚未建立名片：導向 `edit.html?mode=onboarding`
+- **首次進入**：系統會依 Supabase 名片資料與 `localStorage.UVACO_ONBOARDED` 判斷是否進入新手流程
   - 使用者在 `edit.html` 按下「儲存」後，會寫入 `UVACO_ONBOARDED=1` 並回到 `directory.html`
 - **要跳過 onboarding**：可用 `directory.html?skipOnboarding=1`
 
@@ -129,7 +136,8 @@
      - `SUPABASE_JWT_SECRET`
      - `LINE_CHANNEL_ID`
      - `LINE_CHANNEL_SECRET`
-   - 使用 Supabase CLI 部署（需要你本機安裝 supabase CLI）：```bash
+  - 使用 Supabase CLI 部署（需要你本機安裝 supabase CLI）：
+```bash
 supabase login
 supabase link --project-ref <your-project-ref>
 supabase functions deploy line-auth
@@ -137,4 +145,5 @@ supabase functions deploy line-auth
 
 4. **前端**
    - 在 `cloud.js` 填入 `LINE_CHANNEL_ID`
-   - 上線後開 `auth.html` 點「使用 LINE 登入」
+   - 上線後開 `auth.html` 點「用 LINE App 登入」
+   - 外部瀏覽器會優先顯示 QR Code 登入，使用者可用 LINE App 掃碼，不需記帳號密碼

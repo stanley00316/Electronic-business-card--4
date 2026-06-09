@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>找不到頁面 | 電子名片 V5</title>
+  <link rel="stylesheet" href="styles.css?v=20260610a">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#22c55e">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .not-found-panel {
+      width: min(100%, 480px);
+      padding: 32px 24px;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 20px;
+      background: rgba(22,22,24,0.86);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+    }
+    body.theme-light .not-found-panel {
+      background: #fff;
+      border-color: rgba(15,23,42,0.10);
+    }
+    .not-found-code {
+      margin: 0 0 10px;
+      color: var(--uvaco-green);
+      font-size: 48px;
+      line-height: 1;
+      font-weight: 800;
+    }
+    .not-found-title {
+      margin: 0 0 12px;
+      font-size: 22px;
+    }
+    .not-found-desc {
+      margin: 0 0 24px;
+      color: #9ca3af;
+      line-height: 1.7;
+    }
+    .not-found-actions {
+      display: grid;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body class="theme-dark lang-zh">
+  <main class="not-found-panel">
+    <p class="not-found-code">404</p>
+    <h1 class="not-found-title">找不到這個頁面</h1>
+    <p class="not-found-desc">連結可能已失效，或 NFC 尚未綁定名片。請回到首頁重新進入。</p>
+    <div class="not-found-actions">
+      <a class="btn btn-green" href="index.html">回首頁</a>
+      <a class="btn btn-outline" href="directory.html">開啟通訊錄</a>
+      <a class="btn btn-outline" href="auth.html">重新登入</a>
+    </div>
+  </main>
+</body>
+</html>

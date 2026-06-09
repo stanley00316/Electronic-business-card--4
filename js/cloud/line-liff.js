@@ -47,6 +47,9 @@ export function startLineLogin(nextRelativeUrl) {
   params.set('redirect_uri', redirectUri);
   params.set('state', state);
   params.set('scope', 'profile openid');
+  // 這裡讓外部瀏覽器優先顯示 LINE App 掃碼登入，避免使用者被要求記 LINE 帳號密碼。
+  params.set('initial_amr_display', 'lineqr');
+  params.set('switch_amr', 'false');
 
   // #region agent log
   logLineAuthDebug(
