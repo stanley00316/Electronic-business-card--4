@@ -111,17 +111,17 @@ export async function getAdminUsers() {
   if (!ctx.ok) return { rows: [] };
   const client = ctx.client;
 
-  // 權限檢查：只有 Super Admin 能讀取完整列表 (RLS 應該要允許讀取，但 UI 層面我們只給 Super Admin 看)
   const me = await isAdmin();
-  if (!me || !me.isAdmin || me.managedCompany) {
-    // 非 Super Admin，回傳空或只回傳自己
-    return { rows: [] };
+  if (!me || !me.isAdmin) return { rows: [] };
+
+  let query = client.from('admin_users').select('user_id,target_company');
+
+  // 企業管理員：只能看自己公司的管理員；超級管理員：看全部
+  if (me.managedCompany) {
+    query = query.eq('target_company', me.managedCompany);
   }
 
-  // 只取必要欄位，避免依賴 created_at / note 等不存在欄位
-  const { data, error } = await client
-    .from('admin_users')
-    .select('user_id,target_company');
+  const { data, error } = await query;
   if (error) return { rows: [] };
   return { rows: data || [] };
 }

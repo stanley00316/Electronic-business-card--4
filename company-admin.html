@@ -301,11 +301,12 @@
 </div>
 
 <script>
-let allAdmins    = [];
-let cardNameCache = {};    // user_id → { name, title, company }（搜尋後快取，供管理員列表顯示姓名）
-let isSuperAdmin  = false;
-let selectedUserId = '';   // 選擇器目前選中的 user_id
-let pickerTimer   = null;  // 防抖計時器
+let allAdmins     = [];
+let cardNameCache = {};    // user_id → { name, title, company }（搜尋後快取）
+let isSuperAdmin  = false; // true = 超管，可管所有公司
+let myCompany     = null;  // 企業管理員的公司名稱（超管時為 null）
+let selectedUserId = '';
+let pickerTimer   = null;
 
 /* ── 頁面初始化 ────────────────────────── */
 async function init() {
@@ -315,11 +316,34 @@ async function init() {
   }
   try {
     const adminStatus = await UVACO_CLOUD.isAdmin();
-    if (!adminStatus || !adminStatus.isAdmin || !adminStatus.canManageAdmins) {
+
+    // 超級管理員 或 企業管理員 皆可進入此頁面
+    if (!adminStatus || !adminStatus.isAdmin) {
       document.getElementById('accessDenied').style.display = 'block';
       return;
     }
-    isSuperAdmin = true;
+
+    isSuperAdmin = adminStatus.canManageAdmins && !adminStatus.managedCompany;
+    myCompany    = adminStatus.managedCompany || null;
+
+    // 企業管理員：鎖定「管理公司」欄位
+    if (myCompany) {
+      const companyInput = document.getElementById('newAdminCompany');
+      companyInput.value    = myCompany;
+      companyInput.readOnly = true;
+      companyInput.style.opacity = '0.6';
+      companyInput.style.cursor  = 'not-allowed';
+      // 顯示說明文字
+      const hint = companyInput.closest('.form-group')?.querySelector('.form-hint');
+      if (hint) hint.textContent = '企業管理員只能新增本公司的管理員';
+    }
+
+    // 非管理員（既非超管也非企業管理員，不應發生，但防禦）
+    if (!isSuperAdmin && !myCompany) {
+      document.getElementById('accessDenied').style.display = 'block';
+      return;
+    }
+
     document.getElementById('mainContent').style.display = 'block';
     await reloadData();
   } catch (e) {
@@ -328,9 +352,8 @@ async function init() {
   }
 }
 
-/* ── 重新載入（只拉管理員列表，名片人員改由搜尋取得）── */
+/* ── 重新載入 ──────────────────────────── */
 async function reloadData() {
-  if (!isSuperAdmin) return;
   try {
     document.getElementById('adminList').innerHTML = '<div class="loading">載入中...</div>';
     const admResult = await UVACO_CLOUD.getAdminUsers();
@@ -346,8 +369,14 @@ async function reloadData() {
 /* ── 統計 ──────────────────────────────── */
 function updateStats() {
   document.getElementById('statTotal').textContent   = allAdmins.length;
-  document.getElementById('statSuper').textContent   = allAdmins.filter(a => !a.target_company).length;
-  document.getElementById('statCompany').textContent = allAdmins.filter(a =>  a.target_company).length;
+  // 企業管理員模式：統計欄只顯示本公司管理員數，超管欄隱藏
+  if (myCompany) {
+    document.getElementById('statSuper').textContent   = '—';
+    document.getElementById('statCompany').textContent = allAdmins.length;
+  } else {
+    document.getElementById('statSuper').textContent   = allAdmins.filter(a => !a.target_company).length;
+    document.getElementById('statCompany').textContent = allAdmins.filter(a =>  a.target_company).length;
+  }
 }
 
 /* ── 渲染管理員列表（顯示姓名）──────────── */
@@ -494,15 +523,23 @@ async function addAdmin() {
     showFormError('此用戶已是管理員');
     return;
   }
-  const company = document.getElementById('newAdminCompany').value.trim();
+  // 企業管理員：強制使用自己的公司，不接受表單輸入
+  const company = myCompany || document.getElementById('newAdminCompany').value.trim() || null;
+
+  // 超管新增另一位超管（公司留空）只有超管自己才能做
+  if (!company && !isSuperAdmin) {
+    showFormError('企業管理員只能新增本公司的管理員，請填寫管理公司');
+    return;
+  }
+
   try {
-    await UVACO_CLOUD.upsertAdminUser(selectedUserId, company || null);
+    await UVACO_CLOUD.upsertAdminUser(selectedUserId, company);
     showFormSuccess('管理員新增成功！');
     // 重置選擇器
     selectedUserId = '';
     document.getElementById('pickerSearch').value = '';
     document.getElementById('selectedHint').style.display = 'none';
-    document.getElementById('newAdminCompany').value = '';
+    if (!myCompany) document.getElementById('newAdminCompany').value = ''; // 超管才清空
     await reloadData();
   } catch (e) {
     console.error('新增管理員失敗:', e);
