@@ -524,6 +524,7 @@
       </select>
       <button class="btn btn-outline" onclick="reloadData()" id="reloadBtn">↻ 重整</button>
       <button class="btn btn-green" onclick="exportCSV()">⬇ 匯出 CSV</button>
+      <button class="btn btn-green" onclick="openInviteModal()" style="background:var(--uvaco-green);gap:6px;">＋ 新增員工</button>
     </div>
 
     <div class="result-info" id="resultInfo"></div>
@@ -595,6 +596,61 @@
   <div class="nfc-item danger" onclick="doNfcDisable()">🚫 標記停用</div>
   <div class="nfc-item danger" onclick="doNfcLost()">⚠️ 標記遺失</div>
   <div class="nfc-item" onclick="doNfcTransfer()">🔄 移交給其他員工…</div>
+</div>
+
+<!-- ══ 新增員工邀請 Modal ═══════════════════════ -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title">➕ 新增員工</div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#9ca3af;margin:0 0 16px;">填寫後產生邀請連結，傳給員工點擊即可登入並建立名片。</p>
+      <div style="display:grid;gap:12px;">
+        <div>
+          <label style="font-size:12px;color:#9ca3af;display:block;margin-bottom:4px;">姓名 *</label>
+          <input class="form-input" id="invName" placeholder="例：王小明" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="font-size:12px;color:#9ca3af;display:block;margin-bottom:4px;">職稱</label>
+            <input class="form-input" id="invTitle" placeholder="例：業務專員" style="width:100%;box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#9ca3af;display:block;margin-bottom:4px;">部門</label>
+            <input class="form-input" id="invDept" placeholder="例：業務部" style="width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:#9ca3af;display:block;margin-bottom:4px;">公司</label>
+          <input class="form-input" id="invCompany" placeholder="例：葡眾企業" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="font-size:12px;color:#9ca3af;display:block;margin-bottom:4px;">Email</label>
+            <input class="form-input" id="invEmail" type="email" placeholder="work@company.com" style="width:100%;box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#9ca3af;display:block;margin-bottom:4px;">電話</label>
+            <input class="form-input" id="invPhone" placeholder="02-XXXX-XXXX" style="width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+      </div>
+
+      <!-- 產生的邀請連結（送出後出現）-->
+      <div id="inviteResult" style="display:none;margin-top:16px;padding:12px;background:#0f1f0f;border:1px solid rgba(34,197,94,.3);border-radius:10px;">
+        <div style="font-size:12px;color:#4ade80;margin-bottom:6px;">✅ 邀請連結已產生（7 天內有效）</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="inviteUrl" readonly style="flex:1;background:#111;border:1px solid #333;border-radius:6px;padding:8px 10px;font-size:12px;color:#d1d5db;font-family:monospace;" value="">
+          <button class="btn btn-green" onclick="copyInviteUrl()" style="flex-shrink:0;padding:8px 14px;font-size:12px;">複製</button>
+        </div>
+      </div>
+
+      <div id="inviteMsg" style="margin-top:10px;min-height:20px;font-size:13px;"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:8px;">
+      <button class="btn btn-outline" onclick="closeInviteModal()" style="flex:1;">關閉</button>
+      <button class="btn btn-green" onclick="submitInvite()" id="inviteSubmitBtn" style="flex:2;">產生邀請連結</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ Toast ════════════════════════════════════ -->
@@ -1057,15 +1113,100 @@ document.getElementById('disableModal').addEventListener('click', function(e) {
 document.getElementById('transferModal').addEventListener('click', function(e) {
   if (e.target === this) closeTransferModal();
 });
+document.getElementById('inviteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeInviteModal();
+});
 
 /* ESC 關閉 */
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeDisableModal();
     closeTransferModal();
+    closeInviteModal();
     closeNfcMenu();
   }
 });
+
+/* ────────────────────────────────────────────
+   新增員工邀請
+──────────────────────────────────────────── */
+function openInviteModal() {
+  // 企業管理員自動帶入公司名稱並鎖定
+  const compInput = document.getElementById('invCompany');
+  if (adminCompany) {
+    compInput.value    = adminCompany;
+    compInput.readOnly = true;
+    compInput.style.opacity = '0.6';
+    compInput.style.cursor  = 'not-allowed';
+  } else {
+    compInput.value    = '';
+    compInput.readOnly = false;
+    compInput.style.opacity = '';
+    compInput.style.cursor  = '';
+  }
+  // 重置表單
+  ['invName','invTitle','invDept','invEmail','invPhone'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('inviteResult').style.display = 'none';
+  document.getElementById('inviteMsg').textContent = '';
+  document.getElementById('inviteSubmitBtn').disabled = false;
+  document.getElementById('inviteModal').style.display = 'flex';
+}
+
+function closeInviteModal() {
+  document.getElementById('inviteModal').style.display = 'none';
+}
+
+async function submitInvite() {
+  const name = document.getElementById('invName').value.trim();
+  if (!name) {
+    document.getElementById('inviteMsg').innerHTML = '<span style="color:#f87171">請填寫員工姓名</span>';
+    return;
+  }
+  const btn = document.getElementById('inviteSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '產生中…';
+  document.getElementById('inviteMsg').textContent = '';
+  try {
+    const result = await UVACO_CLOUD.createCardInvite({
+      name,
+      title:      document.getElementById('invTitle').value.trim()   || null,
+      department: document.getElementById('invDept').value.trim()    || null,
+      company:    document.getElementById('invCompany').value.trim() || null,
+      email:      document.getElementById('invEmail').value.trim()   || null,
+      phone:      document.getElementById('invPhone').value.trim()   || null,
+    });
+    // 產生邀請網址
+    const base = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+    const url  = `${base}auth.html?invite=${result.token}&next=edit.html`;
+    document.getElementById('inviteUrl').value = url;
+    document.getElementById('inviteResult').style.display = 'block';
+    btn.textContent = '再產生一個';
+    btn.disabled = false;
+    // 重置姓名等欄位（保留公司）
+    ['invName','invTitle','invDept','invEmail','invPhone'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('inviteMsg').innerHTML = '';
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '產生邀請連結';
+    document.getElementById('inviteMsg').innerHTML =
+      `<span style="color:#f87171">產生失敗：${esc(e.message || String(e))}</span>`;
+  }
+}
+
+function copyInviteUrl() {
+  const url = document.getElementById('inviteUrl').value;
+  navigator.clipboard.writeText(url).then(() => {
+    toast('邀請連結已複製到剪貼簿！', 'success');
+  }).catch(() => {
+    document.getElementById('inviteUrl').select();
+    document.execCommand('copy');
+    toast('已複製！', 'success');
+  });
+}
 
 /* ────────────────────────────────────────────
    啟動

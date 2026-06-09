@@ -12,6 +12,18 @@ if (typeof preloadAllThemes === 'function') {
       const r = await UVACO_CLOUD.requireAuth(here);
       if (!r.ok) return;
 
+      // 若有待領取的邀請（從 auth.html?invite=TOKEN 進來），自動建立名片
+      try {
+        const invTok = localStorage.getItem('UVACO_INVITE_TOKEN');
+        if (invTok && UVACO_CLOUD.claimCardInvite) {
+          await UVACO_CLOUD.claimCardInvite(invTok);
+        }
+      } catch (e) {
+        console.log('[Invite] 領取邀請失敗:', e.message || e);
+      } finally {
+        try { localStorage.removeItem('UVACO_INVITE_TOKEN'); } catch (e) {}
+      }
+
       // Admin Mode: 支援：
       // - edit.html?adminMode=true&targetUserId=<uuid>
       // - edit.html?uid=<uuid>

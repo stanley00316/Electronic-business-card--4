@@ -347,3 +347,100 @@ export async function adminUpdateCard(targetUserId, payload) {
   if (error) throw error;
   return true;
 }
+
+/* ── 員工邀請連結 ──────────────────────────────────────────── */
+
+// 建立邀請（超管 + 企業管理員皆可用，企業管理員的公司自動帶入）
+export async function createCardInvite(data) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NOT_AUTH');
+  const me = await isAdmin();
+  if (!me || !me.isAdmin) throw new Error('NOT_ADMIN');
+
+  const { data: invite, error } = await ctx.client
+    .from('card_invites')
+    .insert({
+      created_by:     ctx.userId,
+      target_company: data.company || me.managedCompany || null,
+      name:           data.name   || '',
+      title:          data.title  || null,
+      department:     data.department || null,
+      email:          data.email  || null,
+      phone:          data.phone  || null,
+      note:           data.note   || null,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    })
+    .select('token')
+    .single();
+
+  if (error) throw error;
+  return { token: invite.token };
+}
+
+// 領取邀請（員工登入後呼叫，自動建立名片）
+export async function claimCardInvite(token) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NOT_AUTH');
+
+  // 讀取未使用且未過期的邀請
+  const { data: invite, error: readErr } = await ctx.client
+    .from('card_invites')
+    .select('*')
+    .eq('token', token)
+    .is('used_by', null)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+
+  if (readErr) throw readErr;
+  if (!invite) throw new Error('INVITE_INVALID_OR_EXPIRED');
+
+  // 建立名片（若已有名片則略過，不覆蓋）
+  const { error: insertErr } = await ctx.client
+    .from('cards')
+    .insert({
+      user_id:       ctx.userId,
+      name:          invite.name          || '',
+      title:         invite.title         || '',
+      company:       invite.target_company|| '',
+      department:    invite.department    || '',
+      email:         invite.email         || '',
+      phone:         invite.phone         || '',
+      profile_json:  {},
+      is_visible:    true,
+      nfc_status:    'unbound',
+      admin_disabled: false
+    });
+
+  // 23505 = unique_violation：用戶已有名片，不報錯
+  if (insertErr && insertErr.code !== '23505') throw insertErr;
+
+  // 標記邀請為已使用
+  const { error: updateErr } = await ctx.client
+    .from('card_invites')
+    .update({ used_by: ctx.userId, used_at: new Date().toISOString() })
+    .eq('token', token);
+
+  if (updateErr) throw updateErr;
+  return { success: true };
+}
+
+// 取得邀請列表（管理員用，企業管理員只看自己公司的）
+export async function getCardInvites() {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return { rows: [] };
+  const me = await isAdmin();
+  if (!me || !me.isAdmin) return { rows: [] };
+
+  let query = ctx.client
+    .from('card_invites')
+    .select('token,name,title,department,target_company,email,expires_at,used_by,used_at,created_at')
+    .order('created_at', { ascending: false });
+
+  if (me.managedCompany) {
+    query = query.eq('target_company', me.managedCompany);
+  }
+
+  const { data, error } = await query;
+  if (error) return { rows: [] };
+  return { rows: data || [] };
+}

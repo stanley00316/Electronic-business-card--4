@@ -64,7 +64,10 @@ import {
   disableEmployeeCard,
   enableEmployeeCard,
   updateNfcStatus,
-  transferNfcCard
+  transferNfcCard,
+  createCardInvite,
+  claimCardInvite,
+  getCardInvites
 } from './admin-operations.js';
 import { searchCards, uploadMyAsset, getSignedAssetUrl, upsertMyCard } from './search-storage.js';
 import {
@@ -161,6 +164,9 @@ window.UVACO_CLOUD = {
   enableEmployeeCard,
   updateNfcStatus,
   transferNfcCard,
+  createCardInvite,
+  claimCardInvite,
+  getCardInvites,
 
   uploadMyAsset,
   getSignedAssetUrl,

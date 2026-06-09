@@ -204,6 +204,12 @@
       const savedLang = localStorage.getItem('lang') || 'zh';
       updateLangButtons(savedLang);
 
+      // 儲存邀請 Token（OAuth 跳轉後頁面重載，URL 參數會消失，所以存入 localStorage）
+      try {
+        const invToken = new URLSearchParams(window.location.search || '').get('invite');
+        if (invToken) localStorage.setItem('UVACO_INVITE_TOKEN', invToken);
+      } catch (e) {}
+
       // 檢查是否有推薦人
       const referrerId = getReferrerId();
       if (referrerId) {
@@ -299,6 +305,17 @@
       if (s.session) {
         // 記錄推薦關係（如果有）
         await recordReferralIfNeeded();
+        // 已登入時直接領取待領取的邀請
+        try {
+          const tok = localStorage.getItem('UVACO_INVITE_TOKEN');
+          if (tok && UVACO_CLOUD.claimCardInvite) {
+            await UVACO_CLOUD.claimCardInvite(tok);
+          }
+        } catch (e) {
+          console.log('[Invite] 自動領取失敗:', e.message || e);
+        } finally {
+          try { localStorage.removeItem('UVACO_INVITE_TOKEN'); } catch (e) {}
+        }
         window.location.replace(getNext());
         return;
       }
