@@ -135,39 +135,57 @@ export async function upsertAdminUser(targetUserId, managedCompany) {
   const client = ctx.client;
 
   const me = await isAdmin();
-  if (!me || !me.isAdmin || me.managedCompany) throw new Error('NOT_SUPER_ADMIN');
+  if (!me || !me.isAdmin) throw new Error('NOT_ADMIN');
 
   const uid = String(targetUserId || '').trim();
   if (!uid) throw new Error('MISSING_USER_ID');
+
+  const targetCompany = String(managedCompany || '').trim() || null;
+
+  // 企業管理員只能新增本公司的管理員，不能新增超管（targetCompany 不得為 null）
+  if (me.managedCompany) {
+    if (!targetCompany || targetCompany !== me.managedCompany) {
+      throw new Error('企業管理員只能新增本公司的管理員');
+    }
+  }
 
   // 先刪除（若不存在也沒關係）
   await client.from('admin_users').delete().eq('user_id', uid);
 
   const { error } = await client
     .from('admin_users')
-    .insert({
-      user_id: uid,
-      target_company: (String(managedCompany || '').trim() || null)
-    });
+    .insert({ user_id: uid, target_company: targetCompany });
 
   if (error) throw error;
   return true;
 }
 
-// 刪除管理員 (Super Admin Only)
+// 刪除管理員（企業管理員可刪除本公司管理員，超管可刪除任何人）
 export async function deleteAdminUser(targetUserId) {
   const ctx = await getAuthContext();
   if (!ctx.ok) throw new Error('NO_SESSION');
   const client = ctx.client;
 
   const me = await isAdmin();
-  if (!me || !me.isAdmin || me.managedCompany) throw new Error('NOT_SUPER_ADMIN');
+  if (!me || !me.isAdmin) throw new Error('NOT_ADMIN');
+
+  // 企業管理員：確認被刪除的管理員屬於本公司
+  if (me.managedCompany) {
+    const { data: target } = await client
+      .from('admin_users')
+      .select('target_company')
+      .eq('user_id', targetUserId)
+      .maybeSingle();
+    if (!target || target.target_company !== me.managedCompany) {
+      throw new Error('企業管理員只能刪除本公司的管理員');
+    }
+  }
 
   const { error } = await client
     .from('admin_users')
     .delete()
     .eq('user_id', targetUserId);
-  
+
   if (error) throw error;
   return true;
 }
@@ -322,19 +340,22 @@ export async function adminUpdateCard(targetUserId, payload) {
   if (!targetCard) throw new Error('CARD_NOT_FOUND');
 
   if (adminStatus.managedCompany) {
-    const targetCompany = String(targetCard.company || '');
-    if (!targetCompany.toLowerCase().includes(String(adminStatus.managedCompany).toLowerCase())) {
+    const targetCompany = String(targetCard.company || '').toLowerCase();
+    const myCompany     = String(adminStatus.managedCompany).toLowerCase();
+    // 允許：目標名片公司與管理員公司相符，或目標名片公司尚未填寫（新建立的邀請名片）
+    if (targetCompany && !targetCompany.includes(myCompany)) {
       throw new Error('PERMISSION_DENIED_COMPANY_MISMATCH');
     }
   }
 
   const updateData = {
-    name: payload?.name || '',
-    phone: payload?.phone || '',
-    email: payload?.email || '',
-    company: payload?.company || '',
-    title: payload?.title || '',
-    theme: Number(payload?.theme || 1),
+    name:       payload?.name       || '',
+    phone:      payload?.phone      || '',
+    email:      payload?.email      || '',
+    company:    payload?.company    || '',
+    title:      payload?.title      || '',
+    department: payload?.department ?? null,
+    theme:      Number(payload?.theme || 1),
     profile_json: payload?.profile_json || {},
     updated_at: new Date().toISOString()
   };

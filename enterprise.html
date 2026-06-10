@@ -464,6 +464,36 @@
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
+    /* ── 編輯員工 Modal ──────────────────────── */
+    .modal.modal-lg { max-width: 520px; }
+    .edit-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 14px;
+    }
+    .edit-grid .full { grid-column: 1 / -1; }
+    .field-group { margin-bottom: 14px; }
+    .field-label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .field-input {
+      width: 100%;
+      padding: 9px 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+    .field-input:focus { border-color: var(--g); }
+    .field-input::placeholder { color: var(--text-muted); }
+
     /* ── 公司設定 ─────────────────────────── */
     .settings-card {
       background: #1a1a1a;
@@ -696,6 +726,45 @@
   <div class="nfc-item" onclick="doNfcTransfer()">🔄 移交給其他員工…</div>
 </div>
 
+<!-- ══ 編輯員工資料 Modal ═══════════════════════ -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal modal-lg">
+    <div class="modal-title">✏️ 編輯員工資料</div>
+    <div class="modal-desc" id="editModalDesc">修改後立即生效，員工名片將同步更新。</div>
+    <div class="edit-grid">
+      <div class="field-group full">
+        <label class="field-label">姓名 *</label>
+        <input class="field-input" id="editName" placeholder="員工姓名">
+      </div>
+      <div class="field-group">
+        <label class="field-label">職稱</label>
+        <input class="field-input" id="editTitle" placeholder="例：業務專員">
+      </div>
+      <div class="field-group">
+        <label class="field-label">部門</label>
+        <input class="field-input" id="editDept" placeholder="例：業務部">
+      </div>
+      <div class="field-group full">
+        <label class="field-label">公司名稱</label>
+        <input class="field-input" id="editCompany" placeholder="例：葡眾企業">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Email</label>
+        <input class="field-input" id="editEmail" type="email" placeholder="work@company.com">
+      </div>
+      <div class="field-group">
+        <label class="field-label">電話</label>
+        <input class="field-input" id="editPhone" placeholder="02-XXXX-XXXX">
+      </div>
+    </div>
+    <div id="editMsg" style="min-height:18px;font-size:13px;margin-bottom:12px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+      <button class="btn btn-green" id="editSaveBtn" onclick="saveEdit()">儲存變更</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ 新增員工邀請 Modal ═══════════════════════ -->
 <div class="modal-overlay" id="inviteModal">
   <div class="modal-box" style="max-width:480px;">
@@ -755,7 +824,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="supabase.min.js"></script>
-<script src="cloud.js?v=20260610e"></script>
+<script src="cloud.js?v=20260610f"></script>
 <script>
 /* ────────────────────────────────────────────
    狀態變數
@@ -912,6 +981,7 @@ function renderTable() {
       <td style="font-size:12px;text-align:center">${e.openCount || 0}</td>
       <td>
         <div class="ops-cell">
+          <button class="btn btn-sm btn-outline" onclick="openEditModal('${uid}')">編輯</button>
           ${isOff
             ? `<button class="btn btn-sm btn-green" onclick="quickEnable('${uid}')">啟用</button>`
             : `<button class="btn btn-sm btn-red"   onclick="openDisable('${uid}')">停用</button>`}
@@ -958,6 +1028,7 @@ function renderCards() {
         ${e.lastOpenedAt ? ` · 最後：${fmtDate(e.lastOpenedAt)}` : ''}
       </div>
       <div class="emp-card-ops">
+        <button class="btn btn-sm btn-outline" onclick="openEditModal('${uid}')">編輯資料</button>
         ${isOff
           ? `<button class="btn btn-sm btn-green" onclick="quickEnable('${uid}')">啟用</button>`
           : `<button class="btn btn-sm btn-red"   onclick="openDisable('${uid}')">停用</button>`}
@@ -1215,6 +1286,9 @@ document.getElementById('transferModal').addEventListener('click', function(e) {
 document.getElementById('inviteModal').addEventListener('click', function(e) {
   if (e.target === this) closeInviteModal();
 });
+document.getElementById('editModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
 
 /* ESC 關閉 */
 document.addEventListener('keydown', e => {
@@ -1222,6 +1296,7 @@ document.addEventListener('keydown', e => {
     closeDisableModal();
     closeTransferModal();
     closeInviteModal();
+    closeEditModal();
     closeNfcMenu();
   }
 });
@@ -1305,6 +1380,83 @@ function copyInviteUrl() {
     document.execCommand('copy');
     toast('已複製！', 'success');
   });
+}
+
+/* ────────────────────────────────────────────
+   編輯員工資料
+──────────────────────────────────────────── */
+let editTarget = null; // 目前正在編輯的 userId
+
+function openEditModal(userId) {
+  const emp = findEmp(userId);
+  if (!emp) return;
+  editTarget = userId;
+
+  // 填入現有資料
+  document.getElementById('editName').value    = emp.name       || '';
+  document.getElementById('editTitle').value   = emp.title      || '';
+  document.getElementById('editDept').value    = emp.department || '';
+  document.getElementById('editEmail').value   = emp.email      || '';
+  document.getElementById('editPhone').value   = emp.phone      || '';
+
+  // 公司欄位：企業管理員鎖定為自己的公司
+  const compInput = document.getElementById('editCompany');
+  if (adminCompany) {
+    compInput.value    = adminCompany;
+    compInput.readOnly = true;
+    compInput.style.opacity = '0.6';
+    compInput.style.cursor  = 'not-allowed';
+  } else {
+    compInput.value    = emp.company || '';
+    compInput.readOnly = false;
+    compInput.style.opacity = '';
+    compInput.style.cursor  = '';
+  }
+
+  document.getElementById('editModalDesc').textContent =
+    `編輯「${emp.name || '此員工'}」的名片資料，修改後立即生效。`;
+  document.getElementById('editMsg').textContent = '';
+  document.getElementById('editSaveBtn').disabled = false;
+  document.getElementById('editSaveBtn').textContent = '儲存變更';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+  editTarget = null;
+}
+
+async function saveEdit() {
+  if (!editTarget) return;
+  const name = document.getElementById('editName').value.trim();
+  if (!name) {
+    document.getElementById('editMsg').innerHTML = '<span style="color:#f87171">姓名為必填欄位</span>';
+    return;
+  }
+
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+  document.getElementById('editMsg').textContent = '';
+
+  try {
+    await UVACO_CLOUD.adminUpdateCard(editTarget, {
+      name,
+      title:      document.getElementById('editTitle').value.trim()   || null,
+      department: document.getElementById('editDept').value.trim()    || null,
+      company:    document.getElementById('editCompany').value.trim() || null,
+      email:      document.getElementById('editEmail').value.trim()   || null,
+      phone:      document.getElementById('editPhone').value.trim()   || null,
+    });
+    closeEditModal();
+    toast(`「${name}」的資料已更新`, 'success');
+    await loadEmps();
+  } catch (e) {
+    document.getElementById('editMsg').innerHTML =
+      `<span style="color:#f87171">儲存失敗：${esc(e.message || String(e))}</span>`;
+    btn.disabled = false;
+    btn.textContent = '儲存變更';
+  }
 }
 
 /* ────────────────────────────────────────────
