@@ -25,6 +25,36 @@ export function getLineRedirectUri(nextRelativeUrl) {
   return getBaseUrl() + 'auth.html';
 }
 
+export function getLiffLoginUrl(nextRelativeUrl) {
+  if (!LIFF_ID) return '';
+  const next = nextRelativeUrl || 'directory.html';
+  const params = new URLSearchParams();
+  params.set('next', next);
+  params.set('liff', '1');
+  return 'https://liff.line.me/' + encodeURIComponent(LIFF_ID) + '?' + params.toString();
+}
+
+export function startLineAppLogin(nextRelativeUrl) {
+  if (!LIFF_ID) return false;
+  const next = nextRelativeUrl || 'directory.html';
+  try { localStorage.setItem('UVACO_LINE_NEXT', next); } catch (e) {}
+  const liffUrl = getLiffLoginUrl(next);
+  if (!liffUrl) return false;
+
+  // 手機優先開 LINE App；若系統沒有成功切到 LINE，auth.html 會改走 QR Code 備援。
+  logLineAuthDebug(
+    'H4',
+    'js/cloud/line-liff.js:startLineAppLogin',
+    'redirecting to liff app url',
+    {
+      next,
+      liffUrlLength: liffUrl.length
+    }
+  );
+  window.location.href = liffUrl;
+  return true;
+}
+
 export function startLineLogin(nextRelativeUrl) {
   if (!LINE_CHANNEL_ID) {
     alert("尚未設定 LINE_CHANNEL_ID（請在 js/cloud/constants.js 填入 LINE Channel ID）。");

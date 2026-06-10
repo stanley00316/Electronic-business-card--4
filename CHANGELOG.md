@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## 2026-06-10（LINE 登入改為 LINE App 優先）
+
+### 維護（低風險登入體驗）
+
+- **LINE App 優先**：手機點「用 LINE App 開啟」時，先嘗試開啟 LIFF URL，讓使用者直接進 LINE App 自動登入。
+- **QR Code 備援**：若手機沒有成功開啟 LINE App，約 2 秒後自動改用既有 LINE QR Code 登入；桌機仍維持 QR Code 登入。
+- **導向保留**：補上 `liff.state` 的 `next` 讀取，避免從 LINE App 回來後丟失原本要前往的頁面。
+- **安全範圍**：不改 Supabase 專案、不改資料表、不改 NFC `card.html?id=...` 或 `card.html?nfc=...` 路徑。
+- **快取更新**：`auth.html` 登入資源版本升為 `20260610g`，`service-worker.js` 版本升為 `v1.32.0`。
+
 ## 2026-06-10（company-admin.html 重構為完整企業管理中心）
 
 ### 重大改版（`company-admin.html`）

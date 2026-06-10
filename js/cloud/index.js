@@ -22,6 +22,8 @@ import {
   exchangeCodeForSessionIfNeeded
 } from './session.js';
 import {
+  getLiffLoginUrl,
+  startLineAppLogin,
   startLineLogin,
   finishLineLoginFromUrl,
   lineAuthDiag,
@@ -118,6 +120,8 @@ window.UVACO_CLOUD = {
   signInWithEmailOtp,
   exchangeCodeForSessionIfNeeded,
 
+  getLiffLoginUrl,
+  startLineAppLogin,
   startLineLogin,
   finishLineLoginFromUrl,
   lineAuthDiag,

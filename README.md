@@ -145,5 +145,6 @@ supabase functions deploy line-auth
 
 4. **前端**
    - 在 `cloud.js` 填入 `LINE_CHANNEL_ID`
-   - 上線後開 `auth.html` 點「用 LINE App 登入」
-   - 外部瀏覽器會優先顯示 QR Code 登入，使用者可用 LINE App 掃碼，不需記帳號密碼
+   - 上線後開 `auth.html` 點「用 LINE App 開啟」
+   - 手機會優先嘗試開啟 LINE App 的 LIFF 登入；若沒有成功開啟，會自動改用 LINE QR Code 登入
+   - 電腦會保留 QR Code 登入，使用者可用 LINE App 掃碼，不需記帳號密碼

@@ -95,6 +95,7 @@
       if (data && data.hasSession != null) compact.push('hasSession=' + data.hasSession);
       if (data && data.handled != null) compact.push('handled=' + data.handled);
       if (data && data.action) compact.push('action=' + data.action);
+      if (data && data.mode) compact.push('mode=' + data.mode);
       writeAuthDebugPanelEvent(message + ' [' + location + ']' + (compact.length ? ' ' + compact.join(' ') : ''));
     };
 
@@ -136,14 +137,61 @@
       box.textContent = msg;
     }
 
+    function normalizeNext(value) {
+      var s = String(value || '').trim();
+      if (!s || /^[a-z][a-z0-9+.-]*:/i.test(s) || s.startsWith('//') || s.includes('\\')) {
+        return 'directory.html';
+      }
+      return s;
+    }
+
+    function getNextFromLiffState(params) {
+      try {
+        var raw = String(params.get('liff.state') || '').trim();
+        if (!raw) return '';
+        var queryText = raw;
+        if (queryText.indexOf('?') >= 0) queryText = queryText.slice(queryText.indexOf('?') + 1);
+        if (queryText.charAt(0) === '?') queryText = queryText.slice(1);
+        var stateParams = new URLSearchParams(queryText);
+        return stateParams.get('next') || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
     function getNext() {
       try {
         var p = new URLSearchParams(window.location.search || '');
-        return p.get('next') || 'directory.html';
+        return normalizeNext(p.get('next') || getNextFromLiffState(p) || 'directory.html');
       } catch (e) {
         return 'directory.html';
       }
     }
+
+    var lineAppFallbackTimer = null;
+
+    function clearLineAppFallbackTimer() {
+      if (lineAppFallbackTimer) {
+        window.clearTimeout(lineAppFallbackTimer);
+        lineAppFallbackTimer = null;
+      }
+    }
+
+    function isMobileDeviceForLineApp() {
+      try {
+        var ua = navigator.userAgent || '';
+        var isPhoneOrTablet = /Android|iPhone|iPad|iPod/i.test(ua);
+        var isTouchMac = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+        return isPhoneOrTablet || isTouchMac;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    window.addEventListener('pagehide', clearLineAppFallbackTimer);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') clearLineAppFallbackTimer();
+    });
 
     // 取得推薦人 ID
     function getReferrerId() {
@@ -332,18 +380,38 @@
     function startLine() {
       try {
         try { localStorage.setItem('UVACO_DEBUG_AUTH_START_TS', String(Date.now())); } catch (e) {}
+        var next = getNext();
+        var canTryLineApp = isMobileDeviceForLineApp()
+          && UVACO_CLOUD.hasLiffConfig
+          && UVACO_CLOUD.hasLiffConfig()
+          && UVACO_CLOUD.startLineAppLogin;
         // #region agent log
         logAuthDebug(
           'H4',
           'js/pages/auth/main.js:startLine',
           'line login button pressed',
           {
-            next: getNext(),
+            next,
+            mode: canTryLineApp ? 'line_app_first' : 'qr_fallback',
             pageAliveMs: Number((performance.now() - authDebugPageStartedAt).toFixed(1))
           }
         );
         // #endregion
-        UVACO_CLOUD.startLineLogin(getNext());
+        if (canTryLineApp) {
+          setStatus('ok', '正在開啟 LINE App... 若沒有自動開啟，將改用 QR Code 登入。');
+          clearLineAppFallbackTimer();
+          lineAppFallbackTimer = window.setTimeout(function () {
+            lineAppFallbackTimer = null;
+            if (document.visibilityState && document.visibilityState !== 'visible') return;
+            setStatus('ok', 'LINE App 未自動開啟，改用 QR Code 登入...');
+            UVACO_CLOUD.startLineLogin(next);
+          }, 2200);
+
+          if (UVACO_CLOUD.startLineAppLogin(next)) return;
+          clearLineAppFallbackTimer();
+        }
+
+        UVACO_CLOUD.startLineLogin(next);
       } catch (e) {
         setStatus('err', 'LINE 登入尚未設定完成。');
       }
