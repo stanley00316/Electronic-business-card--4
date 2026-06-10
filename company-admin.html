@@ -332,6 +332,16 @@
     }
     .result-info { font-size: 11px; color: var(--text-muted); margin: 4px 0 10px; }
 
+    /* ── 公司切換器 ── */
+    .company-switcher {
+      padding: 5px 10px; background: rgba(34,197,94,.08);
+      border: 1px solid rgba(34,197,94,.3); border-radius: 20px;
+      color: var(--g); font-size: 12px; font-weight: 600;
+      outline: none; cursor: pointer; max-width: 200px;
+    }
+    .company-switcher:focus { border-color: var(--g); }
+    .company-switcher option { background: #1a1a1a; color: var(--text); font-weight: normal; }
+
     /* ── 無權限 ── */
     #accessDenied {
       display: none; min-height: 100vh; align-items: center; justify-content: center;
@@ -369,7 +379,11 @@
         <div class="header-title">企業管理中心</div>
         <div class="header-sub">數位名片管理系統</div>
       </div>
-      <div class="company-badge" id="companyBadge">載入中…</div>
+      <div class="company-badge" id="companyBadge" style="display:none">載入中…</div>
+      <!-- 超管專屬：公司切換器 -->
+      <select class="company-switcher" id="companySwitcher" style="display:none" onchange="onCompanySwitch()">
+        <option value="">🌐 所有公司</option>
+      </select>
     </div>
     <nav class="header-nav">
       <a href="admin.html" class="nav-link">後台管理</a>
@@ -448,6 +462,7 @@
           <thead>
             <tr>
               <th>姓名 / 職稱</th>
+              <th id="thCompany" style="display:none">公司</th>
               <th>部門</th>
               <th>狀態</th>
               <th>NFC</th>
@@ -532,12 +547,22 @@
     <!-- ══ 頁籤：公司設定 ═════════════════════════════ -->
     <div class="tab-panel" id="panelCfg">
 
-      <div class="section">
+      <!-- 超管：選擇要設定的公司 -->
+      <div class="section" id="cfgCompanyPicker" style="display:none">
+        <div class="section-title">🏢 選擇公司</div>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px">請先選擇要設定鎖定欄位的公司：</p>
+        <select class="filter-sel" id="cfgCompanySel" onchange="onCfgCompanyChange()" style="min-width:200px;font-size:13px;padding:10px 12px;">
+          <option value="">— 請選擇公司 —</option>
+        </select>
+      </div>
+
+      <div class="section" id="cfgLockSection">
         <div class="section-title">🔒 鎖定欄位設定</div>
         <p style="font-size:13px;color:var(--text-dim);margin-bottom:18px;line-height:1.6">
           勾選後，員工將無法自行修改該欄位。<br>
           適合統一管理「公司名稱」、「部門」等需要一致性的資訊。
         </p>
+        <div id="cfgCompanyLabel" style="display:none;font-size:13px;font-weight:600;color:var(--g);margin-bottom:14px;"></div>
         <div class="lock-grid" id="lockGrid">
           <div style="color:var(--text-dim);font-size:13px;padding:8px 0">切換到此頁籤以載入設定…</div>
         </div>
@@ -698,12 +723,13 @@
 /* ════════════════════════════════════════════
    狀態變數
 ════════════════════════════════════════════ */
-let allEmps        = [];      // 全部員工
+let allEmps        = [];      // 全部員工（原始，未過濾）
 let shown          = [];      // 篩選後員工
 let allAdmins      = [];      // 管理員列表
 let cardNameCache  = {};      // user_id → card（搜尋快取）
 let isSuperAdmin   = false;
-let myCompany      = null;
+let myCompany      = null;    // 企業管理員固定公司；超管為 null
+let activeCompany  = '';      // 目前選擇的公司（超管切換用）；空 = 所有公司
 let selectedUserId = '';
 let pickerTimer    = null;
 let currentTab     = 'emp';
@@ -728,23 +754,28 @@ async function init() {
     return;
   }
 
-  isSuperAdmin = adminStatus.canManageAdmins && !adminStatus.managedCompany;
-  myCompany    = adminStatus.managedCompany || null;
+  isSuperAdmin  = adminStatus.canManageAdmins && !adminStatus.managedCompany;
+  myCompany     = adminStatus.managedCompany || null;
+  activeCompany = myCompany || '';  // 企業管理員固定自己的公司；超管預設空（全部）
 
-  document.getElementById('companyBadge').textContent =
-    myCompany ? `🏢 ${myCompany}` : '🌐 所有公司';
-
-  // 企業管理員：鎖定「管理公司」欄位
   if (myCompany) {
+    // 企業管理員：顯示固定公司 badge
+    const badge = document.getElementById('companyBadge');
+    badge.textContent = `🏢 ${myCompany}`;
+    badge.style.display = '';
+    // 鎖定「管理公司」欄位
     const ci = document.getElementById('newAdminCompany');
     ci.value = myCompany; ci.readOnly = true;
     ci.style.opacity = '0.6'; ci.style.cursor = 'not-allowed';
     document.getElementById('companyHint').textContent = '企業管理員只能新增本公司的管理員';
+  } else {
+    // 超管：顯示公司切換器
+    document.getElementById('companySwitcher').style.display = '';
   }
 
   hide('pageLoading');
   show('mainContent');
-  await loadEmps(); // 預載員工資料
+  await loadEmps(); // 預載員工資料（超管會取得全部公司員工）
 }
 
 /* ════════════════════════════════════════════
@@ -777,6 +808,7 @@ async function loadEmps() {
       lastOpenedAt: statsMap.get(r.user_id)?.lastOpenedAt || null,
       nfc_status: r.nfc_status || (r.nfc_card_id ? 'bound' : 'unbound')
     }));
+    if (isSuperAdmin) rebuildCompanySwitcher(); // 超管：更新公司下拉
     updateEmpStats();
     rebuildDeptFilter();
     applyFilters();
@@ -789,18 +821,49 @@ async function loadEmps() {
 }
 
 function updateEmpStats() {
-  setText('eStatTotal',  allEmps.length);
-  setText('eStatActive', allEmps.filter(e => !e.admin_disabled).length);
-  setText('eStatOff',    allEmps.filter(e =>  e.admin_disabled).length);
-  setText('eStatNfc',    allEmps.filter(e => e.nfc_status === 'bound').length);
+  // 統計依 activeCompany 過濾後的資料計算
+  const base = activeCompany
+    ? allEmps.filter(e => (e.company||'') === activeCompany)
+    : allEmps;
+  setText('eStatTotal',  base.length);
+  setText('eStatActive', base.filter(e => !e.admin_disabled).length);
+  setText('eStatOff',    base.filter(e =>  e.admin_disabled).length);
+  setText('eStatNfc',    base.filter(e => e.nfc_status === 'bound').length);
 }
 
 function rebuildDeptFilter() {
-  const sel  = document.getElementById('empDeptSel');
-  const prev = sel.value;
-  const depts = [...new Set(allEmps.map(e => e.department||'').filter(Boolean))].sort();
+  const sel   = document.getElementById('empDeptSel');
+  const prev  = sel.value;
+  const base  = activeCompany ? allEmps.filter(e => (e.company||'') === activeCompany) : allEmps;
+  const depts = [...new Set(base.map(e => e.department||'').filter(Boolean))].sort();
   sel.innerHTML = '<option value="">全部部門</option>' +
     depts.map(d => `<option${prev===d?' selected':''}>${esc(d)}</option>`).join('');
+}
+
+/* ── 公司切換器（超管專用）── */
+function rebuildCompanySwitcher() {
+  const sel  = document.getElementById('companySwitcher');
+  const prev = sel.value;
+  const companies = [...new Set(allEmps.map(e => e.company||'').filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">🌐 所有公司</option>' +
+    companies.map(c => `<option value="${esc(c)}"${prev===c?' selected':''}>${esc(c)}</option>`).join('');
+  // 也同步更新公司設定頁籤的選單
+  const cfgSel = document.getElementById('cfgCompanySel');
+  const cfgPrev = cfgSel.value;
+  cfgSel.innerHTML = '<option value="">— 請選擇公司 —</option>' +
+    companies.map(c => `<option value="${esc(c)}"${cfgPrev===c?' selected':''}>${esc(c)}</option>`).join('');
+}
+
+function onCompanySwitch() {
+  activeCompany = document.getElementById('companySwitcher').value;
+  updateEmpStats();
+  rebuildDeptFilter();
+  // 重置部門篩選
+  document.getElementById('empDeptSel').value = '';
+  applyFilters();
+  // 同步公司設定頁籤的選單選項
+  const cfgSel = document.getElementById('cfgCompanySel');
+  if (activeCompany) cfgSel.value = activeCompany;
 }
 
 function applyFilters() {
@@ -809,31 +872,40 @@ function applyFilters() {
   const nfcF  = document.getElementById('empNfcSel').value;
   const statF = document.getElementById('empStatusSel').value;
   shown = allEmps.filter(e => {
-    if (q    && !`${e.name||''} ${e.title||''}`.toLowerCase().includes(q)) return false;
+    // 超管公司過濾（精確比對）
+    if (activeCompany && (e.company||'') !== activeCompany) return false;
+    if (q    && !`${e.name||''} ${e.title||''} ${e.company||''}`.toLowerCase().includes(q)) return false;
     if (dept && (e.department||'') !== dept)  return false;
     if (nfcF && e.nfc_status !== nfcF)        return false;
     if (statF === 'active' &&  e.admin_disabled) return false;
     if (statF === 'off'    && !e.admin_disabled) return false;
     return true;
   });
-  const n = shown.length, t = allEmps.length;
+  // 公司欄顯示控制：超管且未選特定公司時顯示公司欄
+  const showCompanyCol = isSuperAdmin && !activeCompany;
+  const thCompany = document.getElementById('thCompany');
+  if (thCompany) thCompany.style.display = showCompanyCol ? '' : 'none';
+
+  const base = activeCompany ? allEmps.filter(e=>(e.company||'')===activeCompany) : allEmps;
+  const n = shown.length, t = base.length;
   document.getElementById('empResultInfo').textContent =
-    `共 ${n} 位員工` + (n < t ? `（全部 ${t} 位）` : '');
-  renderEmpTable();
-  renderEmpCards();
+    `${activeCompany ? `【${activeCompany}】` : ''}共 ${n} 位員工` + (n < t ? `（全部 ${t} 位）` : '');
+  renderEmpTable(showCompanyCol);
+  renderEmpCards(showCompanyCol);
 }
 
-function renderEmpTable() {
+function renderEmpTable(showCompanyCol) {
   const tbody = document.getElementById('empTbody');
   const table = document.getElementById('empTable');
   const empty = document.getElementById('empEmpty');
   if (!shown.length) { table.style.display='none'; empty.style.display='block'; return; }
   table.style.display = 'table'; empty.style.display = 'none';
   tbody.innerHTML = shown.map(e => {
-    const uid = e.user_id;
+    const uid    = e.user_id;
     const dName  = esc(e.name||'（未填姓名）');
     const dTitle = esc(e.title||'');
     const dDept  = esc(e.department||'');
+    const dComp  = esc(e.company||'');
     const isOff  = !!e.admin_disabled;
     const nfcSt  = e.nfc_status||'unbound';
     const hasNfc = !!e.nfc_card_id;
@@ -842,6 +914,7 @@ function renderEmpTable() {
         <div class="cell-name">${dName}</div>
         ${dTitle?`<div class="cell-title">${dTitle}</div>`:''}
       </td>
+      ${showCompanyCol ? `<td style="font-size:12px;color:var(--text-dim)">${dComp||'<span style="color:var(--text-muted)">—</span>'}</td>` : ''}
       <td style="font-size:12px;color:var(--text-dim)">${dDept||'<span style="color:var(--text-muted)">—</span>'}</td>
       <td>${statusBadge(isOff)}</td>
       <td>${nfcBadge(nfcSt)}</td>
@@ -863,21 +936,24 @@ function renderEmpTable() {
   }).join('');
 }
 
-function renderEmpCards() {
+function renderEmpCards(showCompanyCol) {
   const box = document.getElementById('empCards');
   if (!shown.length) {
     box.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">無符合條件的員工</div></div>';
     return;
   }
   box.innerHTML = shown.map(e => {
-    const uid = e.user_id;
+    const uid    = e.user_id;
     const dName  = esc(e.name||'（未填姓名）');
     const dTitle = esc(e.title||'');
     const dDept  = esc(e.department||'');
+    const dComp  = esc(e.company||'');
     const isOff  = !!e.admin_disabled;
     const nfcSt  = e.nfc_status||'unbound';
     const hasNfc = !!e.nfc_card_id;
-    const meta   = [dTitle,dDept].filter(Boolean).join(' · ');
+    // 手機版：顯示公司（超管且無選定公司時）
+    const metaParts = showCompanyCol && dComp ? [dComp, dTitle, dDept] : [dTitle, dDept];
+    const meta = metaParts.filter(Boolean).join(' · ');
     return `<div class="emp-card ${isOff?'row-disabled':''}">
       <div class="emp-card-top">
         <div>
@@ -1001,11 +1077,13 @@ async function saveEdit() {
 function openInviteModal() {
   const ci = document.getElementById('invCompany');
   if (myCompany) {
+    // 企業管理員：鎖定自己的公司
     ci.value = myCompany; ci.readOnly = true;
     ci.style.opacity = '0.6'; ci.style.cursor = 'not-allowed';
   } else {
-    ci.value = ''; ci.readOnly = false;
-    ci.style.opacity = ''; ci.style.cursor = '';
+    // 超管：預填目前選定的公司，但可修改
+    ci.value = activeCompany || '';
+    ci.readOnly = false; ci.style.opacity = ''; ci.style.cursor = '';
   }
   ['invName','invTitle','invDept','invEmail','invPhone'].forEach(id => { document.getElementById(id).value=''; });
   document.getElementById('inviteResult').style.display = 'none';
@@ -1321,12 +1399,29 @@ const LOCKABLE_FIELDS = [
   { value:'theme',      label:'名片主題', hint:'員工無法更換名片樣式' },
 ];
 async function loadLockSettings() {
+  // 超管：顯示公司選擇器；企業管理員：直接載入
+  if (isSuperAdmin) {
+    document.getElementById('cfgCompanyPicker').style.display = '';
+    // 若超管已透過員工管理頁籤選了公司，同步到此選單
+    if (activeCompany) {
+      document.getElementById('cfgCompanySel').value = activeCompany;
+    }
+  }
+
+  const targetCompany = myCompany || document.getElementById('cfgCompanySel').value;
+  if (!targetCompany) {
+    // 超管尚未選公司：只顯示選擇器，隱藏鎖定欄位
+    document.getElementById('cfgLockSection').style.display = 'none';
+    return;
+  }
+  document.getElementById('cfgLockSection').style.display = '';
+  const label = document.getElementById('cfgCompanyLabel');
+  if (isSuperAdmin) { label.textContent = `正在設定：${targetCompany}`; label.style.display=''; }
+
   const grid = document.getElementById('lockGrid');
   grid.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:8px 0">載入中…</div>';
   let saved = [];
-  if (myCompany) {
-    try { const res = await UVACO_CLOUD.getCompanySettings(myCompany); saved = res.lockedFields||[]; } catch { saved=[]; }
-  }
+  try { const res = await UVACO_CLOUD.getCompanySettings(targetCompany); saved = res.lockedFields||[]; } catch { saved=[]; }
   grid.innerHTML = LOCKABLE_FIELDS.map(f => `
     <label class="lock-item">
       <input type="checkbox" value="${f.value}" ${saved.includes(f.value)?'checked':''}>
@@ -1337,17 +1432,23 @@ async function loadLockSettings() {
     </label>
   `).join('');
 }
+
+async function onCfgCompanyChange() {
+  await loadLockSettings();
+}
+
 async function saveLockSettings() {
-  if (!myCompany) {
+  const targetCompany = myCompany || document.getElementById('cfgCompanySel').value;
+  if (!targetCompany) {
     document.getElementById('lockMsg').innerHTML =
-      '<span style="color:#f59e0b">⚠ 超級管理員需指定公司後才能設定鎖定欄位</span>';
+      '<span style="color:#f59e0b">⚠ 請先選擇要設定的公司</span>';
     return;
   }
   const btn = document.getElementById('saveLockBtn');
   btn.disabled = true; btn.textContent = '儲存中…';
   const checked = [...document.querySelectorAll('#lockGrid input[type="checkbox"]:checked')].map(el=>el.value);
   try {
-    await UVACO_CLOUD.saveCompanySettings({ company: myCompany, lockedFields: checked });
+    await UVACO_CLOUD.saveCompanySettings({ company: targetCompany, lockedFields: checked });
     document.getElementById('lockMsg').innerHTML = '<span style="color:#4ade80">✅ 設定已儲存，員工編輯名片時將自動套用</span>';
     setTimeout(() => { document.getElementById('lockMsg').textContent=''; }, 3000);
   } catch (e) {
