@@ -293,6 +293,11 @@
           <span class="lang-zh">QR Code</span>
           <span class="lang-en">QR Code</span>
         </button>
+        <button class="btn btn-secondary" onclick="downloadVCard()" style="display: inline-flex; align-items: center; gap: 8px; width: auto;">
+          <img src="file-icon.svg" alt="VCF" class="btn-icon-file">
+          <span class="lang-zh">加入通訊錄</span>
+          <span class="lang-en">Save Contact</span>
+        </button>
       </div>
     </div>
 
@@ -379,6 +384,8 @@ async function gotoMyCard(event) {
 // 使用者點選 QR 時才動態載入 qrcodejs，避免初次開名片時載入不必要的外部腳本。
 const UVACO_QRCODE_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
 let __uvacoQrLibPromise = null;
+// 這裡保存公開名片載入後的資料，讓「加入通訊錄」可直接產生手機聯絡人檔。
+let __uvacoPublicCardContext = null;
 function loadQRCodeScript() {
   if (typeof QRCode !== 'undefined') return Promise.resolve();
   if (__uvacoQrLibPromise) return __uvacoQrLibPromise;
@@ -395,6 +402,182 @@ function loadQRCodeScript() {
 
 function safeText(v) {
   return String(v ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function cleanVCardText(value) {
+  return filterSystemText(safeText(value))
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .trim();
+}
+
+function uniquePush(list, value) {
+  const v = cleanVCardText(value);
+  if (v && !list.includes(v)) list.push(v);
+}
+
+function vCardEscape(value) {
+  return cleanVCardText(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,');
+}
+
+function foldVCardLine(line) {
+  if (line.length <= 74) return line;
+  const chunks = [];
+  let rest = line;
+  while (rest.length > 74) {
+    chunks.push(rest.slice(0, 74));
+    rest = rest.slice(74);
+  }
+  chunks.push(rest);
+  return chunks.map((part, idx) => idx === 0 ? part : ' ' + part).join('\r\n');
+}
+
+function normalizePhoneForVCard(value) {
+  const raw = String(value || '').replace(/^tel:/i, '').trim();
+  const cleaned = raw.replace(/[^\d+]/g, '');
+  return cleaned || cleanVCardText(raw);
+}
+
+function normalizeMailForVCard(value) {
+  return String(value || '').replace(/^mailto:/i, '').split('?')[0].trim();
+}
+
+function normalizeUrlForVCard(value) {
+  const raw = String(value || '').trim();
+  if (!raw || /^(tel|mailto|javascript):/i.test(raw)) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^(line|weixin|whatsapp):/i.test(raw)) return raw;
+  if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(raw)) return 'https://' + raw;
+  return raw;
+}
+
+function textFromHtmlFragment(html) {
+  const box = document.createElement('div');
+  box.innerHTML = filterSystemHtml(String(html || ''));
+  return cleanVCardText(box.textContent || '');
+}
+
+function getAddressText(id) {
+  const root = document.getElementById(id);
+  if (!root) return '';
+  const addressEl = root.querySelector('.address-text');
+  return cleanVCardText(addressEl ? addressEl.textContent : root.textContent);
+}
+
+function collectVisibleContactLinks() {
+  const phones = [];
+  const emails = [];
+  const urls = [];
+  const notes = [];
+  const group = document.getElementById('viewerContacts');
+  if (!group) return { phones, emails, urls, notes };
+
+  group.querySelectorAll('a[href]').forEach(anchor => {
+    const href = String(anchor.getAttribute('href') || '').trim();
+    const label = cleanVCardText(anchor.textContent || '');
+    if (!href || href.endsWith('.vcf')) return;
+
+    if (/^tel:/i.test(href)) {
+      uniquePush(phones, normalizePhoneForVCard(href));
+      return;
+    }
+
+    if (/^mailto:/i.test(href)) {
+      uniquePush(emails, normalizeMailForVCard(href));
+      return;
+    }
+
+    const url = normalizeUrlForVCard(href);
+    if (!url) return;
+    uniquePush(urls, url);
+    uniquePush(notes, (label ? label + ': ' : '連結: ') + url);
+  });
+
+  return { phones, emails, urls, notes };
+}
+
+function collectCompanyInfoNotes() {
+  const notes = [];
+  const section = document.getElementById('companyInfoSection');
+  if (!section) return notes;
+
+  section.querySelectorAll('.info-item').forEach(item => {
+    const text = cleanVCardText(item.textContent || '')
+      .replace(/在地圖中查看/g, '')
+      .replace(/View on map/gi, '')
+      .trim();
+    if (text && text !== '-' && text !== '（未設定）' && text !== '（Not Set）') {
+      uniquePush(notes, text);
+    }
+  });
+
+  return notes;
+}
+
+function safeVCardFilename(value) {
+  const base = cleanVCardText(value || 'contact')
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, '-')
+    .slice(0, 60) || 'contact';
+  return base + '.vcf';
+}
+
+// 這裡把畫面上的名片資料整理成手機可讀的 .vcf 通訊錄格式。
+function buildVCard(context) {
+  const card = context?.card || {};
+  const pj = context?.pj || {};
+  const contactLinks = collectVisibleContactLinks();
+  const phones = [];
+  const emails = [];
+  const urls = [];
+  const notes = [];
+  const addresses = [];
+
+  const name = cleanVCardText(context.nameZh || context.nameEn || card.name || pj.nameZh || pj.nameEn || '數位名片');
+  const title = cleanVCardText(context.titleZh || context.titleEn || card.title || pj.titleZh || pj.titleEn || '');
+  const company = cleanVCardText(context.companyZh || context.companyEn || card.company || pj.companyZh || pj.companyEn || pj.companyCanonical || '');
+  const cardUrl = normalizeUrlForVCard(context.cardUrl || window.location.href);
+
+  uniquePush(phones, normalizePhoneForVCard(card.phone));
+  contactLinks.phones.forEach(phone => uniquePush(phones, phone));
+
+  uniquePush(emails, normalizeMailForVCard(card.email));
+  contactLinks.emails.forEach(email => uniquePush(emails, email));
+
+  [pj.companyWebsite, pj.website, cardUrl].forEach(url => uniquePush(urls, normalizeUrlForVCard(url)));
+  contactLinks.urls.forEach(url => uniquePush(urls, url));
+
+  ['previewServiceLocationZh', 'previewServiceLocationEn', 'previewMailingAddressZh', 'previewMailingAddressEn', 'previewCompanyAddressZh', 'previewCompanyAddressEn']
+    .map(getAddressText)
+    .forEach(address => uniquePush(addresses, address));
+
+  contactLinks.notes.forEach(note => uniquePush(notes, note));
+  collectCompanyInfoNotes().forEach(note => uniquePush(notes, note));
+  [pj.slogansZhHtml, pj.slogansEnHtml].map(textFromHtmlFragment).forEach(note => uniquePush(notes, note));
+  if (cardUrl) uniquePush(notes, '電子名片: ' + cardUrl);
+
+  const lines = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    'PRODID:-//UVACO//Digital Business Card//ZH-TW',
+    'FN;CHARSET=UTF-8:' + vCardEscape(name),
+    'N;CHARSET=UTF-8:' + vCardEscape(name) + ';;;;'
+  ];
+
+  if (company) lines.push('ORG;CHARSET=UTF-8:' + vCardEscape(company));
+  if (title) lines.push('TITLE;CHARSET=UTF-8:' + vCardEscape(title));
+  phones.forEach((phone, index) => lines.push('TEL;TYPE=' + (index === 0 ? 'CELL,VOICE' : 'VOICE') + ':' + vCardEscape(phone)));
+  emails.forEach(email => lines.push('EMAIL;TYPE=INTERNET:' + vCardEscape(email)));
+  urls.forEach((url, index) => lines.push('URL' + (index === 0 ? '' : ';TYPE=OTHER') + ':' + vCardEscape(url)));
+  addresses.forEach((address, index) => lines.push('ADR;TYPE=' + (index === 0 ? 'WORK' : 'OTHER') + ';CHARSET=UTF-8:;;' + vCardEscape(address) + ';;;;'));
+  if (notes.length) lines.push('NOTE;CHARSET=UTF-8:' + vCardEscape(notes.join('\n')));
+  lines.push('REV:' + new Date().toISOString());
+  lines.push('END:VCARD');
+
+  return lines.map(foldVCardLine).join('\r\n') + '\r\n';
 }
 
 // 系統佔位文字過濾 - 過濾被誤存的系統提示文字
@@ -723,6 +906,18 @@ document.addEventListener('DOMContentLoaded', function () {
       await applyAssets(pj);
       applyCompanyInfo(pj);
       applyContacts(pj, card);
+      __uvacoPublicCardContext = {
+        userId,
+        card,
+        pj,
+        nameZh,
+        nameEn,
+        titleZh,
+        titleEn,
+        companyZh,
+        companyEn,
+        cardUrl: window.location.href.split('#')[0]
+      };
     } catch (e) {
       console.error(e);
       alert('載入失敗，請稍後再試');
@@ -843,6 +1038,43 @@ function shareToEmail() {
   const subject = lang === 'zh' ? `${name} 的數位名片` : `${name}'s Digital Business Card`;
   const body = `${text}\n\n${url}`;
   window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// 朋友或客戶點擊後，手機會開啟內建的新增聯絡人流程。
+function downloadVCard() {
+  const lang = localStorage.getItem('lang') || 'zh';
+  if (!__uvacoPublicCardContext) {
+    alert(lang === 'zh' ? '名片資料尚未載入完成，請稍候再試。' : 'Card data is still loading. Please try again.');
+    return;
+  }
+
+  try {
+    const vcardText = buildVCard(__uvacoPublicCardContext);
+    const fileName = safeVCardFilename(__uvacoPublicCardContext.nameZh || __uvacoPublicCardContext.nameEn || __uvacoPublicCardContext.card?.name);
+    const blob = new Blob([vcardText], { type: 'text/vcard;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent)
+      || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+    if (isIOS) {
+      window.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } else {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.setAttribute('type', 'text/vcard');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+
+    showCopyToast(lang === 'zh' ? '已開啟通訊錄匯入檔' : 'Contact file opened');
+  } catch (e) {
+    console.error('產生 VCF 失敗:', e);
+    alert(lang === 'zh' ? '通訊錄檔案產生失敗，請稍後再試。' : 'Failed to create contact file. Please try again.');
+  }
 }
 
 // QR Code 功能
