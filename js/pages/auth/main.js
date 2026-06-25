@@ -368,11 +368,11 @@
         return;
       }
 
-      // 如果未登入且來源是「我的名片」(next=my-card.html)，自動啟動 LINE 登入
-      // 這讓 PWA 用戶開啟 app 後直接進入 LINE 登入，無需點擊按鈕
+      // 若從手機主畫面入口來但尚未登入，不再自動啟動 LINE。
+      // 使用者需點「用 LINE App 開啟」，避免 LINE App / PWA 之間反覆跳轉造成畫面閃爍。
       var next = getNext();
       if (next === 'my-card.html') {
-        startLine();
+        setStatus('ok', '請點「用 LINE App 開啟」登入一次。完成後，下次從手機主畫面可直接開啟名片。');
         return;
       }
     }

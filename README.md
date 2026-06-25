@@ -85,6 +85,8 @@
 - **手機主畫面入口**：`my-card.html`
   - 已登入時：記住自己的公開名片 ID，並導向 `card.html?id=<user_id>`
   - 從手機主畫面/PWA 圖示開啟且登入已過期時：若本機已記住名片 ID，直接開公開名片頁，不強制 LINE 登入
+  - 若本機仍保留舊 LINE 登入 token，會先讀取其中的使用者 ID 來開公開名片；這只用於公開瀏覽，不代表已登入管理功能
+  - 從手機主畫面/PWA 圖示開啟但尚未記住名片 ID 時：停在提示畫面，由使用者手動點「登入一次」，避免自動 LINE 登入造成反覆閃爍
   - 編輯名片、設定、通訊錄與後台仍維持 LINE 登入保護
 - **首次進入**：系統會依 Supabase 名片資料與 `localStorage.UVACO_ONBOARDED` 判斷是否進入新手流程
   - 使用者在 `edit.html` 按下「儲存」後，會寫入 `UVACO_ONBOARDED=1` 並回到 `directory.html`

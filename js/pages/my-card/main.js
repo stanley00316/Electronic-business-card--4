@@ -2,6 +2,7 @@
  * my-card.html
  */
     const HOME_SCREEN_CARD_ID_KEY = 'UVACO_HOME_CARD_ID';
+    const CUSTOM_JWT_KEY = 'UVACO_CUSTOM_JWT';
 
     function isStandaloneApp() {
       try {
@@ -26,6 +27,27 @@
       }
     }
 
+    function decodeCardIdFromJwtPayload(token) {
+      try {
+        const parts = String(token || '').split('.');
+        if (parts.length < 2) return '';
+        const raw = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = raw + (raw.length % 4 ? '='.repeat(4 - (raw.length % 4)) : '');
+        const payload = JSON.parse(atob(padded));
+        return normalizeRememberedCardId(payload && payload.sub);
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function getCardIdFromStoredJwt() {
+      try {
+        return decodeCardIdFromJwtPayload(localStorage.getItem(CUSTOM_JWT_KEY));
+      } catch (e) {
+        return '';
+      }
+    }
+
     function rememberHomeCardId(userId) {
       const id = normalizeRememberedCardId(userId);
       if (!id) return;
@@ -42,6 +64,18 @@
       window.location.replace('auth.html?next=my-card.html');
     }
 
+    function showStableLoginPrompt() {
+      const loading = document.querySelector('.loading');
+      const loadingText = document.querySelector('.loading-text');
+      if (loading) loading.classList.add('needs-login');
+      if (loadingText) {
+        loadingText.innerHTML =
+          '這支手機尚未記住您的名片。<br>' +
+          '請先登入一次，開啟自己的名片後，下次從手機主畫面即可直接開啟。<br><br>' +
+          '<a class="login-once-link" href="auth.html?next=my-card.html">登入一次</a>';
+      }
+    }
+
     // 載入超時提示（8秒後顯示）
     var loadingTimeout = setTimeout(function() {
       var loadingText = document.querySelector('.loading-text');
@@ -52,9 +86,20 @@
 
     (async function() {
       try {
+        const standaloneFallbackCardId = isStandaloneApp()
+          ? (getRememberedHomeCardId() || getCardIdFromStoredJwt())
+          : '';
+        if (standaloneFallbackCardId) {
+          rememberHomeCardId(standaloneFallbackCardId);
+        }
+
         // 檢查是否有 Supabase 配置
         if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
           clearTimeout(loadingTimeout);
+          if (standaloneFallbackCardId) {
+            redirectToCard(standaloneFallbackCardId);
+            return;
+          }
           // 未配置，導向登入頁
           redirectToLogin();
           return;
@@ -70,9 +115,13 @@
 
         if (!userId) {
           // 手機主畫面/PWA 模式只負責快速打開「已記住的公開名片」，不放寬編輯與後台權限。
-          const rememberedCardId = isStandaloneApp() ? getRememberedHomeCardId() : '';
-          if (rememberedCardId) {
-            redirectToCard(rememberedCardId);
+          if (isStandaloneApp()) {
+            const rememberedCardId = getRememberedHomeCardId() || standaloneFallbackCardId;
+            if (rememberedCardId) {
+              redirectToCard(rememberedCardId);
+              return;
+            }
+            showStableLoginPrompt();
             return;
           }
 
@@ -90,9 +139,14 @@
         console.error('載入失敗:', e);
         clearTimeout(loadingTimeout);
         // 發生錯誤，導向登入頁
-        const rememberedCardId = isStandaloneApp() ? getRememberedHomeCardId() : '';
-        if (rememberedCardId) {
-          redirectToCard(rememberedCardId);
+        if (isStandaloneApp()) {
+          const rememberedCardId = getRememberedHomeCardId() || getCardIdFromStoredJwt();
+          if (rememberedCardId) {
+            rememberHomeCardId(rememberedCardId);
+            redirectToCard(rememberedCardId);
+            return;
+          }
+          showStableLoginPrompt();
           return;
         }
         redirectToLogin();
