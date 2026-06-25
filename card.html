@@ -454,6 +454,18 @@ function normalizeUrlForVCard(value) {
   return raw;
 }
 
+function getContactLinkLabel(href, fallbackLabel) {
+  const url = String(href || '').toLowerCase();
+  if (url.includes('line.me') || url.startsWith('line:')) return 'LINE';
+  if (url.includes('facebook.com') || url.includes('fb.me')) return 'Facebook';
+  if (url.includes('instagram.com')) return 'Instagram';
+  if (url.includes('linkedin.com')) return 'LinkedIn';
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return 'YouTube';
+  if (url.includes('wa.me') || url.includes('whatsapp.com') || url.startsWith('whatsapp:')) return 'WhatsApp';
+  if (url.includes('wechat') || url.startsWith('weixin:')) return 'WeChat';
+  return cleanVCardText(fallbackLabel) || '連結';
+}
+
 function textFromHtmlFragment(html) {
   const box = document.createElement('div');
   box.innerHTML = filterSystemHtml(String(html || ''));
@@ -492,8 +504,9 @@ function collectVisibleContactLinks() {
 
     const url = normalizeUrlForVCard(href);
     if (!url) return;
+    const noteLabel = getContactLinkLabel(href, label);
     uniquePush(urls, url);
-    uniquePush(notes, (label ? label + ': ' : '連結: ') + url);
+    uniquePush(notes, noteLabel + ': ' + url);
   });
 
   return { phones, emails, urls, notes };
@@ -1040,8 +1053,50 @@ function shareToEmail() {
   window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-// 朋友或客戶點擊後，手機會開啟內建的新增聯絡人流程。
-function downloadVCard() {
+function createVCardFile(vcardText, fileName) {
+  if (typeof File !== 'function') return null;
+  return new File([vcardText], fileName, { type: 'text/x-vcard' });
+}
+
+async function shareVCardFileIfSupported(vcardText, fileName, displayName) {
+  const file = createVCardFile(vcardText, fileName);
+  const shareData = {
+    files: file ? [file] : [],
+    title: displayName || fileName,
+    text: displayName ? displayName + ' 的電子名片' : '電子名片'
+  };
+
+  if (!file || typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') {
+    return false;
+  }
+
+  try {
+    if (!navigator.canShare({ files: [file] })) return false;
+    await navigator.share(shareData);
+    return true;
+  } catch (e) {
+    if (e && e.name === 'AbortError') return true;
+    console.warn('手機原生分享通訊錄檔失敗，改用下載備援:', e);
+    return false;
+  }
+}
+
+function triggerVCardDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.setAttribute('type', 'text/x-vcard');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// 朋友或客戶點擊後，手機會先開啟原生分享/匯入選單，不支援時才下載 .vcf 檔。
+async function downloadVCard() {
   const lang = localStorage.getItem('lang') || 'zh';
   if (!__uvacoPublicCardContext) {
     alert(lang === 'zh' ? '名片資料尚未載入完成，請稍候再試。' : 'Card data is still loading. Please try again.');
@@ -1050,27 +1105,17 @@ function downloadVCard() {
 
   try {
     const vcardText = buildVCard(__uvacoPublicCardContext);
-    const fileName = safeVCardFilename(__uvacoPublicCardContext.nameZh || __uvacoPublicCardContext.nameEn || __uvacoPublicCardContext.card?.name);
-    const blob = new Blob([vcardText], { type: 'text/vcard;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent)
-      || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-
-    if (isIOS) {
-      window.location.href = url;
-      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } else {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      link.setAttribute('type', 'text/vcard');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+    const displayName = cleanVCardText(__uvacoPublicCardContext.nameZh || __uvacoPublicCardContext.nameEn || __uvacoPublicCardContext.card?.name);
+    const fileName = safeVCardFilename(displayName);
+    const shared = await shareVCardFileIfSupported(vcardText, fileName, displayName);
+    if (shared) {
+      showCopyToast(lang === 'zh' ? '請在手機選單選擇通訊錄或聯絡人' : 'Choose Contacts in the phone menu');
+      return;
     }
 
-    showCopyToast(lang === 'zh' ? '已開啟通訊錄匯入檔' : 'Contact file opened');
+    const blob = new Blob([vcardText], { type: 'text/x-vcard;charset=utf-8' });
+    triggerVCardDownload(blob, fileName);
+    showCopyToast(lang === 'zh' ? '已下載通訊錄檔，請開啟 .vcf 新增聯絡人' : 'Contact file downloaded. Open the .vcf file to save it.');
   } catch (e) {
     console.error('產生 VCF 失敗:', e);
     alert(lang === 'zh' ? '通訊錄檔案產生失敗，請稍後再試。' : 'Failed to create contact file. Please try again.');
