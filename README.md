@@ -82,6 +82,10 @@
   - 未登入：導向 `auth.html`
   - 已登入且已有名片：導向 `directory.html` 或 `my-card.html`
   - 已登入但尚未建立名片：導向 `edit.html?mode=onboarding`
+- **手機主畫面入口**：`my-card.html`
+  - 已登入時：記住自己的公開名片 ID，並導向 `card.html?id=<user_id>`
+  - 從手機主畫面/PWA 圖示開啟且登入已過期時：若本機已記住名片 ID，直接開公開名片頁，不強制 LINE 登入
+  - 編輯名片、設定、通訊錄與後台仍維持 LINE 登入保護
 - **首次進入**：系統會依 Supabase 名片資料與 `localStorage.UVACO_ONBOARDED` 判斷是否進入新手流程
   - 使用者在 `edit.html` 按下「儲存」後，會寫入 `UVACO_ONBOARDED=1` 並回到 `directory.html`
 - **要跳過 onboarding**：可用 `directory.html?skipOnboarding=1`

@@ -923,6 +923,22 @@ function downloadQRCode() {
 
 // ===== 加入主畫面提示功能 =====
 
+const HOME_SCREEN_CARD_ID_KEY = 'UVACO_HOME_CARD_ID';
+
+function normalizeHomeScreenCardId(value) {
+  const id = String(value || '').trim();
+  if (!id || id.length > 80 || !/^[A-Za-z0-9_-]+$/.test(id)) return '';
+  return id;
+}
+
+function rememberHomeScreenCardId(cardId) {
+  const id = normalizeHomeScreenCardId(cardId);
+  if (!id) return;
+  try {
+    localStorage.setItem(HOME_SCREEN_CARD_ID_KEY, id);
+  } catch (e) {}
+}
+
 // 檢查是否應該顯示提示
 function shouldShowAddHomeBanner() {
   // 已經關閉過，不再顯示
@@ -941,8 +957,6 @@ function shouldShowAddHomeBanner() {
 // 檢查是否為自己的名片並顯示提示
 async function checkAndShowAddHomeBanner() {
   try {
-    if (!shouldShowAddHomeBanner()) return;
-    
     // 取得 URL 中的 id 參數
     const urlParams = new URLSearchParams(window.location.search);
     const cardId = urlParams.get('id');
@@ -958,6 +972,9 @@ async function checkAndShowAddHomeBanner() {
     
     // 只有在查看自己的名片時才顯示
     if (userId && cardId === userId) {
+      // 先記住自己的公開名片 ID；之後從手機主畫面開啟時可直接進公開名片，不必重登 LINE。
+      rememberHomeScreenCardId(cardId);
+      if (!shouldShowAddHomeBanner()) return;
       // 延遲 2 秒後顯示，避免打擾用戶瀏覽
       setTimeout(() => {
         const banner = document.getElementById('addHomeBanner');
