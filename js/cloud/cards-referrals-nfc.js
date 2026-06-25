@@ -1,5 +1,6 @@
 import { getAuthContext } from './session.js';
 import { getClient, getPublicClient, hasConfig } from './clients.js';
+import { SUPABASE_URL } from './constants.js';
 import { isAdmin } from './admin-roles.js';
 
 
@@ -241,6 +242,21 @@ export async function getCardByNfcId(nfcCardId) {
   
   if (error) return { card: null, error };
   return { card: data || null };
+}
+
+// 產生公開 vCard 下載網址；由手機系統接手新增聯絡人流程。
+export function getVCardUrl(options = {}) {
+  const userId = String(options.userId || options.id || '').trim();
+  const nfcCardId = String(options.nfcCardId || options.nfc || '').trim();
+  if (!SUPABASE_URL || (!userId && !nfcCardId)) return '';
+
+  const url = new URL(SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/vcard');
+  if (userId) {
+    url.searchParams.set('id', userId);
+  } else {
+    url.searchParams.set('nfc', nfcCardId);
+  }
+  return url.toString();
 }
 
 // 管理員設定用戶的 NFC 卡片 ID

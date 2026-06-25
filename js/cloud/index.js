@@ -53,6 +53,7 @@ import {
   getMyReferrals,
   generateInviteLink,
   getCardByNfcId,
+  getVCardUrl,
   setNfcCardId
 } from './cards-referrals-nfc.js';
 import {
@@ -159,6 +160,7 @@ window.UVACO_CLOUD = {
   generateInviteLink,
 
   getCardByNfcId,
+  getVCardUrl,
   setNfcCardId,
 
   isAdmin,
