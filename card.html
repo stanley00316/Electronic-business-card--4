@@ -293,11 +293,11 @@
           <span class="lang-zh">QR Code</span>
           <span class="lang-en">QR Code</span>
         </button>
-        <button class="btn btn-secondary" onclick="downloadVCard()" style="display: inline-flex; align-items: center; gap: 8px; width: auto;">
+        <a class="btn btn-secondary" id="vCardDownloadLink" href="#" onclick="handleVCardClick(event)" style="display: inline-flex; align-items: center; gap: 8px; width: auto; text-decoration: none;">
           <img src="file-icon.svg" alt="VCF" class="btn-icon-file">
           <span class="lang-zh">加入通訊錄</span>
           <span class="lang-en">Save Contact</span>
-        </button>
+        </a>
       </div>
     </div>
 
@@ -932,6 +932,7 @@ document.addEventListener('DOMContentLoaded', function () {
         companyEn,
         cardUrl: window.location.href.split('#')[0]
       };
+      refreshVCardLink();
     } catch (e) {
       console.error(e);
       alert('載入失敗，請稍後再試');
@@ -1062,14 +1063,18 @@ function getRemoteVCardUrl() {
   });
 }
 
-function openRemoteVCard(url) {
-  const link = document.createElement('a');
-  link.href = url;
-  link.target = '_self';
-  link.rel = 'noopener';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+function refreshVCardLink() {
+  const link = document.getElementById('vCardDownloadLink');
+  if (!link) return '';
+  const remoteUrl = getRemoteVCardUrl();
+  if (remoteUrl) {
+    link.href = remoteUrl;
+    link.removeAttribute('aria-disabled');
+  } else {
+    link.href = '#';
+    link.setAttribute('aria-disabled', 'true');
+  }
+  return remoteUrl;
 }
 
 function createVCardFile(vcardText, fileName) {
@@ -1114,22 +1119,29 @@ function triggerVCardDownload(blob, fileName) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-// 朋友或客戶點擊後，手機會先開啟原生分享/匯入選單，不支援時才下載 .vcf 檔。
-async function downloadVCard() {
+function handleVCardClick(event) {
   const lang = localStorage.getItem('lang') || 'zh';
   if (!__uvacoPublicCardContext) {
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
     alert(lang === 'zh' ? '名片資料尚未載入完成，請稍候再試。' : 'Card data is still loading. Please try again.');
-    return;
+    return false;
   }
 
-  try {
-    const remoteUrl = getRemoteVCardUrl();
-    if (remoteUrl) {
-      showCopyToast(lang === 'zh' ? '手機會開啟新增聯絡人畫面，請確認後按儲存' : 'Confirm and save in the phone contacts screen');
-      openRemoteVCard(remoteUrl);
-      return;
-    }
+  const remoteUrl = refreshVCardLink();
+  if (remoteUrl) {
+    showCopyToast(lang === 'zh' ? '手機會開啟新增聯絡人畫面，請確認後按儲存' : 'Confirm and save in the phone contacts screen');
+    return true;
+  }
 
+  if (event && typeof event.preventDefault === 'function') event.preventDefault();
+  downloadVCardFallback();
+  return false;
+}
+
+// 沒有真實 VCF 網址時，才使用前端產生檔案的備援流程。
+async function downloadVCardFallback() {
+  const lang = localStorage.getItem('lang') || 'zh';
+  try {
     const vcardText = buildVCard(__uvacoPublicCardContext);
     const displayName = cleanVCardText(__uvacoPublicCardContext.nameZh || __uvacoPublicCardContext.nameEn || __uvacoPublicCardContext.card?.name);
     const fileName = safeVCardFilename(displayName);
