@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const BUILD_ID = "2026-06-25-vcard-1";
+const BUILD_ID = "2026-06-27-vcard-3";
 const DEFAULT_PUBLIC_SITE_URL = "https://stanley00316.github.io/Electronic-business-card--4/";
 
 function normalizeSecret(v: string | undefined | null) {
@@ -244,6 +244,13 @@ function extractElementTextById(html: unknown, id: string) {
   return match ? cleanVCardText(htmlToText(match[1])) : "";
 }
 
+// 名片編輯頁的「服務據點／通訊住址／公司住址」等欄位，使用者沒啟用時是用 CSS display:none 隱藏，
+// 但儲存時整段 HTML（含隱藏欄位裡沒人改過的範例地址）還是會一起存進資料庫。
+// 這裡先把隱藏區塊整段拿掉，避免抓取地址／備註時把看不見的範例資料也一起塞進聯絡人卡片。
+function stripHiddenInfoItems(html: string) {
+  return html.replace(/<div\b[^>]*style=["'][^"']*display\s*:\s*none[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "");
+}
+
 function safeVCardFilename(value: unknown) {
   const base = cleanVCardText(value || "contact")
     .replace(/[\\/:*?"<>|]+/g, "-")
@@ -254,7 +261,8 @@ function safeVCardFilename(value: unknown) {
 
 function contentDispositionFor(fileName: string) {
   const asciiName = fileName.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "-") || "contact.vcf";
-  return `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+  // attachment 才會讓手機系統接手「新增聯絡人」流程；inline 會被當成無法顯示的內容而安靜失敗
+  return `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
 
 function publicCardUrl(userId: string) {
@@ -269,6 +277,7 @@ function publicCardUrl(userId: string) {
 function buildVCard(card: Record<string, unknown>) {
   const pj = parseProfileJson(card.profile_json);
   const contactLinks = collectHtmlContactLinks(pj.contactsHtml);
+  const companyInfoHtml = stripHiddenInfoItems(String(pj.companyInfoHtml || ""));
   const phones: string[] = [];
   const emails: string[] = [];
   const urls: string[] = [];
@@ -298,11 +307,11 @@ function buildVCard(card: Record<string, unknown>) {
     "previewCompanyAddressZh",
     "previewCompanyAddressEn",
   ]
-    .map((id) => extractElementTextById(pj.companyInfoHtml, id))
+    .map((id) => extractElementTextById(companyInfoHtml, id))
     .forEach((address) => uniquePush(addresses, address));
 
   contactLinks.notes.forEach((note) => uniquePush(notes, note));
-  collectCompanyInfoNotes(pj.companyInfoHtml).forEach((note) => uniquePush(notes, note));
+  collectCompanyInfoNotes(companyInfoHtml).forEach((note) => uniquePush(notes, note));
   [pj.slogansZhHtml, pj.slogansEnHtml].map(htmlToText).forEach((note) => uniquePush(notes, note));
   if (cardUrl) uniquePush(notes, "電子名片: " + cardUrl);
 

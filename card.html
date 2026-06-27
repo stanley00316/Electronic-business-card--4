@@ -937,15 +937,36 @@ document.addEventListener('DOMContentLoaded', function () {
       console.error(e);
       alert('載入失敗，請稍後再試');
     } finally {
-      // 套用「觀看者背景主題」+「名片主題」的規則（與 yuyuko.html 一致）
-      if (typeof initViewerPage === 'function') {
-        initViewerPage(ownerTheme);
-      } else if (typeof setTheme === 'function') {
-        setTheme(ownerTheme);
-}
+      // 公開名片頁是給「客戶」看的分享連結/NFC，不是登入後瀏覽同事名片的目錄頁，
+      // 這裡沒有「瀏覽者自己的主題」這種東西——整個畫面（背景、卡片）都要完全照名片主人設定的主題顯示。
+      // 不能直接用 initViewerPage()：那個函式是特別設計給「已登入使用者瀏覽別人名片」用的，
+      // 背景會故意保留瀏覽者自己的個人主題，套用到這裡會讓客戶看到的背景跟主人設定的主題不一致。
+      applyOwnerThemeToWholePage(ownerTheme);
     }
   })();
 });
+
+function applyOwnerThemeToWholePage(themeNumber) {
+  const n = parseInt(themeNumber, 10);
+  if (!(n >= 1 && n <= 9)) return;
+
+  if (typeof loadOwnerThemeCSS === 'function') {
+    try { loadOwnerThemeCSS(n); } catch (e) {}
+  }
+
+  document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
+  document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+  document.body.classList.add('theme-' + n);
+  document.body.classList.add('card-theme-' + n);
+  document.body.classList.remove('theme-dark', 'theme-light');
+  document.body.classList.add((n === 2 || n === 7 || n === 9) ? 'theme-light' : 'theme-dark');
+
+  const card = document.getElementById('previewCard');
+  if (card) {
+    card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+    card.classList.add('card-theme-' + n);
+  }
+}
 
 function shareMyCard() {
   const url = window.location.href;

@@ -188,6 +188,20 @@
       }
     }
 
+    // 手機主畫面圖示（加入主畫面後）開啟的 PWA 模式，跟一般瀏覽器分頁是「不同的儲存空間」。
+    // 若在這裡切去 LINE App 再切回來，系統有時會把畫面切回一般瀏覽器而不是切回這個 PWA，
+    // 導致登入成功寫入的資料進了「另一邊」，下次從主畫面圖示打開時還是看不到，又要重新登入。
+    // 所以這裡偵測到是 PWA 模式時，一律跳過「切去 LINE App」，直接用網頁內 QR Code 登入，
+    // 全程留在同一個畫面、同一份儲存空間，登入結果才能確實被主畫面圖示記住。
+    function isStandaloneApp() {
+      try {
+        return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+          || window.navigator.standalone === true;
+      } catch (e) {
+        return false;
+      }
+    }
+
     window.addEventListener('pagehide', clearLineAppFallbackTimer);
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') clearLineAppFallbackTimer();
@@ -372,7 +386,9 @@
       // 使用者需點「用 LINE App 開啟」，避免 LINE App / PWA 之間反覆跳轉造成畫面閃爍。
       var next = getNext();
       if (next === 'my-card.html') {
-        setStatus('ok', '請點「用 LINE App 開啟」登入一次。完成後，下次從手機主畫面可直接開啟名片。');
+        setStatus('ok', isStandaloneApp()
+          ? '請點下方按鈕，掃 QR Code 登入一次。完成後，下次從手機主畫面圖示可直接開啟名片。'
+          : '請點「用 LINE App 開啟」登入一次。完成後，下次從手機主畫面可直接開啟名片。');
         return;
       }
     }
@@ -381,7 +397,8 @@
       try {
         try { localStorage.setItem('UVACO_DEBUG_AUTH_START_TS', String(Date.now())); } catch (e) {}
         var next = getNext();
-        var canTryLineApp = isMobileDeviceForLineApp()
+        var canTryLineApp = !isStandaloneApp()
+          && isMobileDeviceForLineApp()
           && UVACO_CLOUD.hasLiffConfig
           && UVACO_CLOUD.hasLiffConfig()
           && UVACO_CLOUD.startLineAppLogin;

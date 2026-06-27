@@ -293,62 +293,47 @@ function updateThemePreviewActive(themeNumber) {
   }
 }
 
-// 選擇卡片主題（編輯頁面 - 只更新卡片，不更新 body）
-function selectCardTheme(themeNumber) {
-  console.log('Selecting card theme:', themeNumber);
+// 套用「卡片主題」的視覺樣式（previewCard + 整頁背景/頂部欄/底部欄明暗）。
+// 這是唯一真正會改變畫面顏色的地方，不管主題是「使用者剛選的」還是「重新整理後從資料庫讀回的」，
+// 都要呼叫這個函式才會生效，避免之前那種「資料庫讀到了，但畫面忘了套用」的不一致。
+function applyCardThemeVisual(themeNumber) {
+  const n = parseInt(themeNumber, 10);
+  if (!(n >= 1 && n <= 9)) return;
+
+  // 直接操作 DOM 更新卡片預覽主題
+  const card = document.getElementById('previewCard');
+  if (card) {
+    card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+    card.classList.add('card-theme-' + n);
+  }
 
   // 在編輯頁：卡片主題需要「完整預覽」整體版面
   // - 使用 styles.css 內建的 body.card-theme-*（整頁背景/頂部欄/底部欄）
   // - 同時保留 theme-dark/theme-light（讓 edit.html 既有的模態框/按鈕樣式規則生效）
-  // - 移除 common.js 的 body.theme-1~5（避免兩套主題互相覆蓋造成「切不完整」）
-  function applyCardThemeToBody(n) {
-    // 清掉 common.js 全域主題類別（theme-1~7），避免跟 card-theme-* 打架
-    document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
+  // - 移除 common.js 的 body.theme-1~9（避免兩套主題互相覆蓋造成「切不完整」）
+  document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
+  document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+  document.body.classList.add('card-theme-' + n);
+  document.body.classList.remove('theme-dark', 'theme-light');
+  document.body.classList.add((n === 2 || n === 7 || n === 9) ? 'theme-light' : 'theme-dark');
 
-    // 清掉舊的卡片主題（整頁）
-    document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+  // 儲存到 localStorage，同步全域主題（yuyuko.html / 其他頁面由 common.js 讀取 localStorage.theme）
+  try {
+    localStorage.setItem('cardTheme', n);
+    localStorage.setItem('theme', String(n));
+  } catch (e) {}
 
-    // 套用新的卡片主題（整頁）
-    if (n >= 1 && n <= 9) {
-      document.body.classList.add('card-theme-' + n);
-    }
-
-    // 對應 light/dark（edit.html 內大量依賴 theme-dark/theme-light）
-    document.body.classList.remove('theme-dark', 'theme-light');
-    if (n === 2 || n === 7 || n === 9) {
-      document.body.classList.add('theme-light');
-    } else {
-      document.body.classList.add('theme-dark');
-    }
+  // 更新主題選擇器裡的 active 狀態（選擇器當下不一定已開啟，函式內部會自行判斷）
+  if (typeof updateThemePreviewActive === 'function') {
+    try { updateThemePreviewActive(n); } catch (e) {}
   }
+}
+window.applyCardThemeVisual = applyCardThemeVisual;
 
-  // 直接操作 DOM 更新卡片主題
-  const card = document.getElementById('previewCard');
-  if (card) {
-    // 移除所有舊的主題類別
-    card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
-
-    // 添加新的主題類別
-    if (themeNumber >= 1 && themeNumber <= 9) {
-      card.classList.add('card-theme-' + themeNumber);
-      console.log('Applied theme class: card-theme-' + themeNumber);
-      console.log('Card classes:', card.className);
-    }
-  } else {
-    console.error('Card element not found!');
-  }
-
-  // 同步整頁預覽主題（背景/頂部欄/底部欄/泡泡/模態框明暗）
-  applyCardThemeToBody(themeNumber);
-
-  // 儲存到 localStorage
-  localStorage.setItem('cardTheme', themeNumber);
-  // 同步全域主題（yuyuko.html / 其他頁面由 common.js 讀取 localStorage.theme）
-  // 這樣從 edit.html 跳回名片頁時，整體主題會一致更新
-  localStorage.setItem('theme', String(themeNumber));
-
-  // 更新預覽的 active 狀態
-  updateThemePreviewActive(themeNumber);
+// 選擇卡片主題（使用者在主題選擇器裡點擊時呼叫）
+function selectCardTheme(themeNumber) {
+  console.log('Selecting card theme:', themeNumber);
+  applyCardThemeVisual(themeNumber);
 
   // 延遲關閉模態框，讓用戶看到選中的效果
   setTimeout(function() {
@@ -356,45 +341,20 @@ function selectCardTheme(themeNumber) {
   }, 500);
 }
 
-// 初始化卡片主題（在編輯頁面只讀取，不自動應用）
+// 初始化卡片主題：在真正的名片資料（資料庫）還沒載入完成前，先用上次本機記住的主題暫時顯示，
+// 避免畫面閃一下預設色。等 loadCardToUI() 拿到資料庫資料後，會用 applyCardThemeVisual() 蓋成正式值，
+// 真正的主題一律以資料庫為準，這裡只是「載入中」的暫時畫面。
 function initCardTheme() {
   console.log('Initializing card theme...');
 
-  // 從 localStorage 讀取
   const savedTheme = localStorage.getItem('cardTheme');
   if (savedTheme) {
-    const themeNumber = parseInt(savedTheme);
-    console.log('Saved theme:', themeNumber);
-
-    if (themeNumber >= 1 && themeNumber <= 9) {
-      // 同步全域主題，確保返回 yuyuko.html 等頁面能立刻套用
-      localStorage.setItem('theme', String(themeNumber));
-
-      const card = document.getElementById('previewCard');
-      if (card) {
-        // 移除所有舊的主題類別
-        card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
-        // 添加保存的主題
-        card.classList.add('card-theme-' + themeNumber);
-        console.log('Applied saved theme: card-theme-' + themeNumber);
-        console.log('Card classes:', card.className);
-      } else {
-        console.error('Card element not found during init!');
-      }
-
-      // 初始化時也要同步整頁預覽主題
-      //（注意：common.js 會先套用 body.theme-1~5；這裡以 cardTheme 為準覆蓋成 body.card-theme-*）
-      document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
-      document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
-      document.body.classList.add('card-theme-' + themeNumber);
-      document.body.classList.remove('theme-dark', 'theme-light');
-      document.body.classList.add((themeNumber === 2 || themeNumber === 7 || themeNumber === 9) ? 'theme-light' : 'theme-dark');
-
-      // 延遲更新 active 狀態，確保 modal DOM 已載入
-      setTimeout(function() {
-        updateThemePreviewActive(themeNumber);
-      }, 200);
-    }
+    console.log('Saved theme (暫時值，待資料庫資料載入後會覆蓋):', savedTheme);
+    applyCardThemeVisual(savedTheme);
+    // 延遲更新 active 狀態，確保 modal DOM 已載入
+    setTimeout(function() {
+      updateThemePreviewActive(parseInt(savedTheme, 10));
+    }, 200);
   } else {
     console.log('No saved theme found, using default');
 

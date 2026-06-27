@@ -1,0 +1,6 @@
+project_id = "nqxibryjhgftyxttopuo"
+
+# vcard 是公開名片頁「加入通訊錄」要用的端點，手機點連結是直接導向、無法附帶登入用的授權標頭，
+# 所以這裡必須關閉 JWT 驗證，否則手機會收到 401 而不是聯絡人檔案。
+[functions.vcard]
+verify_jwt = false

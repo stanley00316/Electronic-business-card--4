@@ -258,12 +258,11 @@ function loadCardToUI(card) {
     el.textContent = s;
   };
 
-  // 1) 套用主題
+  // 1) 套用主題（以資料庫存的值為準，蓋掉 initCardTheme() 載入中暫時顯示的本機舊值）
   try {
     const theme = parseInt(card.theme || pj.theme || 1, 10) || 1;
-    setTheme(theme);
     window.currentCardTheme = theme;
-    if (typeof updateCardThemeUI === 'function') updateCardThemeUI(theme);
+    if (typeof window.applyCardThemeVisual === 'function') window.applyCardThemeVisual(theme);
   } catch (e) {}
 
   // 2) 套用姓名/職務（雙語）
