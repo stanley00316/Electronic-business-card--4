@@ -38,6 +38,7 @@ async function initUserId() {
         loadInviteLink(uid);
         loadReferralStats();
         loadHomeScreenLink(uid);
+        if (window.__uvacoSetupPersonalManifest) window.__uvacoSetupPersonalManifest(uid);
       }
       
       // 檢查管理員狀態 - 僅「超級管理員」可見以下三個項目
@@ -158,6 +159,19 @@ function loadHomeScreenLink(userId) {
 async function copyHomeScreenLink() {
   if (!myHomeScreenLink) return;
   const savedLang = localStorage.getItem('lang') || 'zh';
+
+  // Android / Chrome：瀏覽器支援「加入主畫面」原生視窗時，直接跳出來，不必再手動複製貼上。
+  const deferred = window.__uvacoDeferredInstallPrompt;
+  if (deferred) {
+    window.__uvacoDeferredInstallPrompt = null;
+    try {
+      deferred.prompt();
+      const choice = await deferred.userChoice;
+      if (choice && choice.outcome === 'accepted') return;
+    } catch (e) {}
+  }
+
+  // iOS Safari 等不支援原生安裝視窗的瀏覽器：複製連結 + 顯示操作步驟。
   const tip = savedLang === 'zh'
     ? '連結已複製！\n\n請到 Safari 貼上這個連結並開啟，再用「加入主畫面」建立新的捷徑。\n建議刪除舊的「我的名片」捷徑，改用這個新的，之後點擊就會保證每次都直接開啟名片。'
     : 'Link copied!\n\nOpen it in Safari, then use "Add to Home Screen" to create a new shortcut.\nPlease delete the old shortcut and use this new one — it will always open directly.';

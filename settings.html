@@ -8,7 +8,31 @@
 <title>設定 | Settings - 數位身分平台</title>
 <link rel="stylesheet" href="styles.css?v=20260610a">
 <!-- PWA -->
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json" id="uvacoManifestLink">
+<script>
+  // 讓「主畫面捷徑連結」按鈕能直接跳出手機的「加入主畫面」安裝視窗（Android/Chrome 支援）。
+  // 瀏覽器判斷「能不能裝」的當下，就是看這個 manifest 連結，
+  // 所以要在使用者按下按鈕之前，先把它換成「已經包含自己名片編號」的版本。
+  window.__uvacoDeferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    window.__uvacoDeferredInstallPrompt = e;
+  });
+  window.__uvacoSetupPersonalManifest = function (uid) {
+    try {
+      if (!uid) return;
+      fetch('manifest.json')
+        .then(function (res) { return res.json(); })
+        .then(function (manifest) {
+          manifest.start_url = 'card.html?id=' + encodeURIComponent(uid);
+          var blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+          var link = document.getElementById('uvacoManifestLink');
+          if (link) link.setAttribute('href', URL.createObjectURL(blob));
+        })
+        .catch(function () {});
+    } catch (e) {}
+  };
+</script>
 <meta name="theme-color" content="#22c55e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -176,8 +200,8 @@ body {
       <div class="settings-item" onclick="copyHomeScreenLink()" id="homeScreenLinkItem" style="display: none; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3);">
         <div class="settings-item-icon">📱</div>
         <div class="settings-item-content">
-          <div class="settings-item-title lang-zh">主畫面捷徑連結（點擊複製，保證每次直接開啟）</div>
-          <div class="settings-item-title lang-en">Home Screen Link (Tap to copy, always opens instantly)</div>
+          <div class="settings-item-title lang-zh">加入主畫面（點一下，保證每次直接開啟）</div>
+          <div class="settings-item-title lang-en">Add to Home Screen (Tap once, always opens instantly)</div>
           <div class="settings-item-subtitle" id="homeScreenLinkDisplay" style="color: #3b82f6; font-size: 11px; word-break: break-all;">載入中...</div>
         </div>
         <div class="settings-item-arrow">📋</div>
@@ -266,7 +290,7 @@ body {
 <script src="supabase.min.js"></script>
 <script src="cloud.js?v=20260610a"></script>
 <script src="common.js?v=20260610a"></script>
-<script type="module" src="js/pages/settings/main.js?v=20260706a"></script>
+<script type="module" src="js/pages/settings/main.js?v=20260706b"></script>
 
 </body>
 </html>
