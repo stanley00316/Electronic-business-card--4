@@ -296,6 +296,16 @@ body.card-theme-9 {
   color: var(--ui-accent) !important;
 }
 
+/* 姓名文字：白底主題（淺色主題2／白底藍7／白底青綠9）強制用深色高對比字體。
+   原因：使用者可透過字體顏色調色盤自訂姓名顏色（存成行內 style），
+   若之前在深色主題選了淺色字，切到這三個白底主題時文字會幾乎看不見，
+   這裡用 !important 蓋掉殘留的自訂淺色，確保白底一定看得清楚。 */
+body.card-theme-2 #previewCard .name,
+body.card-theme-7 #previewCard .name,
+body.card-theme-9 #previewCard .name {
+  color: #111827 !important;
+}
+
 /* 公司資訊 label 也跟主題 accent（避免藍/金/紫還是綠） */
 #previewCard .info-label,
 #previewCard .address-map-link {
