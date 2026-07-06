@@ -300,6 +300,10 @@ function applyCardThemeVisual(themeNumber) {
   const n = parseInt(themeNumber, 10);
   if (!(n >= 1 && n <= 9)) return;
 
+  // 同步「儲存時真正會送出的主題值」，避免使用者點選新主題後，
+  // saveCard() 讀到的還是打開編輯頁當下、資料庫載入時的舊主題
+  window.currentCardTheme = n;
+
   // 直接操作 DOM 更新卡片預覽主題
   const card = document.getElementById('previewCard');
   if (card) {
