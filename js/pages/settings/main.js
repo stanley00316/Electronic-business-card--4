@@ -37,6 +37,7 @@ async function initUserId() {
       if (s.session && uid) {
         loadInviteLink(uid);
         loadReferralStats();
+        loadHomeScreenLink(uid);
       }
       
       // 檢查管理員狀態 - 僅「超級管理員」可見以下三個項目
@@ -136,6 +137,36 @@ async function shareInviteLink() {
 // 保留舊函數名稱以防其他地方調用
 function copyInviteLink() {
   shareInviteLink();
+}
+
+// 主畫面捷徑連結：把使用者編號直接寫進網址，之後不管手機本機資料被清掉幾次，
+// 點這個捷徑一律能直接看到名片，不需要靠登入紀錄「記住」身分。
+let myHomeScreenLink = '';
+function loadHomeScreenLink(userId) {
+  const item = document.getElementById('homeScreenLinkItem');
+  const display = document.getElementById('homeScreenLinkDisplay');
+  if (!item || !display) return;
+
+  const base = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+  myHomeScreenLink = base + 'my-card.html?id=' + encodeURIComponent(userId);
+  item.style.display = 'flex';
+
+  const shortLink = myHomeScreenLink.length > 50 ? myHomeScreenLink.substring(0, 47) + '...' : myHomeScreenLink;
+  display.textContent = shortLink;
+}
+
+async function copyHomeScreenLink() {
+  if (!myHomeScreenLink) return;
+  const savedLang = localStorage.getItem('lang') || 'zh';
+  const tip = savedLang === 'zh'
+    ? '連結已複製！\n\n請到 Safari 貼上這個連結並開啟，再用「加入主畫面」建立新的捷徑。\n建議刪除舊的「我的名片」捷徑，改用這個新的，之後點擊就會保證每次都直接開啟名片。'
+    : 'Link copied!\n\nOpen it in Safari, then use "Add to Home Screen" to create a new shortcut.\nPlease delete the old shortcut and use this new one — it will always open directly.';
+  try {
+    await navigator.clipboard.writeText(myHomeScreenLink);
+    alert(tip);
+  } catch (err) {
+    prompt(savedLang === 'zh' ? '請手動複製連結：' : 'Please copy manually:', myHomeScreenLink);
+  }
 }
 
 // 載入推薦統計
@@ -324,5 +355,6 @@ window.gotoMyEdit = gotoMyEdit;
 window.copyMyUserId = copyMyUserId;
 window.shareInviteLink = shareInviteLink;
 window.copyInviteLink = copyInviteLink;
+window.copyHomeScreenLink = copyHomeScreenLink;
 window.handleLogout = handleLogout;
 window.handleSettingsClick = handleSettingsClick;

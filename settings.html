@@ -171,7 +171,18 @@ body {
           </svg>
         </div>
       </div>
-      
+
+      <!-- 主畫面捷徑連結：這組連結已內建你的專屬編號，之後每次點主畫面圖示都會直接開啟名片，不會再要求重新登入 -->
+      <div class="settings-item" onclick="copyHomeScreenLink()" id="homeScreenLinkItem" style="display: none; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3);">
+        <div class="settings-item-icon">📱</div>
+        <div class="settings-item-content">
+          <div class="settings-item-title lang-zh">主畫面捷徑連結（點擊複製，保證每次直接開啟）</div>
+          <div class="settings-item-title lang-en">Home Screen Link (Tap to copy, always opens instantly)</div>
+          <div class="settings-item-subtitle" id="homeScreenLinkDisplay" style="color: #3b82f6; font-size: 11px; word-break: break-all;">載入中...</div>
+        </div>
+        <div class="settings-item-arrow">📋</div>
+      </div>
+
       <!-- 推薦統計 -->
       <div class="settings-item" id="referralStatsItem" style="display: none; background: rgba(236,72,153,0.1); border: 1px solid rgba(236,72,153,0.3);">
         <div class="settings-item-icon">👥</div>
@@ -255,7 +266,7 @@ body {
 <script src="supabase.min.js"></script>
 <script src="cloud.js?v=20260610a"></script>
 <script src="common.js?v=20260610a"></script>
-<script type="module" src="js/pages/settings/main.js?v=20260610a"></script>
+<script type="module" src="js/pages/settings/main.js?v=20260706a"></script>
 
 </body>
 </html>

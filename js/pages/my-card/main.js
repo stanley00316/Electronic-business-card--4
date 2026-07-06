@@ -86,6 +86,19 @@
 
     (async function() {
       try {
+        // 網址若已直接帶著 ?id=，代表這是「專屬主畫面捷徑連結」（settings 頁面產生），
+        // 名片編號已經寫死在網址上，不需要再靠手機本機資料或登入狀態才能認得使用者。
+        // 這樣就算手機清除了瀏覽資料，捷徑一樣能保證每次直接開啟名片。
+        const urlCardId = normalizeRememberedCardId(
+          new URLSearchParams(window.location.search || '').get('id')
+        );
+        if (urlCardId) {
+          clearTimeout(loadingTimeout);
+          rememberHomeCardId(urlCardId);
+          redirectToCard(urlCardId);
+          return;
+        }
+
         const standaloneFallbackCardId = isStandaloneApp()
           ? (getRememberedHomeCardId() || getCardIdFromStoredJwt())
           : '';
