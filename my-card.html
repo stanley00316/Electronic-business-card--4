@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/JS） -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>我的名片 - 數位身分平台</title>
   <!-- 預連線加速載入 -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -11,28 +15,32 @@
   <link rel="dns-prefetch" href="https://nqxibryjhgftyxttopuo.supabase.co">
   <link rel="stylesheet" href="styles.css?v=20260610a">
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json" id="uvacoManifestLink">
   <script>
     // Android 用「加入主畫面」建立捷徑時，並不是記住當下網址，而是永遠改用
     // App 資訊清單（manifest.json）裡固定寫死的進入頁面，導致網址上帶的
     // 名片編號（?id=）被忽略、捷徑變回沒有編號的舊版、又要重新登入。
-    // 這裡在畫面載入的當下，把 manifest 動態換成「進入頁面已經包含這組編號」的版本，
-    // Android 之後不管用哪種安裝方式記住捷徑，都會保留這組編號。
     //
-    // 但實測發現：iOS Safari 的「加入主畫面」一樣是看 manifest 裡固定寫死的
-    // 進入頁面，卻「不會」套用我們這裡用程式動態換掉的內容（這個換法只有
-    // Android/Chrome 系瀏覽器支援）。iOS 上這份清單沒辦法個人化，與其讓它
-    // 錯誤地导向沒有編號的頁面，不如乾脆把清單參照整個拿掉——這樣 iOS 會
-    // 退回蘋果自己另一套更早期、只認「目前網址」＋畫面上 apple-mobile-web-app
-    // 標籤的加入主畫面方式，網址上的編號才能確實被保留下來。
+    // 實測發現：iOS Safari 的「加入主畫面」一樣會讀 manifest 固定寫死的
+    // 進入頁面，而且瀏覽器似乎是在網頁「一開始收到的原始內容」裡就認定
+    // 這一頁有 manifest，之後才用程式把 manifest 內容換掉、或把標籤整個
+    // 移除，都救不回來。所以這次改成：一開始輸出網頁原始內容時，iOS 裝置
+    // 就直接「不要寫出」這個 manifest 標籤（用 document.write 在瀏覽器
+    // 還在讀取網頁的當下就決定要不要有這個標籤），讓 iOS 從頭到尾都不知道
+    // 這一頁有 manifest，才會確實改用蘋果自己另一套只認「目前網址」＋畫面上
+    // apple-mobile-web-app 標籤的加入主畫面方式，網址上的編號才能被保留下來。
+    // Android 維持原本「動態換成含編號版本」的做法（這招只有 Android/Chrome 有效）。
+    (function () {
+      var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+      if (!isIOS) {
+        document.write('<link rel="manifest" href="manifest.json" id="uvacoManifestLink">');
+      }
+    })();
+  </script>
+  <script>
     (function () {
       try {
-        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
         var link = document.getElementById('uvacoManifestLink');
-        if (isIOS) {
-          if (link) link.remove();
-          return;
-        }
+        if (!link) return; // iOS：完全沒有這個標籤，不需要處理
         var params = new URLSearchParams(window.location.search || '');
         var id = params.get('id');
         if (!id || !/^[A-Za-z0-9_-]{1,80}$/.test(id)) return;
@@ -41,7 +49,7 @@
           .then(function (manifest) {
             manifest.start_url = 'my-card.html?id=' + encodeURIComponent(id);
             var blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-            if (link) link.setAttribute('href', URL.createObjectURL(blob));
+            link.setAttribute('href', URL.createObjectURL(blob));
           })
           .catch(function () {});
       } catch (e) {}
