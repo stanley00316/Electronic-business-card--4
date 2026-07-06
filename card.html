@@ -13,7 +13,29 @@
   <title>數位身分 | Digital Identity</title>
   <link rel="stylesheet" href="styles.css?v=20260610a">
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json" id="uvacoManifestLink">
+  <script>
+    // 從「主畫面捷徑連結」點進來時，my-card.html 會立刻（幾乎沒有延遲）轉址到這一頁，
+    // 使用者實際按下「加入主畫面」當下，畫面其實已經是這一頁，不是 my-card.html。
+    // 所以這裡也要做一次同樣的事：把這一頁的名片編號寫進動態產生的 manifest 進入頁面，
+    // 避免手機安裝捷徑時改用系統裡固定寫死、沒有編號的預設頁面。
+    (function () {
+      try {
+        var params = new URLSearchParams(window.location.search || '');
+        var id = params.get('id');
+        if (!id || !/^[A-Za-z0-9_-]{1,80}$/.test(id)) return;
+        fetch('manifest.json')
+          .then(function (res) { return res.json(); })
+          .then(function (manifest) {
+            manifest.start_url = 'card.html?id=' + encodeURIComponent(id);
+            var blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            var link = document.getElementById('uvacoManifestLink');
+            if (link) link.setAttribute('href', URL.createObjectURL(blob));
+          })
+          .catch(function () {});
+      } catch (e) {}
+    })();
+  </script>
   <meta name="theme-color" content="#22c55e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
