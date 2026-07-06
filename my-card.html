@@ -11,7 +11,30 @@
   <link rel="dns-prefetch" href="https://nqxibryjhgftyxttopuo.supabase.co">
   <link rel="stylesheet" href="styles.css?v=20260610a">
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json" id="uvacoManifestLink">
+  <script>
+    // Android（以及部分新版 iOS）用「加入主畫面」建立捷徑時，並不是記住當下網址，
+    // 而是永遠改用 App 資訊清單（manifest.json）裡固定寫死的進入頁面，
+    // 導致網址上帶的名片編號（?id=）被忽略，捷徑等於變回沒有編號的舊版、又要重新登入。
+    // 這裡在畫面載入的當下，把 manifest 動態換成「進入頁面已經包含這組編號」的版本，
+    // 之後不管系統用哪種安裝方式記住捷徑，都會保留這組編號。
+    (function () {
+      try {
+        var params = new URLSearchParams(window.location.search || '');
+        var id = params.get('id');
+        if (!id || !/^[A-Za-z0-9_-]{1,80}$/.test(id)) return;
+        fetch('manifest.json')
+          .then(function (res) { return res.json(); })
+          .then(function (manifest) {
+            manifest.start_url = 'my-card.html?id=' + encodeURIComponent(id);
+            var blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            var link = document.getElementById('uvacoManifestLink');
+            if (link) link.setAttribute('href', URL.createObjectURL(blob));
+          })
+          .catch(function () {});
+      } catch (e) {}
+    })();
+  </script>
   <meta name="theme-color" content="#22c55e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
