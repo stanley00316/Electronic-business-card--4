@@ -244,6 +244,129 @@ body.card-theme-9 {
   --ui-accent-border: rgba(var(--ui-accent-rgb), 0.60);
 }
 
+/* 主題10（深黑 + 烈焰緋紅） */
+body.card-theme-10 {
+  --ui-header-bg: rgba(0, 0, 0, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.10);
+  --ui-surface-bg: rgba(0, 0, 0, 0.98);
+  --ui-surface-border: rgba(255, 255, 255, 0.12);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(255, 255, 255, 0.80);
+  --ui-field-bg: rgba(255, 255, 255, 0.10);
+  --ui-field-border: rgba(255, 255, 255, 0.20);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.12);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.20);
+  --ui-overlay: rgba(0, 0, 0, 0.72);
+
+  --ui-accent: #DC2626;
+  --ui-accent-rgb: 220, 38, 38;
+  --ui-accent-contrast: #ffffff;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.26);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.72);
+}
+
+/* 主題11（奶茶暖白 + 桃紅） */
+body.card-theme-11 {
+  --ui-header-bg: rgba(250, 241, 230, 0.95);
+  --ui-header-border: rgba(219, 39, 119, 0.14);
+  --ui-surface-bg: rgba(255, 253, 249, 0.98);
+  --ui-surface-border: rgba(219, 39, 119, 0.14);
+  --ui-text: #111827;
+  --ui-muted: rgba(17, 24, 39, 0.70);
+  --ui-field-bg: rgba(219, 39, 119, 0.05);
+  --ui-field-border: rgba(219, 39, 119, 0.14);
+  --ui-field-text: #111827;
+  --ui-btn-muted-bg: rgba(219, 39, 119, 0.08);
+  --ui-btn-muted-text: #111827;
+  --ui-btn-muted-bg-hover: rgba(219, 39, 119, 0.14);
+  --ui-overlay: rgba(0, 0, 0, 0.55);
+
+  --ui-accent: #DB2777;
+  --ui-accent-rgb: 219, 39, 119;
+  --ui-accent-contrast: #ffffff;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.10);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.60);
+}
+
+/* 主題12（深黑 + 琥珀橙焰） */
+body.card-theme-12 {
+  --ui-header-bg: rgba(0, 0, 0, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.10);
+  --ui-surface-bg: rgba(0, 0, 0, 0.98);
+  --ui-surface-border: rgba(255, 255, 255, 0.12);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(255, 255, 255, 0.80);
+  --ui-field-bg: rgba(255, 255, 255, 0.10);
+  --ui-field-border: rgba(255, 255, 255, 0.20);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.12);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.20);
+  --ui-overlay: rgba(0, 0, 0, 0.72);
+
+  /* 橘色偏亮，contrast 用深棕色，避免白字在按鈕上對比不足 */
+  --ui-accent: #F97316;
+  --ui-accent-rgb: 249, 115, 22;
+  --ui-accent-contrast: #431407;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.26);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.72);
+}
+
+/* 主題13（極簡銀霜，無彩色） */
+body.card-theme-13 {
+  --ui-header-bg: rgba(19, 19, 21, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.10);
+  --ui-surface-bg: rgba(19, 19, 21, 0.98);
+  --ui-surface-border: rgba(255, 255, 255, 0.12);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(255, 255, 255, 0.78);
+  --ui-field-bg: rgba(255, 255, 255, 0.10);
+  --ui-field-border: rgba(255, 255, 255, 0.20);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.12);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.20);
+  --ui-overlay: rgba(0, 0, 0, 0.70);
+
+  /* 銀白偏亮，contrast 用深灰黑，避免白字在按鈕上對比不足 */
+  --ui-accent: #D1D5DB;
+  --ui-accent-rgb: 209, 213, 219;
+  --ui-accent-contrast: #18181b;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.14);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.22);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.55);
+}
+
+/* 主題14（深黑 + 萊姆電光） */
+body.card-theme-14 {
+  --ui-header-bg: rgba(0, 0, 0, 0.95);
+  --ui-header-border: rgba(255, 255, 255, 0.10);
+  --ui-surface-bg: rgba(0, 0, 0, 0.98);
+  --ui-surface-border: rgba(255, 255, 255, 0.12);
+  --ui-text: #ffffff;
+  --ui-muted: rgba(255, 255, 255, 0.80);
+  --ui-field-bg: rgba(255, 255, 255, 0.10);
+  --ui-field-border: rgba(255, 255, 255, 0.20);
+  --ui-field-text: #ffffff;
+  --ui-btn-muted-bg: rgba(255, 255, 255, 0.12);
+  --ui-btn-muted-text: #ffffff;
+  --ui-btn-muted-bg-hover: rgba(255, 255, 255, 0.20);
+  --ui-overlay: rgba(0, 0, 0, 0.72);
+
+  /* 萊姆綠偏亮，contrast 用深橄欖色，避免白字在按鈕上對比不足 */
+  --ui-accent: #A3E635;
+  --ui-accent-rgb: 163, 230, 53;
+  --ui-accent-contrast: #1a2e05;
+  --ui-accent-soft-bg: rgba(var(--ui-accent-rgb), 0.16);
+  --ui-accent-soft-bg-hover: rgba(var(--ui-accent-rgb), 0.26);
+  --ui-accent-border: rgba(var(--ui-accent-rgb), 0.72);
+}
+
 /* ===== 主題介面：共用文字/按鈕顏色（跟主題走） ===== */
 
 /* 頂部返回箭頭（原本 inline 綁品牌綠，這裡強制跟主題 accent 走） */
@@ -296,13 +419,14 @@ body.card-theme-9 {
   color: var(--ui-accent) !important;
 }
 
-/* 姓名文字：白底主題（淺色主題2／白底藍7／白底青綠9）強制用深色高對比字體。
+/* 姓名文字：白底/淺色主題（淺色主題2／白底藍7／白底青綠9／奶茶桃粉11）強制用深色高對比字體。
    原因：使用者可透過字體顏色調色盤自訂姓名顏色（存成行內 style），
-   若之前在深色主題選了淺色字，切到這三個白底主題時文字會幾乎看不見，
-   這裡用 !important 蓋掉殘留的自訂淺色，確保白底一定看得清楚。 */
+   若之前在深色主題選了淺色字，切到這幾個淺色底主題時文字會幾乎看不見，
+   這裡用 !important 蓋掉殘留的自訂淺色，確保淺色底一定看得清楚。 */
 body.card-theme-2 #previewCard .name,
 body.card-theme-7 #previewCard .name,
-body.card-theme-9 #previewCard .name {
+body.card-theme-9 #previewCard .name,
+body.card-theme-11 #previewCard .name {
   color: #111827 !important;
 }
 
@@ -748,6 +872,92 @@ body.theme-light .theme-selector-close {
 }
 .theme-card-preview[data-theme="9"] .theme-preview-button {
   background: #00B7A9;
+}
+
+/* 主題 10：深黑 + 烈焰緋紅 */
+.theme-card-preview[data-theme="10"] .theme-preview-wrapper {
+  background: #000000;
+}
+.theme-card-preview[data-theme="10"] .theme-preview-top-bar {
+  background: rgba(0, 0, 0, 0.95);
+}
+.theme-card-preview[data-theme="10"] .theme-preview-card {
+  background: rgba(10,10,12,0.90);
+}
+.theme-card-preview[data-theme="10"] .theme-preview-text {
+  background: rgba(255,255,255,0.30);
+}
+.theme-card-preview[data-theme="10"] .theme-preview-button {
+  background: #DC2626;
+}
+
+/* 主題 11：奶茶暖白 + 桃紅 */
+.theme-card-preview[data-theme="11"] .theme-preview-wrapper {
+  background: #FAF1E6;
+}
+.theme-card-preview[data-theme="11"] .theme-preview-top-bar {
+  background: rgba(250, 241, 230, 0.95);
+}
+.theme-card-preview[data-theme="11"] .theme-preview-card {
+  background: #FFFDF9;
+  border: 1px solid rgba(219,39,119,0.10);
+}
+.theme-card-preview[data-theme="11"] .theme-preview-text {
+  background: rgba(219,39,119,0.18);
+}
+.theme-card-preview[data-theme="11"] .theme-preview-button {
+  background: #DB2777;
+}
+
+/* 主題 12：深黑 + 琥珀橙焰 */
+.theme-card-preview[data-theme="12"] .theme-preview-wrapper {
+  background: #000000;
+}
+.theme-card-preview[data-theme="12"] .theme-preview-top-bar {
+  background: rgba(0, 0, 0, 0.95);
+}
+.theme-card-preview[data-theme="12"] .theme-preview-card {
+  background: rgba(10,10,12,0.90);
+}
+.theme-card-preview[data-theme="12"] .theme-preview-text {
+  background: rgba(255,255,255,0.30);
+}
+.theme-card-preview[data-theme="12"] .theme-preview-button {
+  background: #F97316;
+}
+
+/* 主題 13：極簡銀霜（無彩色） */
+.theme-card-preview[data-theme="13"] .theme-preview-wrapper {
+  background: #131315;
+}
+.theme-card-preview[data-theme="13"] .theme-preview-top-bar {
+  background: rgba(19, 19, 21, 0.95);
+}
+.theme-card-preview[data-theme="13"] .theme-preview-card {
+  background: rgba(18,18,20,0.92);
+}
+.theme-card-preview[data-theme="13"] .theme-preview-text {
+  background: rgba(255,255,255,0.28);
+}
+.theme-card-preview[data-theme="13"] .theme-preview-button {
+  background: #D1D5DB;
+}
+
+/* 主題 14：深黑 + 萊姆電光 */
+.theme-card-preview[data-theme="14"] .theme-preview-wrapper {
+  background: #000000;
+}
+.theme-card-preview[data-theme="14"] .theme-preview-top-bar {
+  background: rgba(0, 0, 0, 0.95);
+}
+.theme-card-preview[data-theme="14"] .theme-preview-card {
+  background: rgba(10,10,12,0.90);
+}
+.theme-card-preview[data-theme="14"] .theme-preview-text {
+  background: rgba(255,255,255,0.30);
+}
+.theme-card-preview[data-theme="14"] .theme-preview-button {
+  background: #A3E635;
 }
 
 @keyframes fadeIn {

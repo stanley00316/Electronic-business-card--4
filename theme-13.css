@@ -1,0 +1,88 @@
+/* ===== 主題 13：極簡銀霜（石墨黑 + 銀白，無彩色極簡風） ===== */
+
+/* Silver：#D1D5DB（唯一不用任何彩色強調色的主題，走黑白灰極簡路線） */
+body.theme-13 {
+  --uvaco-green: #D1D5DB;
+  --uvaco-green-rgb: 209, 213, 219;
+  background: #131315;
+  color: #ffffff;
+}
+
+/* 背景泡泡（用低飽和灰白，維持無彩色調性） */
+body.theme-13 .bg-blob.blob1 {
+  background: rgba(209, 213, 219, 0.22);
+}
+body.theme-13 .bg-blob.blob2 {
+  background: rgba(156, 163, 175, 0.16);
+}
+
+/* 名片卡片（支援 body.theme-13 和 .card.card-theme-13） */
+body.theme-13 .card,
+.card.card-theme-13 {
+  --uvaco-green: #D1D5DB;
+  --uvaco-green-rgb: 209, 213, 219;
+  background: rgba(18, 18, 20, 0.92) !important;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 34px rgba(0,0,0,0.55);
+  border: 1px solid rgba(209, 213, 219, 0.20);
+}
+
+body.theme-13 .card .name,
+.card.card-theme-13 .name { color: #ffffff !important; }
+
+body.theme-13 .card .tagline,
+.card.card-theme-13 .tagline { color: rgba(255,255,255,0.78) !important; }
+
+body.theme-13 .card .divider,
+.card.card-theme-13 .divider { background: rgba(255,255,255,0.12) !important; }
+
+body.theme-13 .card .section-label,
+.card.card-theme-13 .section-label { color: rgba(255,255,255,0.68) !important; }
+
+/* 銀白偏亮，按鈕文字改用深灰黑，避免白字對比不足 */
+body.theme-13 .card .btn-primary,
+.card.card-theme-13 .btn-primary {
+  background: var(--uvaco-green) !important;
+  color: #18181b !important;
+}
+
+body.theme-13 .card .btn-secondary,
+.card.card-theme-13 .btn-secondary {
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(209, 213, 219, 0.60) !important;
+  color: #e5e7eb !important;
+}
+
+body.theme-13 .card .hint,
+.card.card-theme-13 .hint {
+  background: rgba(255,255,255,0.06) !important;
+  color: rgba(255,255,255,0.82) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+}
+
+body.theme-13 .card .info-label,
+.card.card-theme-13 .info-label { color: var(--uvaco-green) !important; }
+
+body.theme-13 .card .info-value,
+body.theme-13 .card .address-text,
+.card.card-theme-13 .info-value,
+.card.card-theme-13 .address-text { color: #ffffff !important; }
+
+body.theme-13 .card .avatar,
+.card.card-theme-13 .avatar {
+  background: #0a0a0a;
+  border-color: var(--uvaco-green);
+  box-shadow: 0 0 0 4px rgba(209,213,219,0.18), 0 10px 26px rgba(0,0,0,0.55);
+}
+
+/* 頂部欄 / 底部欄 */
+body.theme-13 .edit-top-header,
+body.theme-13 .edit-header-top {
+  background: rgba(19, 19, 21, 0.95) !important;
+  border-bottom-color: rgba(255,255,255,0.10);
+}
+
+body.theme-13 .bottom-nav {
+  background: rgba(19, 19, 21, 0.95);
+  border-top-color: rgba(255,255,255,0.10);
+}

@@ -298,7 +298,7 @@ function updateThemePreviewActive(themeNumber) {
 // 都要呼叫這個函式才會生效，避免之前那種「資料庫讀到了，但畫面忘了套用」的不一致。
 function applyCardThemeVisual(themeNumber) {
   const n = parseInt(themeNumber, 10);
-  if (!(n >= 1 && n <= 9)) return;
+  if (!(n >= 1 && n <= 14)) return;
 
   // 同步「儲存時真正會送出的主題值」，避免使用者點選新主題後，
   // saveCard() 讀到的還是打開編輯頁當下、資料庫載入時的舊主題
@@ -307,19 +307,19 @@ function applyCardThemeVisual(themeNumber) {
   // 直接操作 DOM 更新卡片預覽主題
   const card = document.getElementById('previewCard');
   if (card) {
-    card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+    card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9', 'card-theme-10', 'card-theme-11', 'card-theme-12', 'card-theme-13', 'card-theme-14');
     card.classList.add('card-theme-' + n);
   }
 
   // 在編輯頁：卡片主題需要「完整預覽」整體版面
   // - 使用 styles.css 內建的 body.card-theme-*（整頁背景/頂部欄/底部欄）
   // - 同時保留 theme-dark/theme-light（讓 edit.html 既有的模態框/按鈕樣式規則生效）
-  // - 移除 common.js 的 body.theme-1~9（避免兩套主題互相覆蓋造成「切不完整」）
-  document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
-  document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+  // - 移除 common.js 的 body.theme-1~14（避免兩套主題互相覆蓋造成「切不完整」）
+  document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9', 'theme-10', 'theme-11', 'theme-12', 'theme-13', 'theme-14');
+  document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9', 'card-theme-10', 'card-theme-11', 'card-theme-12', 'card-theme-13', 'card-theme-14');
   document.body.classList.add('card-theme-' + n);
   document.body.classList.remove('theme-dark', 'theme-light');
-  document.body.classList.add((n === 2 || n === 7 || n === 9) ? 'theme-light' : 'theme-dark');
+  document.body.classList.add((n === 2 || n === 7 || n === 9 || n === 11) ? 'theme-light' : 'theme-dark');
 
   // 儲存到 localStorage，同步全域主題（yuyuko.html / 其他頁面由 common.js 讀取 localStorage.theme）
   try {

@@ -60,7 +60,7 @@
   <script src="supabase.min.js"></script>
   <!-- QR Code 生成器 -->
 <script src="cloud.js?v=20260625c"></script>
-  <script src="common.js?v=20260610a"></script>
+  <script src="common.js?v=20260708a"></script>
   <style>
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
     .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; max-width:90%; }
@@ -985,22 +985,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function applyOwnerThemeToWholePage(themeNumber) {
   const n = parseInt(themeNumber, 10);
-  if (!(n >= 1 && n <= 9)) return;
+  if (!(n >= 1 && n <= 14)) return;
 
   if (typeof loadOwnerThemeCSS === 'function') {
     try { loadOwnerThemeCSS(n); } catch (e) {}
   }
 
-  document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
-  document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+  document.body.classList.remove('theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9', 'theme-10', 'theme-11', 'theme-12', 'theme-13', 'theme-14');
+  document.body.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9', 'card-theme-10', 'card-theme-11', 'card-theme-12', 'card-theme-13', 'card-theme-14');
   document.body.classList.add('theme-' + n);
   document.body.classList.add('card-theme-' + n);
   document.body.classList.remove('theme-dark', 'theme-light');
-  document.body.classList.add((n === 2 || n === 7 || n === 9) ? 'theme-light' : 'theme-dark');
+  document.body.classList.add((n === 2 || n === 7 || n === 9 || n === 11) ? 'theme-light' : 'theme-dark');
 
   const card = document.getElementById('previewCard');
   if (card) {
-    card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9');
+    card.classList.remove('card-theme-1', 'card-theme-2', 'card-theme-3', 'card-theme-4', 'card-theme-5', 'card-theme-6', 'card-theme-7', 'card-theme-8', 'card-theme-9', 'card-theme-10', 'card-theme-11', 'card-theme-12', 'card-theme-13', 'card-theme-14');
     card.classList.add('card-theme-' + n);
   }
 }

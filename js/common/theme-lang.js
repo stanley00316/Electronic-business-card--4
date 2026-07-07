@@ -97,8 +97,8 @@ export function loadThemeCSS(themeNumber) {
     oldThemeLink.remove();
   }
   
-  // 如果是主題 1-9，載入對應的主題 CSS
-  if (themeNumber >= 1 && themeNumber <= 9) {
+  // 如果是主題 1-14，載入對應的主題 CSS
+  if (themeNumber >= 1 && themeNumber <= 14) {
     const link = document.createElement('link');
     link.id = 'theme-css';
     link.rel = 'stylesheet';
@@ -110,7 +110,7 @@ export function loadThemeCSS(themeNumber) {
 
 // 預載入主題 CSS（背景載入，不阻塞渲染）
 export function preloadThemeCSS(themeNumber) {
-  if (themeNumber < 1 || themeNumber > 9) return;
+  if (themeNumber < 1 || themeNumber > 14) return;
   if (_themeCache.loaded.has(themeNumber) || _themeCache.preloading.has(themeNumber)) return;
   
   const existingPreload = document.getElementById(`theme-preload-${themeNumber}`);
@@ -133,7 +133,7 @@ export function preloadThemeCSS(themeNumber) {
 // 預載入所有主題（用於編輯頁面，使用 requestIdleCallback 優化）
 export function preloadAllThemes() {
   const loadNext = (index) => {
-    if (index > 9) return;
+    if (index > 14) return;
     preloadThemeCSS(index);
     // 使用 requestIdleCallback 或 setTimeout 延遲載入下一個
     if (window.requestIdleCallback) {
@@ -149,14 +149,15 @@ export function preloadAllThemes() {
 // 設置全域主題
 export function setTheme(themeNumber) {
   // 移除所有舊的主題類別
-  document.body.classList.remove('theme-dark', 'theme-light', 'theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9');
-  
+  document.body.classList.remove('theme-dark', 'theme-light', 'theme-1', 'theme-2', 'theme-3', 'theme-4', 'theme-5', 'theme-6', 'theme-7', 'theme-8', 'theme-9', 'theme-10', 'theme-11', 'theme-12', 'theme-13', 'theme-14');
+
   // 添加新的主題類別
-  if (themeNumber >= 1 && themeNumber <= 9) {
+  if (themeNumber >= 1 && themeNumber <= 14) {
     // 重要：除了 theme-1~5，也同步套用 base 的 theme-dark / theme-light
     // 很多共用 UI（styles.css）仍依賴 theme-dark/theme-light 的 selector，
     // 若沒有加上，會造成「部分介面/字體不跟主題變」的問題。
-    document.body.classList.add((themeNumber === 2 || themeNumber === 7 || themeNumber === 9) ? 'theme-light' : 'theme-dark');
+    // 淺色底主題：2（淺色）、7（白底藍）、9（白底青綠）、11（奶茶桃粉），其餘都是深色底。
+    document.body.classList.add((themeNumber === 2 || themeNumber === 7 || themeNumber === 9 || themeNumber === 11) ? 'theme-light' : 'theme-dark');
     document.body.classList.add('theme-' + themeNumber);
     // 載入對應的主題 CSS
     loadThemeCSS(themeNumber);
@@ -222,7 +223,7 @@ export function initViewerPage(ownerThemeNumber) {
 
 // 專門為擁有者載入主題 CSS（不移除現有的全域主題 CSS）
 export function loadOwnerThemeCSS(themeNumber) {
-  if (themeNumber < 1 || themeNumber > 9) return;
+  if (themeNumber < 1 || themeNumber > 14) return;
   
   const id = `owner-theme-${themeNumber}`;
   if (!document.getElementById(id)) {

@@ -1,0 +1,93 @@
+/* ===== 主題 11：奶茶暖白底 + 桃紅（Magenta Pink） ===== */
+
+/* Magenta Pink：#DB2777 */
+body.theme-11 {
+  --uvaco-green: #DB2777;
+  --uvaco-green-rgb: 219, 39, 119;
+  background: #FAF1E6;
+  color: #111827;
+}
+
+/* 背景泡泡 */
+body.theme-11 .bg-blob.blob1 {
+  background: rgba(219, 39, 119, 0.16);
+}
+body.theme-11 .bg-blob.blob2 {
+  background: rgba(244, 114, 182, 0.14);
+}
+
+/* 淺色卡片底（奶茶暖白，跟主題2/7/9的冷白做出區隔） */
+body.theme-11 .card:not([class*="card-theme-"]) {
+  background: #FFFDF9;
+  box-shadow: 0 12px 30px rgba(219,39,119,0.10);
+  border: 1px solid rgba(219, 39, 119, 0.10);
+}
+
+/* 名片卡片（支援 body.theme-11 和 .card.card-theme-11） */
+body.theme-11 .card,
+.card.card-theme-11 {
+  --uvaco-green: #DB2777;
+  --uvaco-green-rgb: 219, 39, 119;
+  background: #FFFDF9 !important;
+  box-shadow: 0 12px 30px rgba(219,39,119,0.10);
+  border: 1px solid rgba(219, 39, 119, 0.12);
+}
+
+body.theme-11 .card .name,
+.card.card-theme-11 .name { color: #111827 !important; }
+
+body.theme-11 .card .tagline,
+.card.card-theme-11 .tagline { color: #57534e !important; }
+
+body.theme-11 .card .divider,
+.card.card-theme-11 .divider { background: rgba(219,39,119,0.14) !important; }
+
+body.theme-11 .card .section-label,
+.card.card-theme-11 .section-label { color: #78716c !important; }
+
+body.theme-11 .card .btn-primary,
+.card.card-theme-11 .btn-primary {
+  background: var(--uvaco-green) !important;
+  color: #ffffff !important;
+}
+
+body.theme-11 .card .btn-secondary,
+.card.card-theme-11 .btn-secondary {
+  background: #ffffff !important;
+  border: 1px solid rgba(219, 39, 119, 0.55) !important;
+  color: var(--uvaco-green) !important;
+}
+
+body.theme-11 .card .hint,
+.card.card-theme-11 .hint {
+  background: rgba(219,39,119,0.05) !important;
+  color: #57534e !important;
+  border: 1px solid rgba(219,39,119,0.10) !important;
+}
+
+body.theme-11 .card .info-label,
+.card.card-theme-11 .info-label { color: var(--uvaco-green) !important; }
+
+body.theme-11 .card .info-value,
+body.theme-11 .card .address-text,
+.card.card-theme-11 .info-value,
+.card.card-theme-11 .address-text { color: #111827 !important; }
+
+body.theme-11 .card .avatar,
+.card.card-theme-11 .avatar {
+  background: #ffffff;
+  border-color: var(--uvaco-green);
+  box-shadow: 0 0 0 4px rgba(219,39,119,0.12), 0 10px 24px rgba(219,39,119,0.14);
+}
+
+/* 頂部欄 / 底部欄 */
+body.theme-11 .edit-top-header,
+body.theme-11 .edit-header-top {
+  background: rgba(250, 241, 230, 0.95) !important;
+  border-bottom-color: rgba(219,39,119,0.14);
+}
+
+body.theme-11 .bottom-nav {
+  background: rgba(250, 241, 230, 0.95);
+  border-top-color: rgba(219,39,119,0.14);
+}
