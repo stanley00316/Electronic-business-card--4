@@ -116,6 +116,35 @@
       }
     }
 
+    // 幫任何 Promise 加上「等太久就放棄」的保護。
+    // 用途：liff.init()/liff.login() 是 LINE 官方 SDK 呼叫，不像一般 fetch 可以用 AbortController 中斷；
+    // 如果 LINE App 端卡住沒回應，畫面會永遠停在「正在自動登入...」、好友感覺卡住進不去。
+    // 等超過 timeoutMs 就當作失敗，讓畫面退回一般登入按鈕，不會無限期卡住。
+    function withTimeout(promise, timeoutMs, timeoutValue) {
+      return new Promise(function (resolve) {
+        var settled = false;
+        var timer = window.setTimeout(function () {
+          if (settled) return;
+          settled = true;
+          resolve(timeoutValue);
+        }, timeoutMs);
+        promise.then(
+          function (value) {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timer);
+            resolve(value);
+          },
+          function (err) {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timer);
+            resolve({ ok: false, error: 'LIFF_AUTO_LOGIN_THROWN', detail: String((err && err.message) || err || '') });
+          }
+        );
+      });
+    }
+
     // 語言切換
     function switchLang(lang) {
       setLang(lang);
@@ -285,10 +314,16 @@
 
       // LIFF 自動登入：從 LINE App 內開啟時免輸入帳號密碼
       if (UVACO_CLOUD.hasLiffConfig && UVACO_CLOUD.hasLiffConfig()) {
+        var liffTimedOut = false;
         try {
           setStatus('ok', '正在自動登入...');
           const liffStartedAt = performance.now();
-          var liffRes = await UVACO_CLOUD.liffAutoLogin(getNext());
+          // 最多等 8 秒：LINE 那邊卡住沒回應時，別讓畫面永遠停在「正在自動登入...」
+          var liffRes = await withTimeout(
+            UVACO_CLOUD.liffAutoLogin(getNext()),
+            8000,
+            { ok: false, error: 'LIFF_AUTO_LOGIN_TIMEOUT' }
+          );
           // #region agent log
           logAuthDebug(
             'H1',
@@ -308,12 +343,18 @@
               && liffRes.error !== 'LIFF_NOT_AVAILABLE'
               && liffRes.error !== 'LIFF_NOT_IN_CLIENT') {
             console.log('[LIFF] 自動登入未成功，回退到一般登入:', liffRes.error);
+            liffTimedOut = (liffRes.error === 'LIFF_AUTO_LOGIN_TIMEOUT');
           }
         } catch (e) {
           console.log('[LIFF] 初始化失敗，回退到一般登入:', e);
         }
-        // LIFF 失敗時清除狀態提示，繼續一般登入流程
-        document.getElementById('statusBox').className = 'auth-status';
+        if (liffTimedOut) {
+          // 逾時：明確告知使用者改用手動按鈕，而不是讓畫面停在「正在自動登入...」看起來像當機
+          setStatus('err', '自動登入等待逾時，請點下方「用 LINE App 開啟」再試一次。');
+        } else {
+          // LIFF 失敗時清除狀態提示，繼續一般登入流程
+          document.getElementById('statusBox').className = 'auth-status';
+        }
       }
 
       // 處理 LINE OAuth callback

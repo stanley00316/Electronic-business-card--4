@@ -265,7 +265,14 @@ export async function liffAutoLogin(nextPage) {
     if (!liff.isInClient()) return { ok: false, error: 'LIFF_NOT_IN_CLIENT' };
 
     if (!liff.isLoggedIn()) {
-      liff.login({ redirectUri: getBaseUrl() + 'auth.html?next=' + encodeURIComponent(nextPage || 'directory.html') + '&liff=1' });
+      // 邀請連結的 ref（推薦人編號）已經在 bootstrap() 存進 localStorage，
+      // 這裡要一併帶回導回網址，避免 liff.login() 導回後網址只剩 next，
+      // 讓好友透過邀請連結進來的推薦紀錄看起來像遺失。
+      var refId = '';
+      try { refId = String(localStorage.getItem('UVACO_REFERRER_ID') || '').trim(); } catch (e) {}
+      var redirectUri = getBaseUrl() + 'auth.html?next=' + encodeURIComponent(nextPage || 'directory.html') + '&liff=1'
+        + (refId ? '&ref=' + encodeURIComponent(refId) : '');
+      liff.login({ redirectUri: redirectUri });
       return { ok: true, handled: true, action: 'redirecting_to_login' };
     }
 

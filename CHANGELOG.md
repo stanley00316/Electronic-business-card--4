@@ -1,5 +1,19 @@
 # 變更紀錄
 
+## 2026-07-08（修正：邀請好友分享後，卡在 LINE 登入畫面進不去）
+
+### 修正（LIFF 自動登入加上逾時保護，避免永遠卡住）
+
+- **問題現象**：用「設定 → 邀請好友（點擊分享）」把連結分享給朋友後，朋友點開連結卡在 LINE 登入畫面，沒辦法進入名片系統。
+- **追查過程**：邀請連結的網址是 `auth.html?ref=推薦人編號&next=edit.html`（[cards-referrals-nfc.js:224](js/cloud/cards-referrals-nfc.js#L224)）。朋友點開後，頁面會自動嘗試「LIFF 自動登入」（[main.js:287](js/pages/auth/main.js#L287)），這會呼叫 LINE 官方原生的登入畫面（`liff.login()`）。
+- **確認找到的問題**：整段 LIFF 自動登入流程**完全沒有設定逾時**。對照同一支檔案裡，LINE 一般網頁版登入的網路請求都有包 15 秒逾時保護（[line-liff.js:141](js/cloud/line-liff.js#L141)），但 `liff.init()` / `liff.login()` 這段完全沒有任何逾時機制——如果 LINE App 端卡住沒回應（網路不穩、LINE App 版本問題等），畫面就會「正在自動登入…」卡到天荒地老，使用者不知道其實旁邊的「用 LINE App 開啟」按鈕還能按。
+- **修正方式**：幫 LIFF 自動登入包上「最多等 8 秒」的逾時保護（新增 `withTimeout` 輔助函式），超過 8 秒還沒有結果，就自動判定為逾時、跳出明確訊息「自動登入等待逾時，請點下方『用 LINE App 開啟』再試一次」，讓使用者知道要手動按按鈕，不會再讓畫面陷入沒有出路的等待。
+- **順便修好的關聯 bug**：`liff.login()` 導回網址原本只帶 `next` 參數、**沒有帶邀請的 `ref` 推薦人編號**，這次一併補上，讓透過邀請連結進來、需要走 LINE 官方登入畫面的朋友，推薦紀錄不會在這個環節被遺漏。
+- **這次無法從程式碼 100% 確認的部分（誠實說明）**：好友實際卡住畫面當下，到底是「LIFF 初始化真的卡住等不到回應」（這次修的逾時保護能解決）、還是「LINE 開發者後台的 LIFF Endpoint URL 設定跟實際網址不符」、或是單純網路問題，這三種都會表現成「卡住進不去」但成因不同。已經用瀏覽器實際測試過 `withTimeout` 輔助函式本身的邏輯（逾時會正確 fallback、不會重複觸發、原本的 promise 不會被強制中斷），但沒辦法在真正的 LINE App 環境重現原始問題，所以無法保證這就是唯一根因。
+- **後續驗證建議**：如果修正後朋友還是卡住，麻煩請朋友點連結時後面加上 `&debugAuth=1`（例如 `auth.html?ref=xxx&next=edit.html&debugAuth=1`），畫面下方會出現即時診斷面板，把上面顯示的文字截圖回報，就能精準定位卡在哪一步。
+- **影響範圍**：只修改 `js/pages/auth/main.js`（新增逾時保護）與 `js/cloud/line-liff.js`（補 ref 參數，需要重新執行 `npm run build:cloud` 打包進 `cloud.js`），沒有動到一般（非邀請）的 LINE 登入流程、Email 登入或其他頁面邏輯；一般登入速度與行為不受影響，只有「逾時」這個新增的例外情況會出現新訊息。
+- **快取更新**：`cloud.js` 已重新打包，所有引用它的頁面（`index.html`、`auth.html`、`directory.html`、`admin.html`、`card.html`、`my-card.html`、`company-admin.html`、`edit.html`、`subscription.html`、`settings.html`、`enterprise.html`、`yuyuko.html`）版本參數統一升為 `20260708b`；`auth.html` 的 `js/pages/auth/main.js` 版本參數同步升為 `20260708b`；`service-worker.js` 版本升為 `v1.35.1`。
+
 ## 2026-07-08（新增：5 種全新名片主題，共 14 種可選）
 
 ### 新增（延續現有卡片版型，只用「更跳脫好分辨」的新配色）
