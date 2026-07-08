@@ -9,9 +9,39 @@
         const isLocal = h === 'localhost' || h === '127.0.0.1' ||
           h.startsWith('192.168.') || h.startsWith('172.') || h.startsWith('10.');
         const p = new URLSearchParams(window.location.search || '');
-        return isLocal || p.get('debugAuth') === '1';
+        const forcedOn = localStorage.getItem('UVACO_FORCE_AUTH_DEBUG') === '1';
+        return isLocal || p.get('debugAuth') === '1' || forcedOn;
       } catch (e) {
         return false;
+      }
+    }
+
+    // 一鍵開啟詳細登入診斷：不用麻煩使用者自己在網址後面加 &debugAuth=1，
+    // 開發者選項按一下就好，之後不管重整或被導去 LINE 再導回來都會繼續顯示。
+    function enableAuthDebugMode() {
+      try { localStorage.setItem('UVACO_FORCE_AUTH_DEBUG', '1'); } catch (e) {}
+      renderAuthDebugPanel();
+      alert('已開啟詳細登入診斷模式。\n請重新點「用 LINE App 開啟」測試一次，畫面下方會即時顯示登入過程的詳細紀錄。\n測完後可以點「複製登入診斷紀錄」把內容傳給我。');
+    }
+
+    function disableAuthDebugMode() {
+      try { localStorage.removeItem('UVACO_FORCE_AUTH_DEBUG'); } catch (e) {}
+      const panel = document.getElementById('authDebugPanel');
+      if (panel) panel.remove();
+      alert('已關閉詳細登入診斷模式。');
+    }
+
+    function copyAuthDebugLog() {
+      const lines = readAuthDebugPanelEvents();
+      const text = lines.length ? lines.join('\n') : '（目前沒有診斷紀錄，請先開啟詳細登入診斷模式並重新測試登入一次）';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          alert('登入診斷紀錄已複製，貼給開發人員即可。');
+        }).catch(function () {
+          prompt('請手動複製以下內容：', text);
+        });
+      } else {
+        prompt('請手動複製以下內容：', text);
       }
     }
 
@@ -572,3 +602,6 @@ window.forceQrFallback = forceQrFallback;
 window.diagAll = diagAll;
 window.explainAuth = explainAuth;
 window.doDevLogin = doDevLogin;
+window.enableAuthDebugMode = enableAuthDebugMode;
+window.disableAuthDebugMode = disableAuthDebugMode;
+window.copyAuthDebugLog = copyAuthDebugLog;

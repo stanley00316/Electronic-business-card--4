@@ -354,6 +354,21 @@
             <span class="lang-en">Deployment Guide</span>
           </button>
 
+          <!-- 詳細登入診斷：不只檢查後端連線，還會即時記錄「用LINE App開啟」按下去之後
+               每一步實際發生了什麼，方便回報卡住的實際位置給開發人員 -->
+          <button type="button" class="auth-btn secondary" onclick="enableAuthDebugMode()">
+            <span class="lang-zh">開啟詳細登入診斷</span>
+            <span class="lang-en">Enable Detailed Login Debug</span>
+          </button>
+          <button type="button" class="auth-btn secondary" onclick="copyAuthDebugLog()">
+            <span class="lang-zh">複製登入診斷紀錄</span>
+            <span class="lang-en">Copy Login Debug Log</span>
+          </button>
+          <button type="button" class="auth-btn secondary" onclick="disableAuthDebugMode()">
+            <span class="lang-zh">關閉詳細登入診斷</span>
+            <span class="lang-en">Disable Detailed Login Debug</span>
+          </button>
+
           <!-- 開發者登入區塊（僅 Localhost 顯示） -->
           <div id="devLoginArea" style="display:none; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
             <div style="font-size:13px; color:#f59e0b; margin-bottom:8px; font-weight:bold;">
@@ -377,7 +392,7 @@
 
   <script src="cloud.js?v=20260708c"></script>
   <script src="common.js?v=20260708a"></script>
-  <script type="module" src="js/pages/auth/main.js?v=20260708c"></script>
+  <script type="module" src="js/pages/auth/main.js?v=20260708d"></script>
   <script>
     // Service Worker 註冊
     if ('serviceWorker' in navigator) {
