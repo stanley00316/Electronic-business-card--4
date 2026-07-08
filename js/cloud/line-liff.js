@@ -55,6 +55,19 @@ export function startLineAppLogin(nextRelativeUrl) {
   return true;
 }
 
+// 判斷是不是手機瀏覽器：手機使用者通常只有「這一支」手機，
+// 不能拿來掃自己螢幕上的 QR Code，所以手機跟電腦要走不同的登入畫面。
+function isMobileUserAgent() {
+  try {
+    var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+    var isPhoneOrTablet = /Android|iPhone|iPad|iPod/i.test(ua);
+    var isTouchMac = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+    return isPhoneOrTablet || isTouchMac;
+  } catch (e) {
+    return false;
+  }
+}
+
 export function startLineLogin(nextRelativeUrl) {
   if (!LINE_CHANNEL_ID) {
     alert("尚未設定 LINE_CHANNEL_ID（請在 js/cloud/constants.js 填入 LINE Channel ID）。");
@@ -77,9 +90,14 @@ export function startLineLogin(nextRelativeUrl) {
   params.set('redirect_uri', redirectUri);
   params.set('state', state);
   params.set('scope', 'profile openid');
-  // 這裡讓外部瀏覽器優先顯示 LINE App 掃碼登入，避免使用者被要求記 LINE 帳號密碼。
-  params.set('initial_amr_display', 'lineqr');
-  params.set('switch_amr', 'false');
+  // 電腦瀏覽器：優先顯示 LINE App 掃碼登入（拿手機掃電腦畫面），避免使用者被要求記帳號密碼。
+  // 手機瀏覽器：不強制鎖在「掃碼登入」——手機使用者通常只有這一支手機，沒辦法掃自己螢幕上的
+  // QR Code，鎖死在這個畫面等於卡住進不去；改成讓 LINE 依裝置自行決定最適合的登入方式，
+  // 使用者也能自由切換到帳號密碼登入。
+  if (!isMobileUserAgent()) {
+    params.set('initial_amr_display', 'lineqr');
+    params.set('switch_amr', 'false');
+  }
 
   // #region agent log
   logLineAuthDebug(

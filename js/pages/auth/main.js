@@ -206,6 +206,26 @@
       }
     }
 
+    // 逃生門連結：切去 LINE App 這步若卡住（例如系統詢問視窗沒跳出來、
+    // 或使用者沒理會），讓使用者自己隨時能點著改走其他登入方式，不用乾等
+    // 可能因為 document.visibilityState 判斷失準而沒有正確觸發的自動計時器。
+    function showQrFallbackLink() {
+      var el = document.getElementById('qrFallbackLink');
+      if (el) el.style.display = 'block';
+    }
+
+    function hideQrFallbackLink() {
+      var el = document.getElementById('qrFallbackLink');
+      if (el) el.style.display = 'none';
+    }
+
+    function forceQrFallback() {
+      clearLineAppFallbackTimer();
+      hideQrFallbackLink();
+      setStatus('ok', '改用其他方式登入...');
+      UVACO_CLOUD.startLineLogin(getNext());
+    }
+
     function isMobileDeviceForLineApp() {
       try {
         var ua = navigator.userAgent || '';
@@ -220,7 +240,7 @@
     // 手機主畫面圖示（加入主畫面後）開啟的 PWA 模式，跟一般瀏覽器分頁是「不同的儲存空間」。
     // 若在這裡切去 LINE App 再切回來，系統有時會把畫面切回一般瀏覽器而不是切回這個 PWA，
     // 導致登入成功寫入的資料進了「另一邊」，下次從主畫面圖示打開時還是看不到，又要重新登入。
-    // 所以這裡偵測到是 PWA 模式時，一律跳過「切去 LINE App」，直接用網頁內 QR Code 登入，
+    // 所以這裡偵測到是 PWA 模式時，一律跳過「切去 LINE App」，直接用網頁內登入，
     // 全程留在同一個畫面、同一份儲存空間，登入結果才能確實被主畫面圖示記住。
     function isStandaloneApp() {
       try {
@@ -428,7 +448,7 @@
       var next = getNext();
       if (next === 'my-card.html') {
         setStatus('ok', isStandaloneApp()
-          ? '請點下方按鈕，掃 QR Code 登入一次。完成後，下次從手機主畫面圖示可直接開啟名片。'
+          ? '請點下方按鈕登入一次。完成後，下次從手機主畫面圖示可直接開啟名片。'
           : '請點「用 LINE App 開啟」登入一次。完成後，下次從手機主畫面可直接開啟名片。');
         return;
       }
@@ -456,17 +476,21 @@
         );
         // #endregion
         if (canTryLineApp) {
-          setStatus('ok', '正在開啟 LINE App... 若沒有自動開啟，將改用 QR Code 登入。');
+          setStatus('ok', '正在開啟 LINE App... 若沒有自動開啟，將改用其他方式登入。');
+          // 逃生門立刻顯示：不管待會自動判斷有沒有正確觸發，使用者隨時能自己點著改路走
+          showQrFallbackLink();
           clearLineAppFallbackTimer();
           lineAppFallbackTimer = window.setTimeout(function () {
             lineAppFallbackTimer = null;
             if (document.visibilityState && document.visibilityState !== 'visible') return;
-            setStatus('ok', 'LINE App 未自動開啟，改用 QR Code 登入...');
+            setStatus('ok', 'LINE App 未自動開啟，改用其他方式登入...');
+            hideQrFallbackLink();
             UVACO_CLOUD.startLineLogin(next);
           }, 2200);
 
           if (UVACO_CLOUD.startLineAppLogin(next)) return;
           clearLineAppFallbackTimer();
+          hideQrFallbackLink();
         }
 
         UVACO_CLOUD.startLineLogin(next);
@@ -544,6 +568,7 @@
 
 window.switchLang = switchLang;
 window.startLine = startLine;
+window.forceQrFallback = forceQrFallback;
 window.diagAll = diagAll;
 window.explainAuth = explainAuth;
 window.doDevLogin = doDevLogin;

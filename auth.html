@@ -267,7 +267,7 @@
       
       <!-- 簡潔說明 -->
       <div class="auth-desc">
-        <span class="lang-zh">手機會優先開啟 LINE App；若無法開啟或使用電腦，會改用 QR Code 登入。</span>
+        <span class="lang-zh">手機會優先開啟 LINE App；若無法開啟會改用其他方式登入，電腦則會使用 QR Code 登入。</span>
         <span class="lang-en">Mobile opens the LINE app first. If it cannot open, or on desktop, use QR code login.</span>
       </div>
 
@@ -279,7 +279,17 @@
           <span class="lang-en">Open with LINE app</span>
         </span>
       </button>
-      
+
+      <!-- 逃生門：切去 LINE App 這一步若真的卡住，讓使用者自己隨時能點著改走其他登入方式，
+           不用乾等可能失效的自動判斷計時器。注意：手機不會強制走 QR Code
+           （單一支手機沒辦法掃自己螢幕的QR），只有電腦才會顯示 QR Code。 -->
+      <div id="qrFallbackLink" style="display:none; text-align:center; margin-top:10px;">
+        <a href="javascript:void(0)" onclick="forceQrFallback()" style="color:#9ca3af; font-size:13px; text-decoration:underline;">
+          <span class="lang-zh">卡住了嗎？點此改用其他方式登入</span>
+          <span class="lang-en">Stuck? Tap here to try another way to log in</span>
+        </a>
+      </div>
+
       <div class="auth-divider"></div>
 
       <!-- 新用戶引導區塊 -->
@@ -365,9 +375,9 @@
     </div>
   </div>
 
-  <script src="cloud.js?v=20260708b"></script>
+  <script src="cloud.js?v=20260708c"></script>
   <script src="common.js?v=20260708a"></script>
-  <script type="module" src="js/pages/auth/main.js?v=20260708b"></script>
+  <script type="module" src="js/pages/auth/main.js?v=20260708c"></script>
   <script>
     // Service Worker 註冊
     if ('serviceWorker' in navigator) {
