@@ -84,6 +84,7 @@
     <button class="btn btn-outline" onclick="location.href='settings.html'">前往設定</button>
     <button class="btn btn-outline" id="companyAdminBtn" onclick="location.href='company-admin.html'" style="display:none;">⚙️ 管理企業管理員</button>
     <button class="btn btn-outline" id="pricingAdminBtn" onclick="togglePricingSection()" style="display:none;">💰 價格方案</button>
+    <button class="btn btn-outline" id="exportPdfBtn" onclick="openPdfExportModal()">🖨️ 輸出貼紙PDF</button>
     <!-- 獨立分頁籤：只有超級管理員能看到「訂閱管理」分頁，跟其他工具列按鈕放在同一排 -->
     <button class="btn btn-green" id="tabBtnCards" onclick="switchAdminTab('cards')" style="display:none;">📋 名片管理</button>
     <button class="btn btn-outline" id="tabBtnSubscriptions" onclick="switchAdminTab('subscriptions')" style="display:none;">💎 訂閱管理</button>
@@ -99,6 +100,7 @@
   <table id="userTable">
     <thead>
       <tr>
+        <th><input type="checkbox" id="selectAllCards" onchange="toggleSelectAllCards(this)"></th>
         <th>姓名</th>
         <th>公司/職稱</th>
         <th>NFC 卡片 ID</th>
@@ -108,7 +110,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr><td colspan="6" style="text-align:center">載入中...</td></tr>
+      <tr><td colspan="7" style="text-align:center">載入中...</td></tr>
     </tbody>
   </table>
   </div>
@@ -257,6 +259,20 @@
   </div>
 </div>
 
+<!-- 輸出貼紙PDF 前：輸入本次整批背面要用的公司英文名稱 -->
+<div id="pdfExportModal" class="qr-modal" onclick="this.style.display='none'">
+  <div class="qr-box" onclick="event.stopPropagation()" style="max-width:420px;">
+    <h3>輸出貼紙 PDF</h3>
+    <p style="color:#9ca3af;font-size:13px;margin-bottom:16px;">背面會套用每人自己上傳的 Logo；公司英文名稱資料庫沒有單獨欄位，請在這裡輸入一次，套用到本次整批背面（可留空）。</p>
+    <input type="text" id="pdfCompanyNameEnInput" placeholder="例如：YAO DING TECHNOLOGY" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1b1b1b;color:#fff;font-size:14px;box-sizing:border-box;">
+    <p id="pdfExportStatus" style="color:#9ca3af;font-size:12px;margin-top:14px;min-height:16px;"></p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+      <button class="btn btn-green" id="pdfExportConfirmBtn" onclick="confirmPdfExport()">確認並產生 PDF</button>
+      <button class="btn btn-outline" onclick="document.getElementById('pdfExportModal').style.display='none'">取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let allData = [];
 let adminStatus = null;
@@ -362,7 +378,7 @@ function renderTable(data) {
   tbody.innerHTML = '';
   
   if (data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">目前沒有資料</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">目前沒有資料</td></tr>';
     return;
   }
 
@@ -386,6 +402,7 @@ function renderTable(data) {
       .replace(/'/g, '&#39;');
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td data-label="選取"><input type="checkbox" class="cardSelectCbx" value="${row.user_id}"></td>
       <td data-label="姓名"><a class="admin-name-link" href="${url}" target="_blank" rel="noopener noreferrer">${displayName}</a>${nameSub}</td>
       <td data-label="公司/職稱">${row.company || '-'} <br> <small style="color:#9ca3af">${row.title || '-'}</small></td>
       <td data-label="NFC 卡片 ID">
@@ -1079,6 +1096,238 @@ async function confirmReactivateSubscription() {
     console.error('重新啟用錯誤:', e);
     alert('啟用失敗：' + (e.message || e));
   }
+}
+
+// ===== 輸出貼紙 PDF 功能 =====
+let jsPdfLibPromise = null;
+let chineseFontBase64Promise = null;
+
+// 動態載入 jsPDF 函式庫：只有第一次按下輸出才載入，不拖慢平常開後台的速度
+function ensureJsPdfLibLoaded() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  if (jsPdfLibPromise) return jsPdfLibPromise;
+  jsPdfLibPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.0.0/jspdf.umd.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('jsPDF 函式庫載入失敗，請檢查網路連線'));
+    document.head.appendChild(script);
+  });
+  return jsPdfLibPromise;
+}
+
+// 把 ArrayBuffer 轉成 base64（分段處理，避免大檔案讓瀏覽器卡住或超出呼叫堆疊限制）
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+// 下載中文字型檔並轉成 base64，只做一次，之後重複使用快取結果（PDF 裡的中文姓名/公司名要靠這個字型才不會變空白方塊）
+function ensureChineseFontBase64() {
+  if (chineseFontBase64Promise) return chineseFontBase64Promise;
+  chineseFontBase64Promise = fetch('fonts/NotoSansTC-Regular.ttf')
+    .then((res) => {
+      if (!res.ok) throw new Error('中文字型檔下載失敗（HTTP ' + res.status + '）');
+      return res.arrayBuffer();
+    })
+    .then((buf) => arrayBufferToBase64(buf));
+  return chineseFontBase64Promise;
+}
+
+// 把中文字型註冊到這一份 PDF 文件裡（每個 jsPDF 文件都要各自註冊一次）
+async function registerChineseFont(doc) {
+  const base64Font = await ensureChineseFontBase64();
+  doc.addFileToVFS('NotoSansTC-Regular.ttf', base64Font);
+  doc.addFont('NotoSansTC-Regular.ttf', 'NotoSansTC', 'normal');
+  doc.setFont('NotoSansTC');
+}
+
+// 全選／取消全選名片列表的勾選框
+function toggleSelectAllCards(checkbox) {
+  document.querySelectorAll('#userTable .cardSelectCbx').forEach((cbx) => {
+    cbx.checked = checkbox.checked;
+  });
+}
+
+// 取得目前勾選的名片 user_id 清單
+function getSelectedCardIds() {
+  return Array.from(document.querySelectorAll('#userTable .cardSelectCbx:checked')).map((cbx) => cbx.value);
+}
+
+// 按下「輸出貼紙PDF」：先檢查有沒有勾選，再開啟輸入英文公司名稱的彈窗
+function openPdfExportModal() {
+  const ids = getSelectedCardIds();
+  if (ids.length === 0) {
+    alert('請先在名片列表勾選至少一筆名片，再輸出貼紙 PDF。');
+    return;
+  }
+  document.getElementById('pdfExportStatus').textContent = '';
+  document.getElementById('pdfExportModal').style.display = 'flex';
+}
+
+// 確認送出：開始產生 PDF
+async function confirmPdfExport() {
+  const ids = getSelectedCardIds();
+  if (ids.length === 0) {
+    alert('請先勾選至少一筆名片。');
+    return;
+  }
+  const companyNameEn = document.getElementById('pdfCompanyNameEnInput').value.trim();
+  const selectedRows = allData.filter((r) => ids.includes(String(r.user_id)));
+
+  const confirmBtn = document.getElementById('pdfExportConfirmBtn');
+  const statusEl = document.getElementById('pdfExportStatus');
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = '產生中...';
+
+  try {
+    await generateStickerPdf(selectedRows, companyNameEn, (doneCount, total) => {
+      statusEl.textContent = `已產生 ${doneCount} / ${total} 張...`;
+    });
+    document.getElementById('pdfExportModal').style.display = 'none';
+  } catch (e) {
+    console.error('輸出貼紙 PDF 失敗:', e);
+    alert('輸出失敗：' + (e.message || e));
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = '確認並產生 PDF';
+    statusEl.textContent = '';
+  }
+}
+
+// 用 QRCode.js 產生 QR Code 圖片的 dataURL（沿用 showQR() 同款做法，只是畫在畫面外的隱藏容器上）
+function qrCodeToDataUrl(url) {
+  return new Promise((resolve) => {
+    const holder = document.createElement('div');
+    holder.style.position = 'fixed';
+    holder.style.left = '-9999px';
+    document.body.appendChild(holder);
+    new QRCode(holder, { text: url, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
+    setTimeout(() => {
+      const canvas = holder.querySelector('canvas');
+      const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+      document.body.removeChild(holder);
+      resolve(dataUrl);
+    }, 50);
+  });
+}
+
+// 把圖片網址（含 Supabase 簽名網址）轉成 dataURL，PDF 才能穩定內嵌（簽名網址有時效性，不能直接存進 PDF）
+async function imageUrlToDataUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('圖片下載失敗（HTTP ' + res.status + '）');
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('圖片轉檔失敗'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+// 從 dataURL 判斷圖片格式，addImage 需要正確格式才能正常內嵌
+function guessImageFormat(dataUrl) {
+  const m = /^data:image\/(png|jpe?g|webp)/i.exec(dataUrl || '');
+  if (!m) return 'PNG';
+  const t = m[1].toUpperCase();
+  return t === 'JPG' ? 'JPEG' : t;
+}
+
+// 取得圖片原始尺寸，等一下用來等比縮放置中，避免 Logo 被拉伸變形
+function getImageNaturalSize(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => reject(new Error('圖片讀取失敗'));
+    img.src = dataUrl;
+  });
+}
+
+// 計算等比縮放後、置中於指定框內的座標（contain 模式，避免變形）
+function fitContain(imgW, imgH, boxX, boxY, boxW, boxH) {
+  const scale = Math.min(boxW / imgW, boxH / imgH);
+  const w = imgW * scale;
+  const h = imgH * scale;
+  return { x: boxX + (boxW - w) / 2, y: boxY + (boxH - h) / 2, w, h };
+}
+
+// 主流程：產生「正面＋背面」交錯的貼紙 PDF，每張名片各佔兩頁（85×54mm，跟實體名片同尺寸）
+async function generateStickerPdf(rows, companyNameEn, onProgress) {
+  await ensureJsPdfLibLoaded();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [85, 54] });
+  await registerChineseFont(doc);
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (i > 0) doc.addPage([85, 54], 'landscape');
+    doc.setFont('NotoSansTC');
+
+    // ---- 正面：姓名／職稱／電話／Email／QR Code ----
+    const cardUrl = `${window.location.origin}${window.location.pathname.replace('admin.html', '')}card.html?id=${row.user_id}`;
+    let qrDataUrl = '';
+    try {
+      qrDataUrl = await qrCodeToDataUrl(cardUrl);
+    } catch (e) {
+      console.error('QR Code 產生失敗:', row.user_id, e);
+    }
+
+    doc.setFontSize(16);
+    doc.text(String(row.name || '未命名'), 8, 16);
+
+    doc.setFontSize(10);
+    doc.text(String(row.title || ''), 8, 22);
+
+    doc.setFontSize(9);
+    if (row.phone) doc.text('電話：' + row.phone, 8, 32);
+    if (row.email) doc.text('Email：' + row.email, 8, 38);
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', 60, 16, 22, 22);
+    }
+
+    // ---- 背面：個人 Logo（若有）＋公司中英文名稱 ----
+    doc.addPage([85, 54], 'landscape');
+    doc.setFont('NotoSansTC');
+
+    const logoPath = row.profile_json && row.profile_json.logoPath;
+    if (logoPath) {
+      try {
+        const signed = await UVACO_CLOUD.getSignedAssetUrl(logoPath, { bucket: 'card-assets', expiresIn: 3600 });
+        if (signed && signed.url) {
+          const logoDataUrl = await imageUrlToDataUrl(signed.url);
+          const size = await getImageNaturalSize(logoDataUrl);
+          const box = fitContain(size.w, size.h, 12.5, 8, 60, 30);
+          doc.addImage(logoDataUrl, guessImageFormat(logoDataUrl), box.x, box.y, box.w, box.h);
+        }
+      } catch (e) {
+        // 單一名片的 Logo 讀取失敗不中斷整批匯出，該人背面留白即可
+        console.error('Logo 讀取失敗，該人背面留白:', row.user_id, e);
+      }
+    }
+
+    doc.setFontSize(12);
+    doc.text(String(row.company || ''), 42.5, 44, { align: 'center' });
+
+    if (companyNameEn) {
+      doc.setFontSize(8);
+      doc.text(companyNameEn, 42.5, 49, { align: 'center' });
+    }
+
+    doc.setFontSize(8);
+    doc.text('NFC', 75, 8);
+
+    if (onProgress) onProgress(i + 1, rows.length);
+  }
+
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  doc.save(`貼紙印刷稿_${dateStr}.pdf`);
 }
 
 init();
