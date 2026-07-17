@@ -64,11 +64,6 @@
     body.admin-narrow #userTable tbody td.actions-cell::before, body.admin-narrow #subscriptionTable tbody td.actions-cell::before{content:'';display:none}
     body.admin-narrow #userTable tbody td.actions-cell .actions-wrap, body.admin-narrow #subscriptionTable tbody td.actions-cell .actions-wrap{justify-content:flex-start}
 
-    /* 獨立分頁籤：名片管理 / 訂閱管理，點哪個就顯示哪個，不會互換按鈕文字 */
-    .admin-tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid #2b2b2b;}
-    .tab-btn{padding:10px 18px;background:transparent;border:none;color:#9ca3af;cursor:pointer;font-size:15px;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;}
-    .tab-btn:hover{color:#ddd;}
-    .tab-btn.active{color:var(--uvaco-green);border-bottom-color:var(--uvaco-green);font-weight:700;}
     
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
     .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; }
@@ -89,17 +84,14 @@
     <button class="btn btn-outline" onclick="location.href='settings.html'">前往設定</button>
     <button class="btn btn-outline" id="companyAdminBtn" onclick="location.href='company-admin.html'" style="display:none;">⚙️ 管理企業管理員</button>
     <button class="btn btn-outline" id="pricingAdminBtn" onclick="togglePricingSection()" style="display:none;">💰 價格方案</button>
+    <!-- 獨立分頁籤：只有超級管理員能看到「訂閱管理」分頁，跟其他工具列按鈕放在同一排 -->
+    <button class="btn btn-green" id="tabBtnCards" onclick="switchAdminTab('cards')" style="display:none;">📋 名片管理</button>
+    <button class="btn btn-outline" id="tabBtnSubscriptions" onclick="switchAdminTab('subscriptions')" style="display:none;">💎 訂閱管理</button>
   </div>
   <input type="text" id="searchInput" placeholder="搜尋姓名、公司..." onkeyup="filterTable()">
 </div>
 
 <div id="adminHint" style="margin:10px 0 18px;color:#aaa;font-size:13px"></div>
-
-<!-- 獨立分頁籤：只有超級管理員能看到「訂閱管理」分頁 -->
-<div class="admin-tabs" id="adminTabs" style="display:none;">
-  <button class="tab-btn active" id="tabBtnCards" onclick="switchAdminTab('cards')">📋 名片管理</button>
-  <button class="tab-btn" id="tabBtnSubscriptions" onclick="switchAdminTab('subscriptions')">💎 訂閱管理</button>
-</div>
 
 <!-- 📋 名片管理分頁 -->
 <div id="cardsPanel">
@@ -319,10 +311,10 @@ async function init() {
   }
   
   // Super Admin（canManageAdmins）才顯示「名片管理／訂閱管理」分頁籤
-  const adminTabs = document.getElementById('adminTabs');
-  if (adminTabs) {
-    adminTabs.style.display = adminStatus.canManageAdmins ? 'flex' : 'none';
-  }
+  const tabBtnCardsInit = document.getElementById('tabBtnCards');
+  const tabBtnSubscriptionsInit = document.getElementById('tabBtnSubscriptions');
+  if (tabBtnCardsInit) tabBtnCardsInit.style.display = adminStatus.canManageAdmins ? 'inline-block' : 'none';
+  if (tabBtnSubscriptionsInit) tabBtnSubscriptionsInit.style.display = adminStatus.canManageAdmins ? 'inline-block' : 'none';
 
   // Super Admin（canManageAdmins）才顯示「價格方案」按鈕
   const pricingAdminBtn = document.getElementById('pricingAdminBtn');
@@ -792,8 +784,14 @@ function switchAdminTab(tab) {
 
   const tabBtnCards = document.getElementById('tabBtnCards');
   const tabBtnSubscriptions = document.getElementById('tabBtnSubscriptions');
-  if (tabBtnCards) tabBtnCards.classList.toggle('active', tab === 'cards');
-  if (tabBtnSubscriptions) tabBtnSubscriptions.classList.toggle('active', tab === 'subscriptions');
+  if (tabBtnCards) {
+    tabBtnCards.classList.toggle('btn-green', tab === 'cards');
+    tabBtnCards.classList.toggle('btn-outline', tab !== 'cards');
+  }
+  if (tabBtnSubscriptions) {
+    tabBtnSubscriptions.classList.toggle('btn-green', tab === 'subscriptions');
+    tabBtnSubscriptions.classList.toggle('btn-outline', tab !== 'subscriptions');
+  }
 
   const cardsPanel = document.getElementById('cardsPanel');
   const subscriptionsPanel = document.getElementById('subscriptionsPanel');
