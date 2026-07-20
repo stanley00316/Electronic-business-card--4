@@ -319,6 +319,25 @@
       }
     }
 
+    // Google 登入：GOOGLE_CLIENT_ID 還沒設定完成前，按鈕保持隱藏（見 auth.html #googleLoginBtn），
+    // 避免使用者看到一顆點了沒反應的按鈕。等 js/cloud/constants.js 填好 Client ID 就會自動出現。
+    function checkGoogleLoginAvailable() {
+      try {
+        var btn = document.getElementById('googleLoginBtn');
+        if (btn && window.UVACO_CLOUD && UVACO_CLOUD.hasGoogleConfig && UVACO_CLOUD.hasGoogleConfig()) {
+          btn.style.display = 'block';
+        }
+      } catch (e) {}
+    }
+
+    function startGoogle() {
+      try {
+        UVACO_CLOUD.startGoogleLogin(getNext());
+      } catch (e) {
+        setStatus('err', 'Google 登入尚未設定完成。');
+      }
+    }
+
     async function bootstrap() {
       const startedFromLineAt = readStartLineDebug();
       const hasCode = /[?&]code=/.test(window.location.search || '');
@@ -360,6 +379,23 @@
       if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
         setStatus('err', '尚未設定 Supabase（請在 cloud.js 填入 SUPABASE_URL / SUPABASE_ANON_KEY）。');
         return;
+      }
+
+      checkGoogleLoginAvailable();
+
+      // 處理 Google OAuth callback：一定要放在 LINE callback 處理「之前」——
+      // Google 的 state 會帶 google_ 前綴，自己會先判斷這不是它的 callback 就跳過（handled:false）；
+      // 但 LINE 那邊的判斷比較寬鬆（只要网址帶著 code/state 就會嘗試當成自己的 callback 處理），
+      // 如果順序反過來，從 Google 導回來的網址會被 LINE 那段邏輯搶先攔截、誤判成 LINE 登入失敗。
+      if (UVACO_CLOUD.finishGoogleLoginFromUrl) {
+        var googleRes = await UVACO_CLOUD.finishGoogleLoginFromUrl();
+        if (googleRes && googleRes.ok === false) {
+          setStatus('err', 'Google 登入失敗，請重試。');
+          return;
+        }
+        if (googleRes && googleRes.handled) {
+          return;
+        }
       }
 
       // LIFF 自動登入：從 LINE App 內開啟時免輸入帳號密碼
@@ -598,6 +634,7 @@
 
 window.switchLang = switchLang;
 window.startLine = startLine;
+window.startGoogle = startGoogle;
 window.forceQrFallback = forceQrFallback;
 window.diagAll = diagAll;
 window.explainAuth = explainAuth;

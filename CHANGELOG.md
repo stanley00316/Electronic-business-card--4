@@ -1,5 +1,23 @@
 # 變更紀錄
 
+## 2026-07-20（準備中：新增 Google 登入，之後要拿掉整個 LINE 登入流程）
+
+### 新增（Google 登入，暫時跟 LINE 並存）
+
+- **問題緣起**：使用者反映 LINE 登入的流程很擾人，想整個拿掉。但目前系統唯一能用的登入方式就是 LINE（Email 登入已停用、Google/Apple 登入程式碼寫好了但完全沒接上畫面按鈕、也沒設定金鑰），如果直接拿掉 LINE，會變成所有人都無法登入。
+- **這次先做的事**：把「Google 登入」接上畫面，讓它可以跟 LINE 並存運作，等實測確認 Google 登入沒問題後，下一步才會把 LINE 登入整個移除。
+  1. 新增 [google-login-setup.sql](google-login-setup.sql)：建立 `google_identities` 身份對照表（跟現有 LINE 登入用的 `line_identities` 是一樣的做法），**需要手動到 Supabase Dashboard 貼上執行一次**。
+  2. `auth.html` 新增「使用 Google 登入」按鈕——這顆按鈕預設是隱藏的，只有偵測到 Google Client ID 已經設定完成才會自動顯示，避免使用者看到按了沒反應的按鈕。
+  3. `js/pages/auth/main.js` 接上 `startGoogle()` 觸發登入，以及 `finishGoogleLoginFromUrl()` 處理 Google 登入完成後的回呼（且刻意排在 LINE 回呼判斷「之前」處理，避免 Google 導回來的網址被 LINE 那段比較寬鬆的判斷邏輯誤攔截）。
+- **使用者接下來需要自己完成的設定**（無法透過程式碼自動完成）：
+  1. 到 Google Cloud Console 申請一組 OAuth 2.0 用戶端 ID。
+  2. 把 Client ID 填入 `js/cloud/constants.js` 的 `GOOGLE_CLIENT_ID`（我會協助填寫，只需要提供這組 ID）。
+  3. 到 Supabase Dashboard → Edge Functions → Secrets，設定 `GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET`。
+  4. 部署 `supabase/functions/google-auth` 這個 Edge Function（後端程式碼已經寫好，只是還沒部署上去）。
+  5. 執行 `google-login-setup.sql` 建立資料表。
+- **影響範圍**：目前 LINE 登入完全沒受影響，一般使用者看到的畫面也沒有變化（Google 按鈕還是隱藏的）；只有設定完成、且我幫忙把 Client ID 填進程式碼之後，Google 登入按鈕才會出現。**下一步（等 Google 登入實測沒問題後）才會正式把 LINE 登入按鈕跟相關流程整個移除**。
+- **快取更新**：`auth.html` 內 `js/pages/auth/main.js` 版本參數升為 `20260720a`。這批修改涉及 Service Worker 會快取的檔案（`auth.html`），部署時記得依照上一則紀錄的提醒，同步把 `service-worker.js` 的 `CACHE_VERSION` 再往上加一格。
+
 ## 2026-07-20（修復：正式網站一直卡在很舊的版本，管理員上傳圖片還是顯示「不支援」的舊訊息）
 
 ### 修復（Service Worker 快取版本號沒有更新）
