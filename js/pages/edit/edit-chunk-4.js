@@ -293,6 +293,26 @@ function updateThemePreviewActive(themeNumber) {
   }
 }
 
+// 正式 14 個主題的名稱與代表色，給「主題選擇器」跟「新手精靈選主題」共用同一份資料，
+// 避免兩邊各自維護一份清單，導致精靈選的主題編號/顏色跟正式主題對不起來。
+// bg/accent 直接對應 edit-head.css 裡 .theme-card-preview[data-theme="N"] 的實際配色。
+window.UVACO_THEME_LIST = [
+  { id: 1,  nameZh: '深色主題',          nameEn: 'Dark Theme',                bg: '#050608',  accent: 'var(--uvaco-green, #00c853)' },
+  { id: 2,  nameZh: '淺色主題',          nameEn: 'Light Theme',               bg: '#f3f4f6',  accent: 'var(--uvaco-green, #00c853)' },
+  { id: 3,  nameZh: '藍色主題',          nameEn: 'Blue Theme',                bg: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%)', accent: '#60a5fa' },
+  { id: 4,  nameZh: '金色主題',          nameEn: 'Gold Theme',                bg: 'linear-gradient(135deg, #b45309 0%, #d97706 50%, #f59e0b 100%)', accent: '#fbbf24' },
+  { id: 5,  nameZh: '紫色主題',          nameEn: 'Purple Theme',              bg: 'linear-gradient(135deg, #581c87 0%, #7c3aed 50%, #9333ea 100%)', accent: '#a78bfa' },
+  { id: 6,  nameZh: '深黑藍（經典藍）',   nameEn: 'Deep Black + Classic Blue', bg: '#000000',  accent: '#0033A0' },
+  { id: 7,  nameZh: '白底藍（經典藍）',   nameEn: 'White + Classic Blue',      bg: '#ffffff',  accent: '#0033A0' },
+  { id: 8,  nameZh: '深黑青綠（青綠）',   nameEn: 'Deep Black + Teal',         bg: '#000000',  accent: '#00B7A9' },
+  { id: 9,  nameZh: '白底青綠（青綠）',   nameEn: 'White + Teal',              bg: '#ffffff',  accent: '#00B7A9' },
+  { id: 10, nameZh: '烈焰緋紅',          nameEn: 'Fire Red',                  bg: '#000000',  accent: '#DC2626' },
+  { id: 11, nameZh: '奶茶桃粉',          nameEn: 'Magenta Pink',              bg: '#FAF1E6',  accent: '#DB2777' },
+  { id: 12, nameZh: '琥珀橙焰',          nameEn: 'Vivid Orange',              bg: '#000000',  accent: '#F97316' },
+  { id: 13, nameZh: '極簡銀霜',          nameEn: 'Minimal Silver',            bg: '#131315',  accent: '#D1D5DB' },
+  { id: 14, nameZh: '萊姆電光',          nameEn: 'Electric Lime',             bg: '#000000',  accent: '#A3E635' }
+];
+
 // 套用「卡片主題」的視覺樣式（previewCard + 整頁背景/頂部欄/底部欄明暗）。
 // 這是唯一真正會改變畫面顏色的地方，不管主題是「使用者剛選的」還是「重新整理後從資料庫讀回的」，
 // 都要呼叫這個函式才會生效，避免之前那種「資料庫讀到了，但畫面忘了套用」的不一致。

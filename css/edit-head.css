@@ -1106,6 +1106,15 @@ body.theme-light .theme-selector-close {
   background: rgba(239, 68, 68, 0.2);
 }
 
+/* 觸控裝置上按鈕原本偏小（padding 4px 8px），放大觸控範圍方便長輩點擊 */
+@media (hover: none), (pointer: coarse) {
+  .slogan-delete-btn {
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 14px;
+  }
+}
+
 /* 預覽區域居中 - 加大寬度以支持橫向排列 */
 .edit-preview-section {
   max-width: 1200px;
@@ -1294,11 +1303,15 @@ body.theme-light .theme-selector-close {
 }
 
 .contact-delete-btn {
-  display: none;
+  /* 手機/平板等觸控裝置沒有 hover，預設一律常駐顯示，長輩才看得到、按得到刪除鈕 */
+  display: block;
+  opacity: 0.85;
   position: absolute;
   top: 8px;
   right: 8px;
   padding: 4px 8px;
+  min-width: 28px;
+  min-height: 28px;
   background: rgba(239, 68, 68, 0.9);
   color: white;
   border: none;
@@ -1309,12 +1322,21 @@ body.theme-light .theme-selector-close {
   transition: all 0.2s;
 }
 
-.contact-btn-wrapper:hover .contact-delete-btn {
-  display: block;
+/* 只有真正用滑鼠（有 hover 能力＋指標精準）的桌機，才維持原本淡出、hover 才顯示的行為 */
+@media (hover: hover) and (pointer: fine) {
+  .contact-delete-btn {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .contact-btn-wrapper:hover .contact-delete-btn {
+    opacity: 0.85;
+    pointer-events: auto;
+  }
 }
 
 .contact-delete-btn:hover {
   background: rgba(239, 68, 68, 1);
+  opacity: 1 !important;
 }
 
 /* 連結輸入模態框樣式 */

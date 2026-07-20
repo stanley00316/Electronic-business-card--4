@@ -1,0 +1,151 @@
+/* ===== 大字模式（照顧長輩／視力不佳的使用者） =====
+   只有 body 被加上 .a11y-large-text 這個 class 才會生效（由 edit-a11y.js 控制、記在 localStorage），
+   一般使用者完全看不到任何差異。
+
+   刻意只放大「頁面控制項」：標題、按鈕、標籤、刪除鈕、精靈、彈窗文字、觸控範圍，
+   不放大卡片預覽區裡「代表最終名片外觀」的姓名/職稱/標語/公司資訊實際內容——
+   避免長輩誤以為「名片本來就會長這麼大字」，儲存後看到預覽頁字體變小反而困惑。 */
+
+body.a11y-large-text .edit-title {
+  font-size: 30px !important;
+}
+
+body.a11y-large-text .edit-theme-btn,
+body.a11y-large-text .edit-save-btn {
+  font-size: 18px !important;
+  padding: 14px 22px !important;
+  min-height: 48px;
+}
+
+body.a11y-large-text .edit-add-btn {
+  font-size: 17px !important;
+  padding: 14px 20px !important;
+  min-height: 44px;
+}
+
+/* 底部導覽列（我的名片／通訊錄／設定） */
+body.a11y-large-text .nav-icon {
+  font-size: 28px !important;
+}
+
+body.a11y-large-text .nav-label {
+  font-size: 15px !important;
+}
+
+body.a11y-large-text .nav-item {
+  padding: 10px 12px !important;
+  min-width: 72px;
+}
+
+/* 刪除按鈕：無論裝置一律常駐顯示且放大——長輩即使用滑鼠，手也可能不夠穩，
+   不該依賴「精準停在上面才顯示」的 hover 邏輯 */
+body.a11y-large-text .contact-delete-btn {
+  display: block !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  font-size: 16px !important;
+}
+
+body.a11y-large-text .slogan-delete-btn {
+  min-width: 40px !important;
+  min-height: 40px !important;
+  font-size: 15px !important;
+}
+
+body.a11y-large-text .info-delete-btn {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 22px !important;
+}
+
+/* 新手精靈本來就是給新手用的功能，理應跟大字模式一起放大 */
+body.a11y-large-text .wizard-step-title {
+  font-size: 24px !important;
+}
+
+body.a11y-large-text .wizard-step-desc,
+body.a11y-large-text .wizard-label,
+body.a11y-large-text .wizard-hint {
+  font-size: 17px !important;
+}
+
+body.a11y-large-text .wizard-input {
+  font-size: 18px !important;
+  padding: 16px !important;
+}
+
+body.a11y-large-text .wizard-btn {
+  font-size: 18px !important;
+  padding: 18px 28px !important;
+}
+
+/* 儲存成功/失敗提示彈窗文字也一起放大 */
+body.a11y-large-text .save-feedback-title {
+  font-size: 24px !important;
+}
+
+body.a11y-large-text .save-feedback-msg {
+  font-size: 17px !important;
+}
+
+body.a11y-large-text .save-feedback-btn {
+  font-size: 17px !important;
+  padding: 16px 20px !important;
+}
+
+/* ===== 大字模式切換開關本身的樣式 ===== */
+.a11y-text-toggle {
+  display: flex;
+  border: 1px solid var(--ui-accent-border, rgba(255,255,255,0.2));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.a11y-text-btn {
+  border: none;
+  background: transparent;
+  color: var(--ui-muted, #9ca3af);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.a11y-text-btn.is-active {
+  background: var(--ui-accent, var(--uvaco-green, #00c853));
+  color: var(--ui-accent-contrast, #fff);
+}
+
+/* 窄螢幕：只顯示一個 🔠 圖示按鈕，點擊直接切換，避免頂部工具列過擠 */
+.a11y-text-toggle-icon {
+  display: none;
+  border: 1px solid var(--ui-accent-border, rgba(255,255,255,0.2));
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ui-muted, #9ca3af);
+  font-size: 16px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+body.a11y-large-text .a11y-text-toggle-icon {
+  background: var(--ui-accent, var(--uvaco-green, #00c853));
+  color: var(--ui-accent-contrast, #fff);
+}
+
+@media (max-width: 420px) {
+  .a11y-text-toggle {
+    display: none;
+  }
+  .a11y-text-toggle-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

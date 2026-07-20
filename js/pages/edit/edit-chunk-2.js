@@ -790,8 +790,30 @@ async function handleImagePickAndPreview(file, kind) {
     ? { maxDim: 512, maxBytes: 1024 * 1024, mime: 'image/webp' }
     : { maxDim: 1024, maxBytes: 1024 * 1024, mime: 'image/webp' };
 
+  // 上傳後先讓使用者拖曳調整位置、用滑桿縮放大小，選好範圍再壓縮存檔，
+  // 而不是整張圖直接自動置中裁切（原本使用者完全沒辦法自己選要保留哪個部分）。
+  const cropOpts = (kind === 'avatar')
+    ? {
+        shape: 'circle',
+        titleZh: '調整頭像大小與位置', titleEn: 'Adjust Your Photo',
+        aspectPresets: [{ labelZh: '1:1', labelEn: '1:1', ratio: 1 }]
+      }
+    : {
+        shape: 'rect',
+        titleZh: '調整 Logo 大小與位置', titleEn: 'Adjust Your Logo',
+        aspectPresets: [
+          { labelZh: '原始比例', labelEn: 'Original', ratio: null },
+          { labelZh: '正方形', labelEn: 'Square', ratio: 1 },
+          { labelZh: '橫式 2:1', labelEn: 'Wide 2:1', ratio: 2 },
+          { labelZh: '橫式 3:1', labelEn: 'Wide 3:1', ratio: 3 }
+        ]
+      };
+
+  const croppedBlob = await openImageCropper(file, cropOpts);
+  if (!croppedBlob) return; // 使用者取消裁切，畫面維持原樣
+
   try {
-    const out = await compressImageFile(file, rules);
+    const out = await compressImageFile(croppedBlob, rules);
     window.__uvacoPendingAssets[kind] = { blob: out.blob, contentType: out.contentType, ext: out.ext };
     const url = URL.createObjectURL(out.blob);
     if (kind === 'avatar') {

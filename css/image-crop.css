@@ -1,0 +1,180 @@
+/* ===== 圖片裁切/縮放視窗（上傳頭像／Logo 後跳出，讓使用者調整大小與位置） =====
+   z-index 特意設得比精靈（.wizard-overlay 9999）與儲存提示（.save-feedback-overlay 10000）都高，
+   因為這個裁切視窗也會從「精靈」的上傳頭像步驟裡被叫出，必須蓋在精靈上面才看得到、按得到。 */
+.image-crop-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10800;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.image-crop-overlay.show {
+  display: flex;
+}
+
+.image-crop-modal {
+  background: var(--ui-surface-bg, #1a1a1a);
+  border: 1px solid var(--ui-surface-border, rgba(255,255,255,0.1));
+  border-radius: 24px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px 24px;
+  position: relative;
+  text-align: center;
+}
+
+.image-crop-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.1));
+  color: var(--ui-muted, #9ca3af);
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-crop-close:hover {
+  background: var(--ui-btn-muted-bg-hover, rgba(255,255,255,0.15));
+  color: var(--ui-text, #fff);
+}
+
+.image-crop-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ui-text, #fff);
+  margin: 0 0 6px;
+}
+
+.image-crop-desc {
+  font-size: 13px;
+  color: var(--ui-muted, #9ca3af);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+/* 長寬比選擇（只有 Logo 會顯示多個選項，頭像固定 1:1 不顯示這排） */
+.image-crop-aspect-picker {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.image-crop-aspect-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ui-surface-border, rgba(255,255,255,0.15));
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.06));
+  color: var(--ui-muted, #9ca3af);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.image-crop-aspect-btn.active {
+  border-color: var(--uvaco-green, #00c853);
+  background: rgba(0, 200, 83, 0.12);
+  color: var(--uvaco-green, #00c853);
+}
+
+/* 裁切舞台：固定大小的可視窗口，圖片在裡面可拖曳/縮放，超出範圍的部分會被裁掉不顯示 */
+.image-crop-stage-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.image-crop-frame {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  border: 2px solid var(--uvaco-green, #00c853);
+  touch-action: none; /* 交給我們自己處理拖曳手勢，避免手機觸控時整個頁面跟著滾動 */
+  cursor: grab;
+}
+
+.image-crop-frame:active {
+  cursor: grabbing;
+}
+
+.image-crop-frame img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none; /* 拖曳事件交給外層 .image-crop-frame 統一處理 */
+}
+
+.image-crop-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  padding: 0 8px;
+}
+
+.image-crop-zoom-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.image-crop-zoom-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--uvaco-green, #00c853);
+}
+
+.image-crop-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.image-crop-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.image-crop-btn-primary {
+  background: var(--uvaco-green, #00c853);
+  color: #fff;
+}
+
+.image-crop-btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.image-crop-btn-secondary {
+  background: var(--ui-btn-muted-bg, rgba(255,255,255,0.1));
+  color: var(--ui-text, #fff);
+}
+
+.image-crop-btn-secondary:hover {
+  background: var(--ui-btn-muted-bg-hover, rgba(255,255,255,0.15));
+}

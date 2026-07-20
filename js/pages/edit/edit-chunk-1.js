@@ -267,8 +267,12 @@ function loadCardToUI(card) {
 
   // 2) 套用姓名/職務（雙語）
   setHtmlLikeName('previewNameZh', pj.nameZh || card.name || '');
-  setText('previewTitleZh', pj.titleZh || card.title || '');
-  setText('previewTitleEn', pj.titleEn || card.title || '');
+  // 修正舊資料汙染：早期版本的儲存邏輯曾在職稱清空時，誤把英文字「Title」存成
+  // 舊版單一欄位 card.title，害使用者怎麼刪都刪不掉。這裡把這個髒值視為「沒有資料」，
+  // 讓已經中毒的舊名片重新載入後能自動復原成空白，可以正常編輯。
+  const legacyTitle = (card.title && card.title !== 'Title') ? card.title : '';
+  setText('previewTitleZh', pj.titleZh || legacyTitle || '');
+  setText('previewTitleEn', pj.titleEn || legacyTitle || '');
   // 姓名單行自動縮字（iPhone SE 等小螢幕）：手機端限制最大字級，避免蓋到頭像框
   try {
     const isSmall = (window.matchMedia && window.matchMedia('(max-width: 420px)').matches);
@@ -507,6 +511,9 @@ function loadCardToUI(card) {
     const savedLang = localStorage.getItem('lang') || 'zh';
     if (typeof setLang === 'function') setLang(savedLang);
   } catch (e) {}
+
+  // 12) 依目前實際資料，決定要不要輕微高亮「🧙 用引導方式新增」按鈕（例如聯絡方式目前是空的）
+  try { if (typeof evaluateGuideEntry === 'function') evaluateGuideEntry(); } catch (e) {}
 }
 
 // 確保 companyNameItem 元素存在（舊資料可能沒有此元素）

@@ -1,9 +1,3 @@
-/* 步驟引導精靈 */
-@keyframes tipBounce {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-8px); }
-}
-
 /* ===== 步驟引導精靈樣式 ===== */
 .wizard-overlay {
   display: none;
@@ -401,6 +395,19 @@
   width: 50px;
   height: 50px;
   border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* 代表主題強調色的小色塊，對應正式主題選擇器裡的按鈕/強調色 */
+.wizard-theme-preview-accent {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  height: 8px;
+  border-radius: 4px;
 }
 
 .wizard-theme-item span {

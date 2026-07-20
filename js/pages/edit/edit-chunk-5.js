@@ -1,4 +1,21 @@
 // 編輯頁主邏輯：名片儲存與新手引導。
+
+// 依照錯誤是否值得「重新儲存」，組出白話文錯誤彈窗要顯示的按鈕。
+// canRetry=true：提供「重新儲存」（直接再呼叫一次 saveCard()）＋「複製錯誤代碼給客服」。
+// canRetry=false（例如圖片上傳的設定類問題，重試通常沒用）：只給「知道了」，並順手複製錯誤代碼，方便使用者回報。
+function buildErrorActions(result, opts) {
+  opts = opts || {};
+  if (opts.canRetry) {
+    return [
+      { labelZh: '重新儲存', labelEn: 'Save Again', primary: true, onClick: function () { saveCard(); } },
+      { labelZh: '複製錯誤代碼給客服', labelEn: 'Copy Error Code', primary: false, onClick: function () { copyErrorDetailToClipboard(result); } }
+    ];
+  }
+  return [
+    { labelZh: '知道了', labelEn: 'OK', primary: true, onClick: function () { copyErrorDetailToClipboard(result); } }
+  ];
+}
+
 async function saveCard() {
   console.log('saveCard started...');
   const zhElements = document.querySelectorAll('.lang-zh');
@@ -36,7 +53,10 @@ async function saveCard() {
   const titleEnRaw = textOf('previewTitleEn');
 
   const name = primaryPart(nameZhRaw) || 'Name';
-  const title = primaryPart(titleZhRaw) || 'Title';
+  // 職稱（舊版單一欄位）：中文職稱優先，沒填就退而求其次用英文職稱，兩者都空就存空字串。
+  // 這裡絕對不能再用 'Title' 這種假字當預設值，否則會被永久存進資料庫，
+  // 造成使用者清空職稱後，畫面又跑出洗不掉的英文字「Title」。
+  const title = primaryPart(titleZhRaw) || primaryPart(titleEnRaw) || '';
 
   const theme = parseInt(window.currentCardTheme || 1, 10);
   const phone = window.__uvacoCardPhone || '';
@@ -219,8 +239,12 @@ async function saveCard() {
 
   // 雲端儲存：若未設定 Supabase，仍允許離線儲存提示
   if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
-    alert(currentLang === 'zh' ? '名片已儲存（離線模式）' : 'Saved (offline mode)');
     try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
+    await showSaveFeedback('success', {
+      titleZh: '已儲存在這台裝置', titleEn: 'Saved on This Device',
+      msgZh: '目前無法連上雲端，先幫您存在這台手機/電腦裡，之後連上網路記得再存一次。',
+      msgEn: 'Could not reach the cloud right now, so your card was saved on this device. Please save again once you are back online.'
+    });
     return;
   }
 
@@ -238,11 +262,15 @@ async function saveCard() {
   // 這裡不再重複宣告 targetUserId 和 adminMode
 
   if (needConfirm) {
-    const ok = confirm(
-      currentLang === 'zh'
-        ? '儲存前請先同意隱私權政策（v1.0）。\n按「確定」代表你已閱讀並同意。'
-        : 'Please agree to the Privacy Policy (v1.0) before saving.\nClick OK to continue.'
-    );
+    const ok = await showSaveFeedback('confirm', {
+      titleZh: '同意隱私權政策', titleEn: 'Privacy Policy',
+      msgZh: '儲存前請先同意隱私權政策（v1.0），按「同意並繼續」代表您已閱讀並同意。',
+      msgEn: 'Please agree to the Privacy Policy (v1.0) before saving.',
+      actions: [
+        { labelZh: '同意並繼續', labelEn: 'Agree & Continue', primary: true, result: true },
+        { labelZh: '取消', labelEn: 'Cancel', primary: false, result: false }
+      ]
+    });
     if (!ok) return;
   }
 
@@ -250,30 +278,23 @@ async function saveCard() {
     // 寫入同意紀錄（若已同意同版本則會略過）
     await UVACO_CLOUD.ensureConsent(consentVersion, policyUrl);
 
-    // 管理員模式：不支援替他人上傳圖片（Storage 路徑與權限以 auth.uid() 為準）
-    if (adminMode && targetUserId) {
-      if (window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
-        alert(currentLang === 'zh'
-          ? '管理員模式目前不支援替他人上傳圖片，請由本人登入後更新頭像/Logo。'
-          : 'Admin mode does not support uploading images for other users. Please ask the owner to update avatar/logo.'
-        );
-        return;
-      }
-    }
-
     // 圖片上傳：若有選新圖，先上傳到 Supabase Storage，再把 path 寫入 profile_json
-    // 加入重試機制處理網路不穩定
-    if (!adminMode && window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
+    // 加入重試機制處理網路不穩定；管理員模式下改用 adminUploadAsset 代替目標使用者上傳
+    // （需通過 Storage 的管理員例外規則，見 admin-upload-storage-rls.sql；企業管理員仍只能傳自己公司員工的圖片）
+    if (window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
       const uploadWithRetry = async (type, asset) => {
         const maxRetries = 3;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
             console.log(`上傳 ${type} 嘗試 ${attempt}/${maxRetries}...`);
-            return await UVACO_CLOUD.uploadMyAsset(type, asset.blob, {
+            const uploadOpts = {
               bucket: 'card-assets',
               ext: asset.ext,
               contentType: asset.contentType
-            });
+            };
+            return (adminMode && targetUserId)
+              ? await UVACO_CLOUD.adminUploadAsset(targetUserId, type, asset.blob, uploadOpts)
+              : await UVACO_CLOUD.uploadMyAsset(type, asset.blob, uploadOpts);
           } catch (e) {
             console.error(`${type} upload failed (attempt ${attempt}/${maxRetries})`, e);
             if (attempt < maxRetries) {
@@ -298,28 +319,12 @@ async function saveCard() {
       } catch (e) {
         // 常見原因：尚未在 Supabase 執行 Storage bucket/RLS 的 SQL（card-assets / storage.objects policies）
         console.error('Storage upload failed', e);
-        const detail = (e && (e.message || e.error_description)) ? String(e.message || e.error_description) : String(e || '');
-        const lower = detail.toLowerCase();
-        const status = String(e?.statusCode ?? e?.status ?? '');
-
-        let hintZh = '圖片上傳失敗。';
-        let hintEn = 'Image upload failed.';
-
-        if (detail.includes('Bucket not found') || status === '404') {
-          hintZh = "圖片上傳失敗：找不到 Storage bucket 'card-assets'。請到 Supabase Dashboard → Storage → Buckets 確認已建立 'card-assets'。";
-          hintEn = "Image upload failed: Storage bucket 'card-assets' was not found. Please create/confirm a bucket named 'card-assets' in Supabase Dashboard → Storage → Buckets.";
-        } else if (status === '403' || lower.includes('permission') || lower.includes('policy') || lower.includes('not authorized') || lower.includes('unauthorized')) {
-          hintZh = "圖片上傳失敗：Storage 權限不足（RLS policy denied）。請確認你剛剛已在 Storage → Policies 針對 'card-assets' 建立 SELECT/INSERT/UPDATE/DELETE 四條 policies，且 INSERT/UPDATE/DELETE 限制為自己的路徑 auth.uid()/...。";
-          hintEn = "Image upload failed: Storage permission denied (RLS policy). Please ensure you created the 4 policies (SELECT/INSERT/UPDATE/DELETE) for 'card-assets', and INSERT/UPDATE/DELETE are restricted to auth.uid()/... paths.";
-        } else if (lower.includes('jwt') || lower.includes('token') || lower.includes('session')) {
-          hintZh = '圖片上傳失敗：登入狀態可能已失效，請重新登入後再試一次。';
-          hintEn = 'Image upload failed: session may be expired. Please re-login and try again.';
-        }
-
-        alert(currentLang === 'zh'
-          ? `${hintZh}\n\n細節：${detail}`
-          : `${hintEn}\n\nDetail: ${detail}`
-        );
+        const result = classifySaveError(e);
+        await showSaveFeedback('error', {
+          titleZh: result.titleZh, titleEn: result.titleEn,
+          msgZh: result.msgZh, msgEn: result.msgEn,
+          actions: buildErrorActions(result, { canRetry: false })
+        });
         return;
       }
     }
@@ -356,86 +361,78 @@ async function saveCard() {
     }
 
     if (lastError) {
-      const detail = (lastError && (lastError.message || lastError.error_description))
-        ? (lastError.message || lastError.error_description) : '';
-      const code = lastError?.code || '';
+      const result = classifySaveError(lastError);
 
-      // 檢查是否為 JWT 過期錯誤
-      const isAuthError =
-        code === 'PGRST303' ||
-        (detail && (detail.includes('JWT expired') || detail.includes('JWT')));
-
-      if (isAuthError) {
-        alert(currentLang === 'zh'
-          ? '登入已過期，請重新登入。'
-          : 'Session expired. Please log in again.'
-        );
+      if (result.kind === 'auth') {
+        await showSaveFeedback('error', {
+          titleZh: result.titleZh, titleEn: result.titleEn,
+          msgZh: result.msgZh, msgEn: result.msgEn,
+          actions: [{ labelZh: '重新登入', labelEn: 'Log In Again', primary: true }]
+        });
         const returnUrl = encodeURIComponent(location.pathname + location.search);
         window.location.href = 'auth.html?next=' + returnUrl;
         return;
       }
 
-      alert(currentLang === 'zh'
-        ? `名片寫入資料庫失敗（已重試 ${maxRetries} 次）：\n${detail}\n\n請檢查網路連線後再試。`
-        : `Failed to write card to database (retried ${maxRetries} times):\n${detail}\n\nPlease check your network connection.`
-      );
+      await showSaveFeedback('error', {
+        titleZh: result.titleZh, titleEn: result.titleEn,
+        msgZh: result.msgZh, msgEn: result.msgEn,
+        actions: buildErrorActions(result, { canRetry: true })
+      });
       return;
     }
 
     if (adminMode && targetUserId) {
-      alert(currentLang === 'zh' ? '管理員：名片已更新！' : 'Admin: card updated!');
-      setTimeout(() => {
-        window.location.href = 'admin.html';
-      }, 200);
+      await showSaveFeedback('success', {
+        titleZh: '已更新完成', titleEn: 'Updated',
+        msgZh: '這位員工的名片資料已經更新囉。',
+        msgEn: "This employee's card has been updated.",
+        actions: [{ labelZh: '回到管理後台', labelEn: 'Back to Admin', primary: true }]
+      });
+      window.location.href = 'admin.html';
     } else {
-      alert(currentLang === 'zh' ? '名片已儲存！即將前往預覽頁面...' : 'Business card saved! Redirecting to preview...');
       try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
-      setTimeout(() => {
-        // 儲存後一律導向「我的名片」：card.html?id=<目前登入者>
-        // 需求：避免 next 參數把使用者帶回 edit.html 或其他頁，造成「儲存後又回編輯頁」的困惑。
-        (async function () {
-          try {
-            const s = await UVACO_CLOUD.getSession();
-            const uid = s && s.session && s.session.user ? s.session.user.id : '';
-            if (uid) {
-              // 加入時間戳記強制刷新，避免 card.html 讀到快取
-              window.location.href = 'card.html?id=' + encodeURIComponent(uid) + '&t=' + Date.now();
-              return;
-            }
-          } catch (e) {}
-          // 最後退回：通訊錄
-          window.location.href = 'directory.html';
-        })();
-      }, 500);
+      await showSaveFeedback('success', {
+        titleZh: '儲存成功！', titleEn: 'Saved!',
+        msgZh: '您的名片已經存好了，馬上帶您去看看完成的樣子。',
+        msgEn: 'Your card has been saved. Let’s take a look at the result.',
+        actions: [{ labelZh: '查看我的名片', labelEn: 'View My Card', primary: true }]
+      });
+      // 儲存後一律導向「我的名片」：card.html?id=<目前登入者>
+      // 需求：避免 next 參數把使用者帶回 edit.html 或其他頁，造成「儲存後又回編輯頁」的困惑。
+      try {
+        const s = await UVACO_CLOUD.getSession();
+        const uid = s && s.session && s.session.user ? s.session.user.id : '';
+        if (uid) {
+          // 加入時間戳記強制刷新，避免 card.html 讀到快取
+          window.location.href = 'card.html?id=' + encodeURIComponent(uid) + '&t=' + Date.now();
+          return;
+        }
+      } catch (e) {}
+      // 最後退回：通訊錄
+      window.location.href = 'directory.html';
     }
   } catch (e) {
     console.error('saveCard failed', e);
-    const detail = (e && (e.message || e.error_description)) ? (e.message || e.error_description) : '';
-    const code = e?.code || '';
-    const reason = e?.reason || '';
+    const result = classifySaveError(e);
 
-    // 檢查是否為 JWT 過期或登入失效
-    const isAuthError =
-      reason === 'JWT_EXPIRED' ||
-      reason === 'NO_SESSION' ||
-      code === 'PGRST303' ||
-      (detail && (detail.includes('JWT expired') || detail.includes('JWT')));
-
-    if (isAuthError) {
-      alert(currentLang === 'zh'
-        ? '登入已過期，請重新登入。'
-        : 'Session expired. Please log in again.'
-      );
+    if (result.kind === 'auth') {
+      await showSaveFeedback('error', {
+        titleZh: result.titleZh, titleEn: result.titleEn,
+        msgZh: result.msgZh, msgEn: result.msgEn,
+        actions: [{ labelZh: '重新登入', labelEn: 'Log In Again', primary: true }]
+      });
       // 導向登入頁，並帶上返回網址
       const returnUrl = encodeURIComponent(location.pathname + location.search);
       window.location.href = 'auth.html?next=' + returnUrl;
       return;
     }
 
-    alert(currentLang === 'zh'
-      ? `儲存失敗，請稍後再試。\n${detail}`
-      : `Save failed. Please try again.\n${detail}`
-    );
+    await showSaveFeedback('error', {
+      titleZh: result.titleZh, titleEn: result.titleEn,
+      msgZh: result.msgZh, msgEn: result.msgEn,
+      actions: buildErrorActions(result, { canRetry: true })
+    });
   }
 }
 
@@ -473,69 +470,50 @@ function closeOnboarding() {
   }
 }
 
-function skipOnboarding() {
-  try {
-    localStorage.setItem('UVACO_ONBOARDED', '1');
-  } catch (e) {}
+// 使用者在歡迎彈窗選擇「✍️ 我自己直接編輯」：關閉彈窗、標記已完成引導、
+// 聚焦到姓名欄位，並顯示一次性的提示卡告訴他「點文字就能編輯」
+// （取代舊版那種 5 秒自動消失、容易被錯過的浮動提示條）。
+function startSelfEditFromOnboarding() {
+  try { localStorage.setItem('UVACO_ONBOARDED', '1'); } catch (e) {}
   closeOnboarding();
+
+  const nameField = document.getElementById('previewNameZh');
+  if (nameField) nameField.focus();
+
+  showGuideInlineHintIfNeeded();
 }
 
-function startOnboardingGuide() {
-  closeOnboarding();
-  // 聚焦到姓名欄位
-  const nameField = document.querySelector('[contenteditable][id*="Name"]') ||
-                    document.querySelector('.editable-text');
-  if (nameField) {
-    nameField.focus();
-    // 顯示提示
-    showOnboardingTip('name');
+function showGuideInlineHintIfNeeded() {
+  try {
+    if (localStorage.getItem('UVACO_GUIDE_INLINE_HINT_SEEN') === '1') return;
+  } catch (e) {}
+  const hint = document.getElementById('guideInlineHint');
+  if (hint) hint.style.display = 'flex';
+}
+
+function dismissGuideInlineHint() {
+  try { localStorage.setItem('UVACO_GUIDE_INLINE_HINT_SEEN', '1'); } catch (e) {}
+  const hint = document.getElementById('guideInlineHint');
+  if (hint) hint.style.display = 'none';
+}
+
+// 依目前名片實際有沒有資料，決定要不要輕微高亮「🧙 用引導方式新增」按鈕：
+// 完全沒有聯絡方式時加上呼吸動畫暗示「可以從這裡開始」，已經有資料的話就不搶眼，
+// 讓精靈入口跟直接編輯兩種模式自然並存，不用彈窗強迫使用者選邊站。
+function evaluateGuideEntry() {
+  const contacts = document.getElementById('previewContacts');
+  const contactBtn = document.getElementById('contactGuideEntryBtn');
+  if (contactBtn) {
+    const hasAnyContact = !!(contacts && contacts.querySelector('a[href]'));
+    contactBtn.classList.toggle('guide-entry-suggested', !hasAnyContact);
   }
 }
 
-let currentTip = null;
-function showOnboardingTip(step) {
-  // 移除舊提示
-  if (currentTip) currentTip.remove();
-
-  const tips = {
-    name: { text: '👋 先填寫您的姓名', target: '.name' },
-    title: { text: '✏️ 填寫您的職稱', target: '.tagline' },
-    theme: { text: '🎨 點擊選擇喜歡的主題', target: '.edit-top-header button' },
-    save: { text: '💾 完成後點擊儲存', target: '.edit-save-btn' }
-  };
-
-  const tip = tips[step];
-  if (!tip) return;
-
-  const target = document.querySelector(tip.target);
-  if (!target) return;
-
-  const tipEl = document.createElement('div');
-  tipEl.className = 'onboarding-tip';
-  tipEl.innerHTML = tip.text;
-  tipEl.style.cssText = `
-    position: fixed;
-    bottom: 100px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--uvaco-green);
-    color: white;
-    padding: 12px 20px;
-    border-radius: 24px;
-    font-size: 14px;
-    font-weight: 600;
-    z-index: 9999;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    animation: tipBounce 0.5s ease;
-  `;
-  document.body.appendChild(tipEl);
-  currentTip = tipEl;
-
-  // 5 秒後自動移除
-  setTimeout(() => {
-    if (tipEl.parentNode) tipEl.remove();
-  }, 5000);
-}
+// 注意：這裡原本還有一套「startOnboardingGuide + showOnboardingTip」的舊版 4 步驟浮動提示條
+// （底部彈出綠色提示、5 秒自動消失），但因為 wizard.js 後載入、重新宣告了同名的
+// startOnboardingGuide()，會直接覆蓋掉這裡的版本，導致這段程式碼永遠不會被執行——是死碼，已整段移除。
+// 現在「自己編輯」情境改用上面 showGuideInlineHintIfNeeded() 的常駐提示卡，
+// 「精靈逐步引導」情境則是 wizard.js 的 5 步驟精靈，兩者是目前唯二、不互相覆蓋的引導入口。
 
 // 頁面載入後檢查是否需要顯示教學
 setTimeout(checkOnboarding, 1500);

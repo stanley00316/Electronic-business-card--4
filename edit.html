@@ -21,12 +21,19 @@
   <!-- 主題 CSS 改為按需載入（由 common.js 動態載入） -->
   <!-- Supabase JS（CDN） -->
   <script src="supabase.min.js"></script>
-<script src="cloud.js?v=20260708c"></script>
-<link rel="stylesheet" href="css/edit-head.css?v=20260708a">
-<link rel="stylesheet" href="css/edit-wizard.css?v=20260610a">
+<script src="cloud.js?v=20260717a"></script>
+<link rel="stylesheet" href="css/edit-head.css?v=20260720a">
+<link rel="stylesheet" href="css/edit-wizard.css?v=20260720a">
+<link rel="stylesheet" href="css/edit-guide.css?v=20260720a">
+<link rel="stylesheet" href="css/edit-a11y.css?v=20260720a">
+<link rel="stylesheet" href="css/image-crop.css?v=20260720b">
 </head>
 
 <body class="lang-zh">
+
+<!-- 大字模式：一進頁面就先套用上次記住的狀態，避免「先看到一般字體、才突然放大」的畫面閃爍。
+     完整的切換函式在 js/pages/edit/edit-a11y.js（跟其他 script 一起在頁尾載入）。 -->
+<script>(function(){try{if(localStorage.getItem('UVACO_A11Y_LARGE_TEXT')==='1'){document.body.classList.add('a11y-large-text');}}catch(e){}})();</script>
 
 <!-- 字體樣式工具列 -->
 <div id="fontStyleToolbar" class="font-style-toolbar" onmousedown="event.preventDefault()">
@@ -65,7 +72,30 @@
     <div class="edit-header-top">
       <h1 class="edit-title lang-zh">編輯名片</h1>
       <h1 class="edit-title lang-en">Edit Business Card</h1>
-      <div style="display: flex; gap: 12px; align-items: center;">
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+        <!-- 大字模式切換：照顧長輩/視力不佳的使用者。寬螢幕顯示「一般／大字」兩段式切換，
+             窄螢幕（≤420px）改成單一 🔠 圖示按鈕，避免頂部工具列太擠。 -->
+        <div class="a11y-text-toggle" role="group" aria-label="Text size">
+          <button type="button" class="a11y-text-btn is-active" id="a11yNormalBtn" onclick="setLargeTextMode(false)">
+            <span class="lang-zh">一般</span>
+            <span class="lang-en">Normal</span>
+          </button>
+          <button type="button" class="a11y-text-btn" id="a11yLargeBtn" onclick="setLargeTextMode(true)">
+            <span style="font-weight:800;">Aa+</span>
+            <span class="lang-zh">大字</span>
+            <span class="lang-en">Large</span>
+          </button>
+        </div>
+        <button type="button" class="a11y-text-toggle-icon" id="a11yToggleIconBtn" onclick="toggleLargeTextMode()" title="切換大字模式" aria-label="切換大字模式">
+          🔠 <span class="lang-zh" style="margin-left:4px;">大字</span><span class="lang-en" style="margin-left:4px;">Large</span>
+        </button>
+        <!-- 逐步設定：不熟悉操作的使用者（尤其長輩）可以隨時叫出精靈，用一步步問答的方式
+             重新設定整張名片，內容會先帶入目前已經填好的資料，不會被清空重填。 -->
+        <button type="button" class="edit-theme-btn" onclick="showWizard({ mode: 'full', prefill: true })" title="用精靈逐步設定名片">
+          <span style="font-size: 18px;">🧙</span>
+          <span class="lang-zh">逐步設定</span>
+          <span class="lang-en">Guided Setup</span>
+        </button>
         <button class="edit-theme-btn" onclick="showThemeSelector()" title="選擇主題">
           <span style="font-size: 18px;">🎨</span>
           <span class="lang-zh">主題</span>
@@ -111,7 +141,21 @@
         
         <div class="tagline lang-zh edit-clickable" id="previewTitleZh" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)" data-placeholder="請輸入職稱" style="min-height: 1.2em;"></div>
         <div class="tagline lang-en edit-clickable" id="previewTitleEn" contenteditable="true" onblur="updateTitleFromPreview()" onclick="focusEdit(this)" data-placeholder="Enter job title" style="min-height: 1.2em;"></div>
-        
+
+        <!-- 給選擇「自己直接編輯」的使用者看的一次性提示卡（不會像舊版一樣 5 秒自動消失，
+             要按「知道了」才會關閉，並記住狀態不再顯示） -->
+        <div id="guideInlineHint" class="guide-inline-hint" style="display:none;">
+          <span class="guide-inline-hint-icon">💡</span>
+          <span class="guide-inline-hint-text">
+            <span class="lang-zh">提示：點一下文字（例如姓名、職稱）就可以直接修改，改完點其他地方就會存住囉。</span>
+            <span class="lang-en">Tip: tap any text (like your name or title) to edit it directly.</span>
+          </span>
+          <button type="button" class="guide-inline-hint-close" onclick="dismissGuideInlineHint()">
+            <span class="lang-zh">知道了</span>
+            <span class="lang-en">Got it</span>
+          </button>
+        </div>
+
         <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start;">
           <div id="previewSlogansZh" class="slogans-container">
             <!-- 標語將動態新增 -->
@@ -225,6 +269,12 @@
           <!-- 聯絡方式將由使用者自行新增 -->
           <button class="edit-add-btn lang-zh" onclick="addContact(event)">+ 新增聯絡方式</button>
           <button class="edit-add-btn lang-en" onclick="addContact(event)">+ Add Contact Method</button>
+          <!-- 給新手/長輩的替代入口：用精靈一步步問答的方式新增聯絡方式（電話/LINE/Email），
+               沿用同一套資料，不會跟上面的「+新增聯絡方式」互相衝突。 -->
+          <button type="button" class="edit-add-btn guide-entry-btn" id="contactGuideEntryBtn" onclick="showWizard({ mode: 'contact' })">
+            <span class="lang-zh">🧙 用引導方式新增</span>
+            <span class="lang-en">🧙 Guided Add</span>
+          </button>
         </div>
 
         <div class="hint lang-zh">
@@ -710,12 +760,15 @@
 </nav>
 
 <script src="common.js?v=20260708a"></script>
+<script src="js/pages/edit/edit-a11y.js?v=20260720a"></script>
+<script src="js/pages/edit/save-feedback.js?v=20260720a"></script>
+<script src="js/pages/edit/image-crop.js?v=20260720b"></script>
 <script src="js/pages/edit/goto-my-card.js?v=20260610a"></script>
-<script src="js/pages/edit/edit-chunk-1.js?v=20260627a"></script>
-<script src="js/pages/edit/edit-chunk-2.js?v=20260610a"></script>
+<script src="js/pages/edit/edit-chunk-1.js?v=20260720a"></script>
+<script src="js/pages/edit/edit-chunk-2.js?v=20260720b"></script>
 <script src="js/pages/edit/edit-chunk-3.js?v=20260610a"></script>
-<script src="js/pages/edit/edit-chunk-4.js?v=20260708a"></script>
-<script src="js/pages/edit/edit-chunk-5.js?v=20260610a"></script>
+<script src="js/pages/edit/edit-chunk-4.js?v=20260720a"></script>
+<script src="js/pages/edit/edit-chunk-5.js?v=20260720a"></script>
 
 <!-- 首次使用教學彈窗 -->
 <div id="onboardingModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9998;align-items:center;justify-content:center;padding:20px;">
@@ -780,14 +833,15 @@
       </div>
     </div>
     
-    <!-- 按鈕 -->
+    <!-- 按鈕：兩種入口並列，讓使用者自己選擇要「精靈逐步引導」還是「自己直接編輯」，
+         不再只有單一「開始建立」+「知道了」的模糊選項。 -->
     <button onclick="startOnboardingGuide()" style="width:100%;padding:14px;background:var(--uvaco-green);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;">
-      <span class="lang-zh">開始建立名片</span>
-      <span class="lang-en">Start Creating</span>
+      <span class="lang-zh">🧙 用精靈逐步引導我（新手推薦）</span>
+      <span class="lang-en">🧙 Guide Me Step by Step (Recommended)</span>
     </button>
-    <button onclick="skipOnboarding()" style="width:100%;padding:12px;background:transparent;color:var(--ui-muted, #9ca3af);border:1px solid var(--ui-surface-border, rgba(255,255,255,0.1));border-radius:12px;font-size:14px;cursor:pointer;">
-      <span class="lang-zh">我已經知道了</span>
-      <span class="lang-en">I already know</span>
+    <button onclick="startSelfEditFromOnboarding()" style="width:100%;padding:12px;background:transparent;color:var(--ui-muted, #9ca3af);border:1px solid var(--ui-surface-border, rgba(255,255,255,0.1));border-radius:12px;font-size:14px;cursor:pointer;">
+      <span class="lang-zh">✍️ 我自己直接編輯</span>
+      <span class="lang-en">✍️ I'll Edit It Myself</span>
     </button>
   </div>
 </div>
@@ -1037,51 +1091,9 @@
         </div>
         
         <div class="wizard-theme-grid" id="wizardThemeGrid">
-          <div class="wizard-theme-item active" data-theme="1" onclick="wizardSelectTheme(1)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);"></div>
-            <span class="lang-zh">經典黑</span>
-            <span class="lang-en">Classic Black</span>
-          </div>
-          <div class="wizard-theme-item" data-theme="2" onclick="wizardSelectTheme(2)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);"></div>
-            <span class="lang-zh">商務藍</span>
-            <span class="lang-en">Business Blue</span>
-          </div>
-          <div class="wizard-theme-item" data-theme="3" onclick="wizardSelectTheme(3)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #2d4a3e 0%, #3d6a54 100%);"></div>
-            <span class="lang-zh">自然綠</span>
-            <span class="lang-en">Nature Green</span>
-          </div>
-          <div class="wizard-theme-item" data-theme="4" onclick="wizardSelectTheme(4)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #4a2d5f 0%, #6a3d7f 100%);"></div>
-            <span class="lang-zh">優雅紫</span>
-            <span class="lang-en">Elegant Purple</span>
-          </div>
-          <div class="wizard-theme-item" data-theme="5" onclick="wizardSelectTheme(5)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #5f3a1e 0%, #8a5a2d 100%);"></div>
-            <span class="lang-zh">暖棕</span>
-            <span class="lang-en">Warm Brown</span>
-          </div>
-          <div class="wizard-theme-item" data-theme="6" onclick="wizardSelectTheme(6)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #5f1e3a 0%, #8a2d5a 100%);"></div>
-            <span class="lang-zh">玫瑰紅</span>
-            <span class="lang-en">Rose Red</span>
-          </div>
-          <div class="wizard-theme-item" data-theme="7" onclick="wizardSelectTheme(7)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #1e4a5f 0%, #2d6a87 100%);"></div>
-            <span class="lang-zh">海洋藍</span>
-            <span class="lang-en">Ocean Blue</span>
-          </div>
-          <div class="wizard-theme-item" data-theme="8" onclick="wizardSelectTheme(8)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #4a4a1e 0%, #6a6a2d 100%);"></div>
-            <span class="lang-zh">橄欖金</span>
-            <span class="lang-en">Olive Gold</span>
-          </div>
-          <div class="wizard-theme-item" data-theme="9" onclick="wizardSelectTheme(9)">
-            <div class="wizard-theme-preview" style="background: linear-gradient(135deg, #3a3a3a 0%, #5a5a5a 100%);"></div>
-            <span class="lang-zh">銀灰</span>
-            <span class="lang-en">Silver Gray</span>
-          </div>
+          <!-- 主題卡片由 wizard.js 的 renderWizardThemeGrid() 動態產生，
+               資料來源與正式「主題選擇器」共用 window.UVACO_THEME_LIST（edit-chunk-4.js），
+               確保精靈選的主題編號/顏色跟正式主題完全一致。 -->
         </div>
       </div>
       
@@ -1143,8 +1155,48 @@
   </div>
 </div>
 
+<!-- 儲存成功/失敗的白話文提示彈窗（取代原生 alert/confirm），由 save-feedback.js 控制 -->
+<div id="saveFeedbackOverlay" class="save-feedback-overlay">
+  <div class="save-feedback-modal">
+    <div class="save-feedback-icon" id="saveFeedbackIcon"></div>
+    <h2 class="save-feedback-title" id="saveFeedbackTitle"></h2>
+    <p class="save-feedback-msg" id="saveFeedbackMsg"></p>
+    <div class="save-feedback-actions" id="saveFeedbackActions"></div>
+  </div>
+</div>
 
-<script src="js/pages/edit/wizard.js?v=20260610a"></script>
+<!-- 圖片裁切/縮放視窗：上傳頭像或 Logo 後跳出，讓使用者拖曳調整位置、用滑桿縮放大小，
+     由 image-crop.js 的 openImageCropper() 控制，頭像/Logo 共用同一份 DOM，每次開啟時動態設定標題與比例選項。 -->
+<div id="imageCropOverlay" class="image-crop-overlay">
+  <div class="image-crop-modal">
+    <button type="button" class="image-crop-close" id="imageCropCloseBtn" title="取消">×</button>
+    <h2 class="image-crop-title" id="imageCropTitle"></h2>
+    <p class="image-crop-desc">
+      <span class="lang-zh">拖曳圖片調整位置，用下方滑桿縮放大小</span>
+      <span class="lang-en">Drag to reposition, use the slider to zoom</span>
+    </p>
+    <div class="image-crop-aspect-picker" id="imageCropAspectPicker"></div>
+    <div class="image-crop-stage-wrap">
+      <div class="image-crop-frame" id="imageCropFrame">
+        <img id="imageCropImg" draggable="false" alt="">
+      </div>
+    </div>
+    <div class="image-crop-zoom-row">
+      <span class="image-crop-zoom-icon">🔍</span>
+      <input type="range" id="imageCropZoomSlider" min="100" max="300" value="100" step="1">
+    </div>
+    <div class="image-crop-actions">
+      <button type="button" class="image-crop-btn image-crop-btn-secondary" id="imageCropCancelBtn">
+        <span class="lang-zh">取消</span><span class="lang-en">Cancel</span>
+      </button>
+      <button type="button" class="image-crop-btn image-crop-btn-primary" id="imageCropConfirmBtn">
+        <span class="lang-zh">完成</span><span class="lang-en">Done</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/pages/edit/wizard.js?v=20260720b"></script>
 
 </body>
 </html>
