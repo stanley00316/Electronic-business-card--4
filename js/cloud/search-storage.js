@@ -120,6 +120,19 @@ export async function uploadMyAsset(kind, blob, opts) {
   }
 }
 
+// 低階：直接指定完整 path 上傳（給管理員模組共用，例如代替其他使用者上傳大頭貼/Logo；一般畫面請用 uploadMyAsset）
+export async function uploadRawAsset(ctx, path, blob, opts) {
+  const client = ctx.client;
+  const bucket = (opts && opts.bucket) ? String(opts.bucket) : 'card-assets';
+  const contentType = (opts && opts.contentType) ? String(opts.contentType) : 'image/webp';
+
+  const { error } = await client.storage
+    .from(bucket)
+    .upload(path, blob, { upsert: true, contentType });
+  if (error) throw error;
+  return { bucket, path, provider: 'supabase' };
+}
+
 export async function getSignedAssetUrl(path, opts) {
   if (!path) return { url: '' };
   

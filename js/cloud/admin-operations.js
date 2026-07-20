@@ -1,5 +1,6 @@
 import { getAuthContext } from './session.js';
 import { isAdmin } from './admin-roles.js';
+import { uploadRawAsset } from './search-storage.js';
 
 
 // 後台批次查詢：名片開啟次數與最後一次時間（card_views 聚合，含本人開啟）
@@ -367,6 +368,46 @@ export async function adminUpdateCard(targetUserId, payload) {
 
   if (error) throw error;
   return true;
+}
+
+// 管理員代替其他使用者上傳大頭貼／Logo（給 edit.html 的 adminMode 用）
+// 權限範圍跟 adminUpdateCard 完全一致：超級管理員不限公司，企業管理員只能傳自己公司員工的圖片。
+// 這裡的前端檢查是第一層保護，真正的防線是 Supabase Storage 的 card_assets_*_admin RLS policy（見 admin-upload-storage-rls.sql）。
+export async function adminUploadAsset(targetUserId, kind, blob, opts) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+  const client = ctx.client;
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
+
+  const uid = String(targetUserId || '').trim();
+  if (!uid) throw new Error('MISSING_TARGET_USER_ID');
+  if (!blob) throw new Error('NO_FILE');
+
+  // 讀取目標名片公司以做公司權限比對
+  const { data: targetCard, error: qErr } = await client
+    .from('cards')
+    .select('user_id,company')
+    .eq('user_id', uid)
+    .maybeSingle();
+  if (qErr) throw qErr;
+  if (!targetCard) throw new Error('CARD_NOT_FOUND');
+
+  if (adminStatus.managedCompany) {
+    const targetCompany = String(targetCard.company || '').toLowerCase();
+    const myCompany     = String(adminStatus.managedCompany).toLowerCase();
+    if (targetCompany && !targetCompany.includes(myCompany)) {
+      throw new Error('PERMISSION_DENIED_COMPANY_MISMATCH');
+    }
+  }
+
+  const bucket = (opts && opts.bucket) ? String(opts.bucket) : 'card-assets';
+  const ext = (opts && opts.ext) ? String(opts.ext).replace(/^\./, '') : 'webp';
+  const contentType = (opts && opts.contentType) ? String(opts.contentType) : 'image/webp';
+  const path = `${uid}/${kind}.${ext}`;
+
+  return await uploadRawAsset(ctx, path, blob, { bucket, contentType });
 }
 
 /* ── 員工邀請連結 ──────────────────────────────────────────── */
