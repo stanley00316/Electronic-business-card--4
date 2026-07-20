@@ -38,7 +38,7 @@ export const LIFF_ID = '2008810712-bHGjgn3l'; // LIFF App ID
 // 2) 把 Client ID 填在這裡（可公開）
 // 3) 在 Supabase Edge Functions Secrets 設定 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET
 // 4) 部署 supabase edge function：supabase/functions/google-auth
-export const GOOGLE_CLIENT_ID = ''; // Google OAuth Client ID（留空則不顯示 Google 登入按鈕）
+export const GOOGLE_CLIENT_ID = '155377373955-b609lj8sd79sebtaddsvo58g5t6p1mfk.apps.googleusercontent.com'; // Google OAuth Client ID（留空則不顯示 Google 登入按鈕）
 
 // ===== Apple Login =====
 // 若你要啟用 Apple 登入：

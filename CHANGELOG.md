@@ -24,6 +24,18 @@
   3. `supabase functions deploy google-auth --no-verify-jwt`：部署 Edge Function（因為這支函式的用途就是給「還沒登入」的使用者換發 JWT，所以跟 `line-auth` 一樣不能要求既有 JWT）。呼叫診斷端點（GET）確認已正常運作，且如預期回報 `google_client_id`／`google_client_secret` 尚未設定，不影響任何現有功能。
 - **使用者只剩下這兩步**：① 到 Google Cloud Console 申請 OAuth 2.0 用戶端 ID（拿到後把 Client ID 給我，我會直接幫忙填入 `js/cloud/constants.js`；Client Secret 不要給我，直接在下一步設定）。② 到 Supabase Dashboard → Edge Functions → Secrets，設定 `GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET`。這兩步都需要在瀏覽器操作、輸入只有本人知道的帳密／金鑰，無法由 AI 代勞。
 
+### Client ID／Secrets 設定完成，Google 登入按鈕正式上線（本機測試已通過）
+
+- 使用者在 Google Cloud Console 申請好 OAuth 2.0 用戶端 ID 後，完成收尾：
+  1. `js/cloud/constants.js` 填入正式的 `GOOGLE_CLIENT_ID`。
+  2. **重新打包 `cloud.js`**（`npm run build:cloud`）——這一步容易被忽略但很關鍵：`constants.js` 是原始碼，實際載入到網頁上的是打包過的 `cloud.js`，只改原始碼不重新打包，網站看到的還是舊的空白 Client ID。
+  3. 12 個有引用 `cloud.js` 的 HTML 頁面版本參數統一升級為 `?v=20260720b`，`service-worker.js` 的 `CACHE_VERSION` 同步升級為 `v1.36.1`（照上一則紀錄的提醒，改了 Service Worker 會快取的檔案就要記得同步升版，這次沒有再忘記）。
+  4. 用 Supabase CLI 執行 `supabase secrets set` 設定 `GOOGLE_CLIENT_ID`／`GOOGLE_CLIENT_SECRET`。Client Secret 全程只在這一行指令用過，不會寫進任何程式碼或存進 git。
+- **實測驗證**：
+  - 呼叫 `google-auth` Edge Function 診斷端點，確認 `google_client_id`／`google_client_secret` 已回報為已設定。
+  - 本機起了臨時測試伺服器，用瀏覽器打開 `auth.html`：確認「使用 Google 登入」按鈕正確顯示、主控台沒有新增的錯誤；實際點擊按鈕，確認正確帶著正式 Client ID 導向 Google 登入頁面（因為是本機網址不是正式網域，Google 那邊擋下 `redirect_uri_mismatch`，這是預期中、且證明安全設定正確的結果——換成正式網域網址就會放行）。
+- **目前狀態**：程式碼與雲端設定都已完成，但**還沒推送（`git push`）到 GitHub**，所以正式網站目前還是舊版本，Google 登入按鈕還看不到。等推送上去、且使用者用真實 Google 帳號實測完整登入流程沒問題後，才會進入下一階段：正式移除 LINE 登入。
+
 ## 2026-07-20（修復：正式網站一直卡在很舊的版本，管理員上傳圖片還是顯示「不支援」的舊訊息）
 
 ### 修復（Service Worker 快取版本號沒有更新）
