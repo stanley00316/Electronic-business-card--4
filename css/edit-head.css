@@ -1870,13 +1870,17 @@ body.theme-light .link-input-cancel:hover {
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   padding: 10px 14px;
-  gap: 10px;
+  gap: 8px 10px;
   align-items: center;
   z-index: 99999;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  white-space: nowrap;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  /* 手機窄螢幕上，全部按鈕排一整排常常會超出螢幕寬度，導致工具列緊貼邊緣、不好點。
+     這裡限制最大寬度並允許換行成兩排，確保工具列兩側一定留有安全間距。 */
+  max-width: calc(100vw - 24px);
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .font-style-toolbar.active {

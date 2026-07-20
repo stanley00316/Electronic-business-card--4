@@ -845,18 +845,74 @@ function showFontStyleToolbar(element) {
   }
   
   currentStyledElement = element;
-  
-  // 計算位置
-  const rect = element.getBoundingClientRect();
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-  const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-  
-  toolbar.style.position = 'fixed';
-  toolbar.style.top = (rect.top - 50) + 'px';
-  toolbar.style.left = (rect.left + rect.width / 2) + 'px';
-  toolbar.style.transform = 'translateX(-50%)';
+
   toolbar.classList.add('active');
-  
+  toolbar.style.position = 'fixed';
+  toolbar.style.transform = 'translateX(-50%)';
+  toolbar.style.visibility = 'hidden';
+
+  const rect = element.getBoundingClientRect();
+  const margin = 10;
+
+  // 頁面頂部有固定的返回列＋標題列（含主題/儲存等按鈕），高度會因為大字模式、按鈕換行等
+  // 情況變動，這裡直接量測目前實際佔用的高度，而不是寫死一個假設值，工具列絕對不能疊進去。
+  const headerBar = document.querySelector('.edit-header-top');
+  let safeTop = headerBar ? headerBar.getBoundingClientRect().bottom + margin : 60;
+
+  // 姓名/職稱/標語這幾個欄位常常疊得很緊（例如姓名跟第一個標語中間只有 30 幾 px），
+  // 只用固定頁首當下邊界還不夠：如果正上方緊貼著另一個欄位，也要把那個欄位的下緣
+  // 一併當作邊界，否則工具列會蓋到「上一個欄位」而不是真正離開螢幕頂端。
+  const otherStyleableEls = [
+    document.getElementById('previewNameZh'),
+    document.getElementById('previewTitleZh'),
+    document.getElementById('previewTitleEn')
+  ].concat(Array.from(document.querySelectorAll('.slogan-item .tagline')));
+  otherStyleableEls.forEach((el) => {
+    if (!el || el === element) return;
+    const r = el.getBoundingClientRect();
+    if (r.bottom <= rect.top) {
+      safeTop = Math.max(safeTop, r.bottom + margin);
+    }
+  });
+
+  // 依工具列「目前實際寬高」算出理想的 top/left（會夾在安全邊界跟螢幕範圍內）
+  function computeTopLeft(toolbarWidth, toolbarHeight) {
+    let top;
+    const spaceAbove = rect.top - safeTop;
+    if (spaceAbove >= toolbarHeight + margin) {
+      top = rect.top - toolbarHeight - margin; // 上方空間足夠，浮在欄位正上方
+    } else {
+      top = rect.bottom + margin; // 上方空間不夠，改浮在欄位下方，避免蓋住其他內容
+    }
+
+    const halfWidth = toolbarWidth / 2;
+    const leftBound = halfWidth + margin;
+    const rightBound = window.innerWidth - halfWidth - margin;
+    let left;
+    if (leftBound > rightBound) {
+      // 工具列本身已經接近或超過螢幕寬度，乾脆置中在整個畫面正中央，兩側留白對稱
+      left = window.innerWidth / 2;
+    } else {
+      left = Math.min(rightBound, Math.max(leftBound, rect.left + rect.width / 2));
+    }
+    return { top, left };
+  }
+
+  // 工具列在手機窄螢幕上可能換行成兩排（寬高因此改變），先抓一次目前尺寸定位，
+  // 套用後工具列的實際排版可能因為換行而跟預先量測時不同，所以套用完再量一次校正，
+  // 確保最終呈現的位置一定跟工具列「真正的」寬高吻合，不會算錯貼到邊緣或疊到欄位。
+  let toolbarRect = toolbar.getBoundingClientRect();
+  let pos = computeTopLeft(toolbarRect.width || 220, toolbarRect.height || 50);
+  toolbar.style.top = pos.top + 'px';
+  toolbar.style.left = pos.left + 'px';
+
+  toolbarRect = toolbar.getBoundingClientRect();
+  pos = computeTopLeft(toolbarRect.width || 220, toolbarRect.height || 50);
+  toolbar.style.top = pos.top + 'px';
+  toolbar.style.left = pos.left + 'px';
+
+  toolbar.style.visibility = '';
+
   // 更新工具列按鈕狀態
   updateToolbarState(element);
 }
