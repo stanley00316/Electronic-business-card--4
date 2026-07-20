@@ -13,10 +13,16 @@
   1. 到 Google Cloud Console 申請一組 OAuth 2.0 用戶端 ID。
   2. 把 Client ID 填入 `js/cloud/constants.js` 的 `GOOGLE_CLIENT_ID`（我會協助填寫，只需要提供這組 ID）。
   3. 到 Supabase Dashboard → Edge Functions → Secrets，設定 `GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET`。
-  4. 部署 `supabase/functions/google-auth` 這個 Edge Function（後端程式碼已經寫好，只是還沒部署上去）。
-  5. 執行 `google-login-setup.sql` 建立資料表。
 - **影響範圍**：目前 LINE 登入完全沒受影響，一般使用者看到的畫面也沒有變化（Google 按鈕還是隱藏的）；只有設定完成、且我幫忙把 Client ID 填進程式碼之後，Google 登入按鈕才會出現。**下一步（等 Google 登入實測沒問題後）才會正式把 LINE 登入按鈕跟相關流程整個移除**。
 - **快取更新**：`auth.html` 內 `js/pages/auth/main.js` 版本參數升為 `20260720a`。這批修改涉及 Service Worker 會快取的檔案（`auth.html`），部署時記得依照上一則紀錄的提醒，同步把 `service-worker.js` 的 `CACHE_VERSION` 再往上加一格。
+
+### 後端已部署完成（資料表＋Edge Function），只剩 Client ID／Secrets 待設定
+
+- 用 Supabase CLI（本機已登入並連接到正式專案）完成以下兩件事，使用者不用再自己跑一趟 Dashboard 貼 SQL：
+  1. 新增 migration [supabase/migrations/20260720143619_google_identities.sql](supabase/migrations/20260720143619_google_identities.sql) 建立 `google_identities` 對照表，已 `supabase db push` 套用到正式資料庫。
+  2. 加碼資安加固：新增 migration [supabase/migrations/20260720143757_google_identities_rls.sql](supabase/migrations/20260720143757_google_identities_rls.sql)，把這張表開啟 RLS 且不建立任何政策，一律拒絕 `anon`／`authenticated` 直接存取；`service_role`（Edge Function 使用）依 Postgres/Supabase 慣例永遠會略過 RLS，既有存取行為完全不受影響。同步更新 `google-login-setup.sql` 裡的建表語法，讓之後如果改用手動貼到 Dashboard 執行，也會套用同一道防護。
+  3. `supabase functions deploy google-auth --no-verify-jwt`：部署 Edge Function（因為這支函式的用途就是給「還沒登入」的使用者換發 JWT，所以跟 `line-auth` 一樣不能要求既有 JWT）。呼叫診斷端點（GET）確認已正常運作，且如預期回報 `google_client_id`／`google_client_secret` 尚未設定，不影響任何現有功能。
+- **使用者只剩下這兩步**：① 到 Google Cloud Console 申請 OAuth 2.0 用戶端 ID（拿到後把 Client ID 給我，我會直接幫忙填入 `js/cloud/constants.js`；Client Secret 不要給我，直接在下一步設定）。② 到 Supabase Dashboard → Edge Functions → Secrets，設定 `GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET`。這兩步都需要在瀏覽器操作、輸入只有本人知道的帳密／金鑰，無法由 AI 代勞。
 
 ## 2026-07-20（修復：正式網站一直卡在很舊的版本，管理員上傳圖片還是顯示「不支援」的舊訊息）
 
