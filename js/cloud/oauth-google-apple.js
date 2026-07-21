@@ -6,7 +6,7 @@ import {
   APPLE_CLIENT_ID
 } from './constants.js';
 import { fetchWithTimeout } from './http.js';
-import { setCustomJwt } from './jwt.js';
+import { getCustomJwt, setCustomJwt } from './jwt.js';
 import { getBaseUrl } from './clients.js';
 
 
@@ -45,6 +45,64 @@ export function startGoogleLogin(nextRelativeUrl) {
   return true;
 }
 
+// 連結 Google 帳號：讓已登入的使用者（不管目前用 LINE 還是 Google 登入）把 Google 身分
+// 綁到「目前這個帳號」，之後不管用哪種方式登入都是同一個帳號、同一份名片資料。
+// 跟 startGoogleLogin() 幾乎一樣，差別只在 state 前綴多了 'link_'，以及額外把目前的登入
+// JWT 存起來，讓 callback 時能證明「這次連結是這個已登入的人自己按的」。
+export function startGoogleLink(nextRelativeUrl) {
+  if (!GOOGLE_CLIENT_ID) {
+    alert("尚未設定 GOOGLE_CLIENT_ID（請在 js/cloud/constants.js 填入 Google OAuth Client ID）。");
+    return false;
+  }
+  const currentJwt = getCustomJwt();
+  if (!currentJwt) {
+    alert("請先登入後再連結 Google 帳號。");
+    return false;
+  }
+  const next = nextRelativeUrl || 'settings.html';
+  try { localStorage.setItem('UVACO_GOOGLE_NEXT', next); } catch (e) {}
+  try { localStorage.setItem('UVACO_GOOGLE_LINK_JWT', currentJwt); } catch (e) {}
+  const redirectUri = getGoogleRedirectUri();
+  const state = 'google_link_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  try { localStorage.setItem('UVACO_GOOGLE_STATE', state); } catch (e) {}
+  try { sessionStorage.setItem('UVACO_GOOGLE_STATE', state); } catch (e) {}
+
+  const params = new URLSearchParams();
+  params.set('response_type', 'code');
+  params.set('client_id', GOOGLE_CLIENT_ID);
+  params.set('redirect_uri', redirectUri);
+  params.set('state', state);
+  params.set('scope', 'openid email profile');
+  params.set('access_type', 'offline');
+  params.set('prompt', 'consent');
+
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  return true;
+}
+
+// 查詢目前登入的帳號是否已經連結過 Google，供設定頁顯示狀態用。
+export async function getGoogleLinkStatus() {
+  const currentJwt = getCustomJwt();
+  if (!currentJwt) return { ok: false, error: 'NO_SESSION' };
+  const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/google-auth';
+  try {
+    const resp = await fetchWithTimeout(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
+      },
+      body: JSON.stringify({ action: 'link_status', current_jwt: currentJwt })
+    }, 8000);
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) return { ok: false, error: data?.error || 'LINK_STATUS_FAILED', detail: data };
+    return { ok: true, linked: !!data.linked, email: data.email || '' };
+  } catch (e) {
+    return { ok: false, error: 'LINK_STATUS_FETCH_FAILED', detail: String(e?.message || e || '') };
+  }
+}
+
 export async function finishGoogleLoginFromUrl() {
   let url;
   try {
@@ -55,11 +113,12 @@ export async function finishGoogleLoginFromUrl() {
 
   const code = String(url.searchParams.get('code') || '').trim();
   const state = String(url.searchParams.get('state') || '').trim();
-  
-  // 檢查是否為 Google callback（state 以 google_ 開頭）
+
+  // 檢查是否為 Google callback（state 以 google_ 開頭；連結帳號流程則是 google_link_ 開頭）
   if (!code || !state || !state.startsWith('google_')) {
     return { ok: true, handled: false };
   }
+  const isLinkMode = state.startsWith('google_link_');
 
   try {
     const expectedState = (function () {
@@ -69,11 +128,57 @@ export async function finishGoogleLoginFromUrl() {
         return a || b;
       } catch (e) { return ''; }
     })();
-    
+
     if (expectedState && state !== expectedState) return { ok: false, error: 'GOOGLE_BAD_STATE' };
 
     const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/google-auth';
     const redirectUri = getGoogleRedirectUri();
+
+    const next = (function () {
+      try { return String(localStorage.getItem('UVACO_GOOGLE_NEXT') || '').trim(); } catch (e) { return ''; }
+    })() || (isLinkMode ? 'settings.html' : 'directory.html');
+
+    const cleanupStorage = function () {
+      try { localStorage.removeItem('UVACO_GOOGLE_STATE'); } catch (e) {}
+      try { sessionStorage.removeItem('UVACO_GOOGLE_STATE'); } catch (e) {}
+      try { localStorage.removeItem('UVACO_GOOGLE_NEXT'); } catch (e) {}
+      try { localStorage.removeItem('UVACO_GOOGLE_LINK_JWT'); } catch (e) {}
+    };
+
+    if (isLinkMode) {
+      const currentJwt = (function () {
+        try { return String(localStorage.getItem('UVACO_GOOGLE_LINK_JWT') || '').trim(); } catch (e) { return ''; }
+      })();
+      cleanupStorage();
+      if (!currentJwt) {
+        window.location.replace(next + (next.indexOf('?') >= 0 ? '&' : '?') + 'linkError=NO_SESSION');
+        return { ok: true, handled: true };
+      }
+      let resp;
+      try {
+        resp = await fetchWithTimeout(endpoint, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
+          },
+          body: JSON.stringify({ action: 'link', code, redirect_uri: redirectUri, current_jwt: currentJwt })
+        }, 15000);
+      } catch (e) {
+        window.location.replace(next + (next.indexOf('?') >= 0 ? '&' : '?') + 'linkError=FETCH_FAILED');
+        return { ok: true, handled: true };
+      }
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) {
+        const errCode = data?.error || 'UNKNOWN';
+        window.location.replace(next + (next.indexOf('?') >= 0 ? '&' : '?') + 'linkError=' + encodeURIComponent(errCode));
+        return { ok: true, handled: true };
+      }
+      window.location.replace(next + (next.indexOf('?') >= 0 ? '&' : '?') + 'linked=1');
+      return { ok: true, handled: true };
+    }
+
     let resp;
     try {
       resp = await fetchWithTimeout(endpoint, {
@@ -107,13 +212,7 @@ export async function finishGoogleLoginFromUrl() {
     if (!token || !userId) return { ok: false, error: 'GOOGLE_NO_TOKEN', detail: data };
 
     setCustomJwt(token);
-    try { localStorage.removeItem('UVACO_GOOGLE_STATE'); } catch (e) {}
-    try { sessionStorage.removeItem('UVACO_GOOGLE_STATE'); } catch (e) {}
-
-    const next = (function () {
-      try { return String(localStorage.getItem('UVACO_GOOGLE_NEXT') || '').trim(); } catch (e) { return ''; }
-    })() || 'directory.html';
-    try { localStorage.removeItem('UVACO_GOOGLE_NEXT'); } catch (e) {}
+    cleanupStorage();
     window.location.replace(next);
     return { ok: true, handled: true };
   } catch (e) {

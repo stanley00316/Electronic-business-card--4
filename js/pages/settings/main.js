@@ -208,6 +208,82 @@ async function loadReferralStats() {
   }
 }
 
+// 連結 Google 帳號：顯示目前是否已連結，未連結才可點擊觸發連結流程
+async function initGoogleLink() {
+  try {
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasGoogleConfig || !UVACO_CLOUD.hasGoogleConfig()) return;
+    const s = await UVACO_CLOUD.getSession();
+    const uid = s && s.session && s.session.user ? String(s.session.user.id || '').trim() : '';
+    if (!uid) return;
+
+    const item = document.getElementById('googleLinkItem');
+    if (!item) return;
+    item.style.display = 'flex';
+
+    const status = await UVACO_CLOUD.getGoogleLinkStatus();
+    const icon = document.getElementById('googleLinkIcon');
+    const titleZh = document.getElementById('googleLinkTitleZh');
+    const titleEn = document.getElementById('googleLinkTitleEn');
+    const display = document.getElementById('googleLinkDisplay');
+    const arrow = document.getElementById('googleLinkArrow');
+
+    if (status && status.ok && status.linked) {
+      item.onclick = null;
+      item.style.cursor = 'default';
+      if (icon) icon.textContent = '✅';
+      if (titleZh) titleZh.textContent = '已連結 Google 帳號';
+      if (titleEn) titleEn.textContent = 'Google Account Linked';
+      if (display) display.textContent = status.email || '';
+      if (arrow) arrow.style.display = 'none';
+    } else {
+      if (icon) icon.textContent = '🔗';
+      if (titleZh) titleZh.textContent = '連結 Google 帳號';
+      if (titleEn) titleEn.textContent = 'Link Google Account';
+      if (display) display.textContent = '防止未來資料遺失，建議現在連結';
+    }
+  } catch (e) {
+    console.error('initGoogleLink error:', e);
+  }
+}
+
+function startGoogleLinkFlow() {
+  if (window.UVACO_CLOUD && UVACO_CLOUD.startGoogleLink) {
+    UVACO_CLOUD.startGoogleLink('settings.html');
+  }
+}
+
+// 處理連結 Google 帳號流程完成後，網址帶回來的 ?linked=1 / ?linkError=... 參數
+function handleGoogleLinkResultFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const linked = params.get('linked');
+  const linkError = params.get('linkError');
+  if (!linked && !linkError) return;
+
+  const savedLang = localStorage.getItem('lang') || 'zh';
+  if (linked) {
+    alert(savedLang === 'zh'
+      ? '🎉 Google 帳號連結成功！以後不管用 LINE 還是 Google 登入，看到的都會是同一份名片資料。'
+      : '🎉 Google account linked! Your card data stays the same whether you log in with LINE or Google.');
+  } else if (linkError) {
+    const messages = {
+      GOOGLE_ALREADY_LINKED_ELSEWHERE: savedLang === 'zh'
+        ? '這個 Google 帳號已經連結過其他帳號了，請換一個尚未使用過的 Google 帳號再試一次。'
+        : 'This Google account is already linked to another account. Please try a different Google account.',
+      NO_SESSION: savedLang === 'zh'
+        ? '連結逾時或登入狀態已失效，請重新登入後再試一次。'
+        : 'Session expired. Please log in again and retry.'
+    };
+    alert(messages[linkError] || (savedLang === 'zh' ? '連結失敗，請稍後再試一次。' : 'Link failed. Please try again later.'));
+  }
+
+  try {
+    params.delete('linked');
+    params.delete('linkError');
+    const qs = params.toString();
+    history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+  } catch (e) {}
+}
+
 // 登出處理
 function handleLogout() {
   if (confirm('確定要登出系統嗎？\nAre you sure you want to logout?')) {
@@ -346,6 +422,12 @@ function initSettingsPage() {
   // 顯示 User ID
   initUserId();
 
+  // 連結 Google 帳號狀態
+  initGoogleLink();
+
+  // 處理連結完成後從網址帶回來的結果訊息
+  handleGoogleLinkResultFromUrl();
+
   // 確保語言切換正確
   const savedLang = localStorage.getItem('lang') || 'zh';
   if (typeof setLang === 'function') {
@@ -372,3 +454,4 @@ window.copyInviteLink = copyInviteLink;
 window.copyHomeScreenLink = copyHomeScreenLink;
 window.handleLogout = handleLogout;
 window.handleSettingsClick = handleSettingsClick;
+window.startGoogleLinkFlow = startGoogleLinkFlow;

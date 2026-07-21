@@ -35,6 +35,8 @@ import {
 import {
   hasGoogleConfig,
   startGoogleLogin,
+  startGoogleLink,
+  getGoogleLinkStatus,
   finishGoogleLoginFromUrl,
   googleAuthDiag,
   hasAppleConfig,
@@ -135,6 +137,8 @@ window.UVACO_CLOUD = {
 
   hasGoogleConfig,
   startGoogleLogin,
+  startGoogleLink,
+  getGoogleLinkStatus,
   finishGoogleLoginFromUrl,
   googleAuthDiag,
 
