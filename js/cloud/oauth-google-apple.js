@@ -20,11 +20,37 @@ export function getGoogleRedirectUri() {
   return getBaseUrl() + 'auth.html';
 }
 
+// 偵測「手機主畫面捷徑」模式（iOS Add to Home Screen 的獨立網頁應用程式）。
+// Google 從 2017 年起明確禁止在這種內嵌瀏覽器模式下完成 OAuth 登入（會直接被
+// Google 擋下「disallowed_useragent」錯誤），這是 Apple/Google 平台層級的限制，
+// 前端沒辦法繞過，只能提前偵測、友善提示改用真正的瀏覽器 App，避免使用者一路
+// 點到 Google 才看到一頭霧水的英文錯誤畫面。
+function isStandaloneHomeScreenApp() {
+  try {
+    if (window.navigator && window.navigator.standalone) return true;
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+  } catch (e) {}
+  return false;
+}
+
+function warnIfStandaloneAndBlock() {
+  if (!isStandaloneHomeScreenApp()) return false;
+  const url = getGoogleRedirectUri();
+  try { navigator.clipboard && navigator.clipboard.writeText(url); } catch (e) {}
+  alert(
+    '目前是從手機主畫面的捷徑圖示開啟，Google 基於安全政策不允許在這個模式下完成登入。\n\n' +
+    '網址已經幫你複製好了，請切換到手機內建的瀏覽器 App（iPhone 用 Safari、Android 用 Chrome），' +
+    '貼上網址開啟後再試一次：\n' + url
+  );
+  return true;
+}
+
 export function startGoogleLogin(nextRelativeUrl) {
   if (!GOOGLE_CLIENT_ID) {
     alert("尚未設定 GOOGLE_CLIENT_ID（請在 js/cloud/constants.js 填入 Google OAuth Client ID）。");
     return false;
   }
+  if (warnIfStandaloneAndBlock()) return false;
   const next = nextRelativeUrl || 'directory.html';
   try { localStorage.setItem('UVACO_GOOGLE_NEXT', next); } catch (e) {}
   const redirectUri = getGoogleRedirectUri();
@@ -54,6 +80,7 @@ export function startGoogleLink(nextRelativeUrl) {
     alert("尚未設定 GOOGLE_CLIENT_ID（請在 js/cloud/constants.js 填入 Google OAuth Client ID）。");
     return false;
   }
+  if (warnIfStandaloneAndBlock()) return false;
   const currentJwt = getCustomJwt();
   if (!currentJwt) {
     alert("請先登入後再連結 Google 帳號。");
