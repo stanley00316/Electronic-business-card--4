@@ -33,12 +33,17 @@ export const LINE_CHANNEL_ID = '2008810712'; // LINE Login 的 Channel ID（clie
 export const LIFF_ID = '2008810712-bHGjgn3l'; // LIFF App ID
 
 // ===== Google Login =====
-// 若你要啟用 Google 登入：
+// 2026-07-21：Google 登入功能先封存（使用者覺得申請/設定過程太麻煩，暫緩推行）。
+// 後端（google_identities 資料表、google-auth Edge Function、Supabase Secrets）都還保留著，
+// 完全沒有刪除；只要把下面這行的 Client ID 貼回來（原本是
+// 155377373955-b609lj8sd79sebtaddsvo58g5t6p1mfk.apps.googleusercontent.com），
+// 重新打包 cloud.js 並升版部署，就能立刻恢復，不需要重新申請或重新設定任何東西。
+// 若要啟用：
 // 1) 在 Google Cloud Console 建立 OAuth 2.0 Client
 // 2) 把 Client ID 填在這裡（可公開）
 // 3) 在 Supabase Edge Functions Secrets 設定 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET
 // 4) 部署 supabase edge function：supabase/functions/google-auth
-export const GOOGLE_CLIENT_ID = '155377373955-b609lj8sd79sebtaddsvo58g5t6p1mfk.apps.googleusercontent.com'; // Google OAuth Client ID（留空則不顯示 Google 登入按鈕）
+export const GOOGLE_CLIENT_ID = ''; // Google OAuth Client ID（留空則不顯示 Google 登入按鈕，目前刻意留空＝封存）
 
 // ===== Apple Login =====
 // 若你要啟用 Apple 登入：

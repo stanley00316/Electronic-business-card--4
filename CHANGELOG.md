@@ -1,5 +1,16 @@
 # 變更紀錄
 
+## 2026-07-21（封存：Google 登入先暫緩，畫面恢復成只有 LINE 登入）
+
+### 封存（Google 登入功能，非刪除）
+
+- **問題緣起**：Google 登入這幾天陸續在做（前端串接、後端部署、帳號連結、主畫面捷徑相容性修復），但申請 Client ID、設定 Google Cloud Console、處理各種平台限制的過程對使用者來說太麻煩，決定先暫緩，畫面恢復成使用者原本熟悉、只有 LINE 登入的樣子。
+- **做法**：把 `js/cloud/constants.js` 的 `GOOGLE_CLIENT_ID` 改回空字串——這是 Google 登入功能原本就設計好的「開關」，系統偵測到沒有 Client ID 就會自動隱藏所有 Google 相關按鈕（`auth.html` 的「使用 Google 登入」、`settings.html` 的「連結 Google 帳號」），**不需要刪除任何程式碼**。
+- **這次「封存」而非「刪除」的原因**：所有 Google 相關的程式碼（前端按鈕邏輯、後端 Edge Function、帳號連結安全機制）跟 Supabase 後端設定（`google_identities` 資料表、已部署的 `google-auth` Edge Function、Secrets 金鑰）**全部保留、完全沒有動**——反正沒有 Client ID 就沒有任何按鈕會呼叫到這些東西，放著不影響任何人。以後如果想重新啟用，只要把 Client ID 貼回 `js/cloud/constants.js`（`155377373955-b609lj8sd79sebtaddsvo58g5t6p1mfk.apps.googleusercontent.com`）、重新打包 `cloud.js`、升版部署即可，**不需要重新申請 Google Cloud Console、不需要重新設定 Supabase、不需要重新寫任何程式碼**。
+- **實測驗證**：本機瀏覽器確認 `auth.html` 只剩「用 LINE App 開啟」，Google 按鈕已消失、跟功能上線前一模一樣；LINE 登入流程（LIFF 自動登入、callback 判斷）運作正常，主控台沒有新增的錯誤。
+- **影響範圍**：一般使用者看到的畫面回到只有 LINE 登入，跟這幾天做 Google 登入之前完全一樣；LINE 登入本身、其他所有功能不受任何影響。
+- **快取更新**：重新打包 `cloud.js`，所有引用頁面版本參數升為 `?v=20260721c`；`service-worker.js` 的 `CACHE_VERSION` 同步升為 `v1.36.4`。
+
 ## 2026-07-21（修復：手機主畫面捷徑點「連結 Google 帳號」出現 Google 錯誤畫面）
 
 ### 修復（偵測「主畫面捷徑」模式，登入前先攔下並友善提示）
