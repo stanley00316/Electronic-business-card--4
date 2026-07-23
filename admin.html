@@ -71,7 +71,7 @@
   </style>
   <script src="supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="cloud.js?v=20260721c"></script>
+  <script src="cloud.js?v=20260723a"></script>
 </head>
 <body>
 
@@ -85,6 +85,7 @@
     <button class="btn btn-outline" id="companyAdminBtn" onclick="location.href='company-admin.html'" style="display:none;">⚙️ 管理企業管理員</button>
     <button class="btn btn-outline" id="pricingAdminBtn" onclick="togglePricingSection()" style="display:none;">💰 價格方案</button>
     <button class="btn btn-outline" id="exportPdfBtn" onclick="openPdfExportModal()">🖨️ 輸出貼紙PDF</button>
+    <button class="btn btn-outline" id="bulkStickerBtn" onclick="openStickerModal(null)">🏷️ 批次設定材質/顏色</button>
     <!-- 獨立分頁籤：只有超級管理員能看到「訂閱管理」分頁，跟其他工具列按鈕放在同一排 -->
     <button class="btn btn-green" id="tabBtnCards" onclick="switchAdminTab('cards')" style="display:none;">📋 名片管理</button>
     <button class="btn btn-outline" id="tabBtnSubscriptions" onclick="switchAdminTab('subscriptions')" style="display:none;">💎 訂閱管理</button>
@@ -104,13 +105,14 @@
         <th>姓名</th>
         <th>公司/職稱</th>
         <th>NFC 卡片 ID</th>
+        <th>貼紙材質/顏色</th>
         <th>更新時間</th>
         <th>NFC 網址</th>
         <th>操作</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td colspan="7" style="text-align:center">載入中...</td></tr>
+      <tr><td colspan="8" style="text-align:center">載入中...</td></tr>
     </tbody>
   </table>
   </div>
@@ -228,6 +230,21 @@
   </div>
 </div>
 
+<!-- 貼紙材質/顏色 選擇彈窗：可單筆設定，也可批次套用到目前勾選的所有名片 -->
+<div id="stickerModal" class="qr-modal" onclick="this.style.display='none'">
+  <div class="qr-box" onclick="event.stopPropagation()" style="max-width:460px;">
+    <h3 id="stickerModalTitle">設定貼紙材質/顏色</h3>
+    <p style="color:#9ca3af;font-size:13px;margin-bottom:16px;">選擇這張名片實際要印製的貼紙製作方式，輸出貼紙PDF最後一頁會自動統計各材質/顏色的張數，方便提供給印刷廠商核對用量。</p>
+    <input type="hidden" id="stickerTargetUserId">
+    <div id="stickerOptionGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(120px,1fr));gap:10px;"></div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap;">
+      <button class="btn btn-green" onclick="saveStickerOption()">儲存</button>
+      <button class="btn btn-outline" onclick="clearStickerOption()">清除設定</button>
+      <button class="btn btn-outline" onclick="document.getElementById('stickerModal').style.display='none'">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 訂閱延長彈窗 -->
 <div id="subscriptionModal" class="qr-modal" onclick="this.style.display='none'">
   <div class="qr-box" onclick="event.stopPropagation()" style="max-width:450px;">
@@ -265,6 +282,7 @@
     <h3>輸出貼紙 PDF</h3>
     <p style="color:#9ca3af;font-size:13px;margin-bottom:16px;">背面會套用每人自己上傳的 Logo；公司英文名稱資料庫沒有單獨欄位，請在這裡輸入一次，套用到本次整批背面（可留空）。</p>
     <input type="text" id="pdfCompanyNameEnInput" placeholder="例如：YAO DING TECHNOLOGY" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1b1b1b;color:#fff;font-size:14px;box-sizing:border-box;">
+    <p id="pdfExportStickerWarning" style="color:#facc15;font-size:12px;margin-top:12px;min-height:16px;"></p>
     <p id="pdfExportStatus" style="color:#9ca3af;font-size:12px;margin-top:14px;min-height:16px;"></p>
     <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
       <button class="btn btn-green" id="pdfExportConfirmBtn" onclick="confirmPdfExport()">確認並產生 PDF</button>
@@ -276,6 +294,26 @@
 <script>
 let allData = [];
 let adminStatus = null;
+
+// 貼紙「製作方式」的 5 種合法組合：PVC 只有白/黑，金屬(水晶貼)有黑/銀/黃，用色塊卡片讓非技術人員一眼看懂
+const STICKER_OPTIONS = [
+  { material: 'pvc',   color: 'white',  materialLabel: 'PVC',        colorLabel: '白',   swatch: '#f4f4f5' },
+  { material: 'pvc',   color: 'black',  materialLabel: 'PVC',        colorLabel: '黑',   swatch: '#1c1c1c' },
+  { material: 'metal', color: 'black',  materialLabel: '金屬(水晶貼)', colorLabel: '黑',   swatch: '#2b2b2b' },
+  { material: 'metal', color: 'silver', materialLabel: '金屬(水晶貼)', colorLabel: '銀',   swatch: '#c8c9cc' },
+  { material: 'metal', color: 'gold',   materialLabel: '金屬(水晶貼)', colorLabel: '黃/金', swatch: '#d4af37' }
+];
+
+// 依 material/color 找出對應的選項設定，找不到（尚未設定或資料異常）回傳 null
+function findStickerOption(material, color) {
+  return STICKER_OPTIONS.find((o) => o.material === material && o.color === color) || null;
+}
+
+// 把 material/color 轉成畫面上要顯示的文字，例如「PVC・白」，尚未設定則顯示「未設定」
+function stickerLabel(material, color) {
+  const opt = findStickerOption(material, color);
+  return opt ? `${opt.materialLabel}・${opt.colorLabel}` : '未設定';
+}
 
 function applyResponsiveAdminLayout() {
   try {
@@ -378,7 +416,7 @@ function renderTable(data) {
   tbody.innerHTML = '';
   
   if (data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">目前沒有資料</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center">目前沒有資料</td></tr>';
     return;
   }
 
@@ -410,6 +448,10 @@ function renderTable(data) {
         <button class="btn btn-outline" style="padding:4px 8px;font-size:11px;margin-left:8px;" onclick="editNfcId('${row.user_id}', '${nfcId}', '${(row.name || '').replace(/'/g, "\\'")}')">
           ${nfcId ? '修改' : '綁定'}
         </button>
+      </td>
+      <td data-label="貼紙材質/顏色">
+        <span style="color:${findStickerOption(row.sticker_material, row.sticker_color) ? '#e5e7eb' : '#6b7280'};">${stickerLabel(row.sticker_material, row.sticker_color)}</span>
+        <button class="btn btn-outline" style="padding:4px 8px;font-size:11px;margin-left:8px;" onclick="openStickerModal('${row.user_id}')">設定</button>
       </td>
       <td data-label="更新時間">${new Date(row.updated_at).toLocaleDateString()}</td>
       <td data-label="NFC 網址" class="nfc-url-cell"><a href="${url}" target="_blank" rel="noopener noreferrer">${urlLabel}</a></td>
@@ -523,9 +565,101 @@ async function saveNfcId() {
 
 async function clearNfcId() {
   if (!confirm('確定要清除此用戶的 NFC 卡片綁定？')) return;
-  
+
   document.getElementById('nfcIdInput').value = '';
   await saveNfcId();
+}
+
+// ===== 貼紙材質/顏色 設定功能 =====
+let stickerModalMode = 'single'; // 'single'：只設定單一名片；'batch'：套用到目前勾選的所有名片
+let stickerModalSelectedMaterial = null;
+let stickerModalSelectedColor = null;
+
+// 開啟設定彈窗：帶入 userId 是「單筆設定」，不帶（傳 null）則是對目前勾選的名片「批次設定」
+function openStickerModal(userId) {
+  if (userId) {
+    const row = allData.find((r) => String(r.user_id) === String(userId));
+    document.getElementById('stickerModalTitle').textContent = (row && row.name ? row.name : '此名片') + ' - 設定貼紙材質/顏色';
+    document.getElementById('stickerTargetUserId').value = userId;
+    stickerModalMode = 'single';
+    stickerModalSelectedMaterial = row ? (row.sticker_material || null) : null;
+    stickerModalSelectedColor = row ? (row.sticker_color || null) : null;
+  } else {
+    const ids = getSelectedCardIds();
+    if (ids.length === 0) {
+      alert('請先在名片列表勾選至少一筆名片，再批次設定貼紙材質/顏色。');
+      return;
+    }
+    document.getElementById('stickerModalTitle').textContent = `批次設定貼紙材質/顏色（共 ${ids.length} 筆）`;
+    document.getElementById('stickerTargetUserId').value = '';
+    stickerModalMode = 'batch';
+    stickerModalSelectedMaterial = null;
+    stickerModalSelectedColor = null;
+  }
+  renderStickerOptionGrid();
+  document.getElementById('stickerModal').style.display = 'flex';
+}
+
+// 畫出 5 張可點選的材質/顏色卡片，目前選中的那張用綠色外框標示
+function renderStickerOptionGrid() {
+  const grid = document.getElementById('stickerOptionGrid');
+  grid.innerHTML = STICKER_OPTIONS.map((opt) => {
+    const isSelected = opt.material === stickerModalSelectedMaterial && opt.color === stickerModalSelectedColor;
+    return `
+      <div onclick="selectStickerOption('${opt.material}','${opt.color}')"
+           style="cursor:pointer;border-radius:10px;padding:10px;text-align:center;border:2px solid ${isSelected ? '#22c55e' : '#333'};background:#1b1b1b;">
+        <div style="width:100%;height:36px;border-radius:6px;background:${opt.swatch};border:1px solid #444;margin-bottom:8px;"></div>
+        <div style="font-size:12px;color:#e5e7eb;">${opt.materialLabel}</div>
+        <div style="font-size:12px;color:#9ca3af;">${opt.colorLabel}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 點擊某張材質/顏色卡片時記住目前選了什麼，還沒按「儲存」不會寫進資料庫
+function selectStickerOption(material, color) {
+  stickerModalSelectedMaterial = material;
+  stickerModalSelectedColor = color;
+  renderStickerOptionGrid();
+}
+
+async function saveStickerOption() {
+  if (!stickerModalSelectedMaterial || !stickerModalSelectedColor) {
+    alert('請先點選一種材質/顏色，再按儲存。');
+    return;
+  }
+  await applyStickerOptionToTargets(stickerModalSelectedMaterial, stickerModalSelectedColor);
+}
+
+async function clearStickerOption() {
+  if (!confirm('確定要清除貼紙材質/顏色設定？')) return;
+  await applyStickerOptionToTargets(null, null);
+}
+
+// 實際寫入資料庫：單筆模式只改一張名片，批次模式會依序套用到目前勾選的每一張名片
+async function applyStickerOptionToTargets(material, color) {
+  const targetIds = stickerModalMode === 'single'
+    ? [document.getElementById('stickerTargetUserId').value]
+    : getSelectedCardIds();
+
+  if (targetIds.length === 0 || !targetIds[0]) {
+    alert('找不到要設定的名片。');
+    return;
+  }
+
+  try {
+    for (const uid of targetIds) {
+      const result = await UVACO_CLOUD.setCardStickerOption(uid, material, color);
+      if (!result || !result.success) {
+        throw new Error((result && result.error && result.error.message) || '未知錯誤');
+      }
+    }
+    document.getElementById('stickerModal').style.display = 'none';
+    reloadData();
+  } catch (e) {
+    console.error('設定貼紙材質/顏色失敗:', e);
+    alert('設定失敗：' + (e.message || e));
+  }
 }
 
 function editCard(userId) {
@@ -1166,6 +1300,15 @@ function openPdfExportModal() {
     alert('請先在名片列表勾選至少一筆名片，再輸出貼紙 PDF。');
     return;
   }
+
+  // 提醒有幾張還沒設定貼紙材質/顏色，不阻擋輸出，只是讓使用者知道統計表裡會有「未設定」
+  const selectedRows = allData.filter((r) => ids.includes(String(r.user_id)));
+  const unsetCount = selectedRows.filter((r) => !findStickerOption(r.sticker_material, r.sticker_color)).length;
+  const warningEl = document.getElementById('pdfExportStickerWarning');
+  warningEl.textContent = unsetCount > 0
+    ? `⚠️ 有 ${unsetCount} 張尚未設定貼紙材質/顏色，統計表會標示為「未設定」，建議先設定好再輸出。`
+    : '';
+
   document.getElementById('pdfExportStatus').textContent = '';
   document.getElementById('pdfExportModal').style.display = 'flex';
 }
@@ -1325,9 +1468,52 @@ async function generateStickerPdf(rows, companyNameEn, onProgress) {
     if (onProgress) onProgress(i + 1, rows.length);
   }
 
+  // 全部名片頁都產生完後，最後多加一頁材質/顏色統計總表，直接附在同一份 PDF 給印刷廠商核對用量
+  addStickerStatsPage(doc, rows);
+
   const today = new Date();
   const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
   doc.save(`貼紙印刷稿_${dateStr}.pdf`);
+}
+
+// 在同一份 PDF 最後加一頁 A4 統計總表：依「材質+顏色」分組計算張數，讓印刷廠商不用另外要清單
+function addStickerStatsPage(doc, rows) {
+  doc.addPage('a4', 'portrait');
+  doc.setFont('NotoSansTC');
+
+  doc.setFontSize(16);
+  doc.text('貼紙材質/顏色 統計表', 20, 20);
+
+  const dateLabel = new Date().toLocaleDateString('zh-TW');
+  doc.setFontSize(10);
+  doc.text(`輸出日期：${dateLabel}　總張數：${rows.length} 張`, 20, 30);
+
+  // 依材質+顏色分組計數，找不到對應選項的（尚未設定）歸類到「未設定」，方便事後補登
+  const countMap = new Map();
+  rows.forEach((row) => {
+    const key = stickerLabel(row.sticker_material, row.sticker_color);
+    countMap.set(key, (countMap.get(key) || 0) + 1);
+  });
+
+  // 顯示順序固定比照選項卡片順序，「未設定」放最後，讓廠商看得有條理
+  const orderedKeys = STICKER_OPTIONS
+    .map((opt) => `${opt.materialLabel}・${opt.colorLabel}`)
+    .filter((key) => countMap.has(key));
+  if (countMap.has('未設定')) orderedKeys.push('未設定');
+
+  let y = 45;
+  doc.setFontSize(11);
+  doc.text('材質/顏色', 20, y);
+  doc.text('張數', 130, y);
+  y += 4;
+  doc.line(20, y, 170, y);
+  y += 8;
+
+  orderedKeys.forEach((key) => {
+    doc.text(key, 20, y);
+    doc.text(String(countMap.get(key)) + ' 張', 130, y);
+    y += 9;
+  });
 }
 
 init();

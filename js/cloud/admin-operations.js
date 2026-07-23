@@ -72,6 +72,31 @@ export async function getAllCardsAdmin() {
   return { rows: data || [] };
 }
 
+// 管理員設定名片的貼紙「製作方式」：材質（PVC／金屬水晶貼）與顏色，供量產出貨統計、提供給印刷廠商用
+export async function setCardStickerOption(userId, material, color) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return { success: false, error: 'Not authenticated' };
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) return { success: false, error: 'Not admin' };
+
+  try {
+    const { error } = await ctx.client
+      .from('cards')
+      .update({ sticker_material: material || null, sticker_color: color || null })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[Admin] 設定貼紙材質/顏色失敗:', error);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e };
+  }
+}
+
 // 管理員刪除名片
 export async function deleteCard(targetUserId) {
   const ctx = await getAuthContext();
