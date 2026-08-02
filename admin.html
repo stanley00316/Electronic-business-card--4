@@ -1343,21 +1343,33 @@ async function confirmPdfExport() {
   }
 }
 
-// 用 QRCode.js 產生 QR Code 圖片的 dataURL（沿用 showQR() 同款做法，只是畫在畫面外的隱藏容器上）
-function qrCodeToDataUrl(url) {
-  return new Promise((resolve) => {
-    const holder = document.createElement('div');
-    holder.style.position = 'fixed';
-    holder.style.left = '-9999px';
-    document.body.appendChild(holder);
-    new QRCode(holder, { text: url, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
-    setTimeout(() => {
-      const canvas = holder.querySelector('canvas');
-      const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
-      document.body.removeChild(holder);
-      resolve(dataUrl);
-    }, 50);
-  });
+// 取得 QR Code 的黑白方格矩陣（不用截圖轉點陣圖，改用向量色塊繪製，印刷放大不會模糊）
+function getQrModules(url) {
+  const holder = document.createElement('div');
+  holder.style.position = 'fixed';
+  holder.style.left = '-9999px';
+  document.body.appendChild(holder);
+  const qr = new QRCode(holder, { text: url, correctLevel: QRCode.CorrectLevel.M });
+  const model = qr._oQRCode;
+  const moduleCount = model.getModuleCount();
+  const isDark = (row, col) => model.isDark(row, col);
+  document.body.removeChild(holder);
+  return { moduleCount, isDark };
+}
+
+// 把 QR Code 矩陣畫成純向量色塊（PDF 內是真正的向量繪圖指令，不是圖片內嵌）
+function drawVectorQr(doc, qrModel, x, y, size) {
+  const cell = size / qrModel.moduleCount;
+  doc.setFillColor(255, 255, 255);
+  doc.rect(x, y, size, size, 'F');
+  doc.setFillColor(0, 0, 0);
+  for (let row = 0; row < qrModel.moduleCount; row++) {
+    for (let col = 0; col < qrModel.moduleCount; col++) {
+      if (qrModel.isDark(row, col)) {
+        doc.rect(x + col * cell, y + row * cell, cell, cell, 'F');
+      }
+    }
+  }
 }
 
 // 把圖片網址（含 Supabase 簽名網址）轉成 dataURL，PDF 才能穩定內嵌（簽名網址有時效性，不能直接存進 PDF）
@@ -1413,9 +1425,9 @@ async function generateStickerPdf(rows, companyNameEn, onProgress) {
 
     // ---- 正面：姓名／職稱／電話／Email／QR Code ----
     const cardUrl = `${window.location.origin}${window.location.pathname.replace('admin.html', '')}card.html?id=${row.user_id}`;
-    let qrDataUrl = '';
+    let qrModel = null;
     try {
-      qrDataUrl = await qrCodeToDataUrl(cardUrl);
+      qrModel = getQrModules(cardUrl);
     } catch (e) {
       console.error('QR Code 產生失敗:', row.user_id, e);
     }
@@ -1430,8 +1442,8 @@ async function generateStickerPdf(rows, companyNameEn, onProgress) {
     if (row.phone) doc.text('電話：' + row.phone, 8, 32);
     if (row.email) doc.text('Email：' + row.email, 8, 38);
 
-    if (qrDataUrl) {
-      doc.addImage(qrDataUrl, 'PNG', 60, 16, 22, 22);
+    if (qrModel) {
+      drawVectorQr(doc, qrModel, 60, 16, 22, 22);
     }
 
     // ---- 背面：個人 Logo（若有）＋公司中英文名稱 ----
@@ -1488,6 +1500,14 @@ function addStickerStatsPage(doc, rows) {
   doc.setFontSize(10);
   doc.text(`輸出日期：${dateLabel}　總張數：${rows.length} 張`, 20, 30);
 
+  // 給印刷廠商看的格式說明：告知本檔案是向量PDF，QR Code也是向量繪製，可直接印刷或用AI/CorelDRAW開啟編輯
+  doc.setFontSize(9);
+  const formatNote = doc.splitTextToSize(
+    '格式說明：本檔案為 PDF 向量格式（文字與 QR Code 皆為向量繪製，非點陣圖），可直接交付印刷，或以 Illustrator／CorelDRAW 開啟匯入編輯。',
+    150
+  );
+  doc.text(formatNote, 20, 37);
+
   // 依材質+顏色分組計數，找不到對應選項的（尚未設定）歸類到「未設定」，方便事後補登
   const countMap = new Map();
   rows.forEach((row) => {
@@ -1501,7 +1521,8 @@ function addStickerStatsPage(doc, rows) {
     .filter((key) => countMap.has(key));
   if (countMap.has('未設定')) orderedKeys.push('未設定');
 
-  let y = 45;
+  // 表格起始位置要讓開上面的格式說明文字，行數不固定（依內容自動換行），所以依實際行數往下推
+  let y = 37 + formatNote.length * 4 + 8;
   doc.setFontSize(11);
   doc.text('材質/顏色', 20, y);
   doc.text('張數', 130, y);
