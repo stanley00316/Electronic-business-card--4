@@ -31,6 +31,7 @@
 - **主入口**：`index.html`（依登入狀態分流）
 - **我的名片入口**：`my-card.html`
 - **公開名片頁**：`card.html?id=<user_id>` 或 `card.html?nfc=<nfc_card_id>`
+- **免登入加入頁**：`guest-join.html?ref=<referrer_user_id>`（好友受邀加入時填資料，系統自動審核通過並建立公開名片）
 - **舊示例頁**：`yuyuko.html`
 - **設定**：`settings.html`
 - **平台通訊錄**：`directory.html`
@@ -99,6 +100,13 @@
   - 使用者在 `edit.html` 按下「儲存」後，會寫入 `UVACO_ONBOARDED=1` 並回到 `directory.html`
 - **要跳過 onboarding**：可用 `directory.html?skipOnboarding=1`
 
+## 免登入好友加入流程（系統自動審核通過）
+
+- **入口**：設定頁「邀請好友」產生的連結會導到 `guest-join.html?ref=<user_id>&openExternalBrowser=1`。
+- **流程**：好友不需要 LINE、Google、Email 驗證碼、簡訊或邀請碼；填姓名與至少一種聯絡方式後送出，`guest-card-intake` Edge Function 會檢查欄位並用系統權限建立公開名片。
+- **審核規則**：目前採「系統自動通過」，也就是送出成功後立即建立 `card.html?id=<new_user_id>`。
+- **安全邊界**：前端不開放匿名直接寫入 `cards` 資料表；匿名訪客只能呼叫 Edge Function，後端會限制欄位長度、清除 HTML、擋簡單機器人欄位。訪客建立後若需修改資料，預設由管理員處理，不提供「拿到私人連結即可任意編輯」的高風險入口。
+
 ## 可能遇到的常見問題
 
 - **首頁 404**：請確認 Pages 設定指向 `/(root)` 且 repo 根目錄有 `index.html`
@@ -155,6 +163,16 @@ supabase login
 supabase link --project-ref <your-project-ref>
 supabase functions deploy line-auth
 ```
+
+#### 免登入好友加入 Edge Function
+
+若要啟用 `guest-join.html` 的自動建立名片流程，需部署：
+
+```bash
+supabase functions deploy guest-card-intake
+```
+
+`supabase/config.toml` 已將 `guest-card-intake` 設為公開端點（`verify_jwt = false`），因為好友填表時沒有登入狀態；安全檢查由函式內部處理，並使用 service role 從後端建立名片。
 
 4. **前端**
    - 在 `cloud.js` 填入 `LINE_CHANNEL_ID`

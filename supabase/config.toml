@@ -4,3 +4,7 @@ project_id = "nqxibryjhgftyxttopuo"
 # 所以這裡必須關閉 JWT 驗證，否則手機會收到 401 而不是聯絡人檔案。
 [functions.vcard]
 verify_jwt = false
+
+# 邀請好友免登入填表用：公開表單會呼叫此端點，由後端檢查欄位後自動建立名片。
+[functions.guest-card-intake]
+verify_jwt = false

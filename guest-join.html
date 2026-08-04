@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>建立電子名片</title>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <link rel="stylesheet" href="styles.css?v=20260610a">
+  <meta name="theme-color" content="#22c55e">
+  <script src="supabase.min.js"></script>
+  <script src="cloud.js?v=20260804a"></script>
+  <style>
+    body {
+      min-height: 100vh;
+      padding: 24px 16px 40px;
+    }
+    .join-shell {
+      width: min(760px, 100%);
+      margin: 0 auto;
+    }
+    .join-header {
+      margin: 34px 0 22px;
+      text-align: center;
+    }
+    .join-logo {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 16px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: rgba(34, 197, 94, 0.14);
+      border: 1px solid rgba(34, 197, 94, 0.28);
+    }
+    .join-logo img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+    }
+    .join-title {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 7vw, 44px);
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+    .join-desc {
+      margin: 0 auto;
+      max-width: 560px;
+      color: #a7b0bf;
+      font-size: 15px;
+      line-height: 1.8;
+    }
+    .join-panel {
+      background: rgba(17, 24, 39, 0.84);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+      padding: 22px;
+    }
+    .join-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .join-field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .join-field.full {
+      grid-column: 1 / -1;
+    }
+    .join-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #d7dde8;
+    }
+    .join-input {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      padding: 11px 13px;
+      font-size: 16px;
+      outline: none;
+    }
+    .join-input:focus {
+      border-color: rgba(34, 197, 94, 0.8);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16);
+    }
+    .join-input::placeholder {
+      color: #6b7280;
+    }
+    .join-note {
+      margin: 16px 0 0;
+      color: #9ca3af;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .join-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .join-btn {
+      min-height: 46px;
+      border: 0;
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .join-btn:active {
+      transform: translateY(1px);
+    }
+    .join-btn.primary {
+      flex: 1 1 220px;
+      color: #fff;
+      background: #1faf53;
+    }
+    .join-btn.secondary {
+      color: #d1d5db;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .join-btn:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+    .join-status {
+      display: none;
+      margin-top: 16px;
+      border-radius: 8px;
+      padding: 13px 14px;
+      font-size: 14px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .join-status.show {
+      display: block;
+    }
+    .join-status.ok {
+      color: #dcfce7;
+      background: rgba(34, 197, 94, 0.13);
+      border: 1px solid rgba(34, 197, 94, 0.28);
+    }
+    .join-status.err {
+      color: #fee2e2;
+      background: rgba(239, 68, 68, 0.13);
+      border: 1px solid rgba(239, 68, 68, 0.28);
+    }
+    .join-success {
+      display: none;
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 8px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.26);
+    }
+    .join-success.show {
+      display: block;
+    }
+    .join-success-title {
+      margin: 0 0 8px;
+      font-size: 17px;
+      font-weight: 800;
+    }
+    .join-link {
+      display: block;
+      overflow-wrap: anywhere;
+      color: #86efac;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .join-honeypot {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    @media (max-width: 640px) {
+      body {
+        padding: 14px 12px 28px;
+      }
+      .join-header {
+        margin-top: 18px;
+      }
+      .join-panel {
+        padding: 16px;
+      }
+      .join-grid {
+        grid-template-columns: 1fr;
+      }
+      .join-actions {
+        flex-direction: column;
+      }
+      .join-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="theme-dark lang-zh">
+  <div class="bg-blob blob1"></div>
+  <div class="bg-blob blob2"></div>
+
+  <main class="join-shell">
+    <header class="join-header">
+      <div class="join-logo">
+        <img src="uvaco-logo.svg" alt="數位身分">
+      </div>
+      <h1 class="join-title">建立你的電子名片</h1>
+      <p class="join-desc">不用 LINE、Google、Email 驗證碼或簡訊。填完資料送出後，系統會自動通過並建立公開名片。</p>
+    </header>
+
+    <section class="join-panel" id="joinPanel">
+      <form id="guestJoinForm" novalidate>
+        <div class="join-grid">
+          <label class="join-field">
+            <span class="join-label">姓名</span>
+            <input class="join-input" id="guestName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="請輸入姓名">
+          </label>
+
+          <label class="join-field">
+            <span class="join-label">職稱</span>
+            <input class="join-input" id="guestTitle" name="title" type="text" autocomplete="organization-title" maxlength="80" placeholder="例如：業務經理">
+          </label>
+
+          <label class="join-field">
+            <span class="join-label">公司</span>
+            <input class="join-input" id="guestCompany" name="company" type="text" autocomplete="organization" maxlength="100" placeholder="請輸入公司名稱">
+          </label>
+
+          <label class="join-field">
+            <span class="join-label">部門</span>
+            <input class="join-input" id="guestDepartment" name="department" type="text" maxlength="80" placeholder="可留空">
+          </label>
+
+          <label class="join-field">
+            <span class="join-label">電話</span>
+            <input class="join-input" id="guestPhone" name="phone" type="tel" autocomplete="tel" maxlength="40" placeholder="手機或公司電話">
+          </label>
+
+          <label class="join-field">
+            <span class="join-label">Email</span>
+            <input class="join-input" id="guestEmail" name="email" type="email" autocomplete="email" maxlength="160" placeholder="可留空">
+          </label>
+
+          <label class="join-field full">
+            <span class="join-label">LINE 或其他聯絡連結</span>
+            <input class="join-input" id="guestLineUrl" name="line_url" type="url" inputmode="url" maxlength="220" placeholder="例如：https://line.me/R/ti/p/...">
+          </label>
+
+          <label class="join-honeypot">
+            網站
+            <input id="guestWebsite" name="website" type="text" tabindex="-1" autocomplete="off">
+          </label>
+        </div>
+
+        <p class="join-note">至少填一種聯絡方式。送出後會立即產生公開名片；日後若要修改資料，請聯絡邀請你的人或管理員。</p>
+
+        <div class="join-actions">
+          <button class="join-btn primary" id="guestSubmitBtn" type="submit">送出並建立名片</button>
+          <a class="join-btn secondary" href="index.html" style="text-decoration:none; text-align:center;">返回首頁</a>
+        </div>
+
+      </form>
+
+      <div id="joinStatus" class="join-status" role="status"></div>
+
+      <div id="joinSuccess" class="join-success">
+        <p class="join-success-title">名片已建立完成</p>
+        <a id="guestCardLink" class="join-link" href="#" target="_blank" rel="noopener"></a>
+        <div class="join-actions">
+          <button type="button" class="join-btn primary" onclick="openCreatedCard()">開啟我的名片</button>
+          <button type="button" class="join-btn secondary" onclick="copyCreatedCardLink()">複製名片連結</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    var createdCardUrl = '';
+    var createdShareUrl = '';
+
+    function getParam(name) {
+      try {
+        return new URLSearchParams(window.location.search || '').get(name) || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setJoinStatus(type, message) {
+      var box = document.getElementById('joinStatus');
+      if (!box) return;
+      box.className = 'join-status show ' + (type === 'ok' ? 'ok' : 'err');
+      box.textContent = message;
+    }
+
+    function clearJoinStatus() {
+      var box = document.getElementById('joinStatus');
+      if (!box) return;
+      box.className = 'join-status';
+      box.textContent = '';
+    }
+
+    function getInputValue(id) {
+      var el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    }
+
+    function setSubmitting(isSubmitting) {
+      var btn = document.getElementById('guestSubmitBtn');
+      if (!btn) return;
+      btn.disabled = isSubmitting;
+      btn.textContent = isSubmitting ? '正在建立名片...' : '送出並建立名片';
+    }
+
+    function showSuccess(publicUrl, shareUrl) {
+      createdCardUrl = publicUrl || '';
+      createdShareUrl = shareUrl || publicUrl || '';
+      try {
+        localStorage.setItem('UVACO_LAST_GUEST_CARD_URL', createdCardUrl);
+        localStorage.setItem('UVACO_LAST_GUEST_CARD_SHARE_URL', createdShareUrl);
+      } catch (e) {}
+
+      var link = document.getElementById('guestCardLink');
+      if (link) {
+        link.href = createdCardUrl;
+        link.textContent = createdCardUrl;
+      }
+      var success = document.getElementById('joinSuccess');
+      if (success) success.classList.add('show');
+      var form = document.getElementById('guestJoinForm');
+      if (form) form.style.display = 'none';
+    }
+
+    function openCreatedCard() {
+      if (createdCardUrl) window.location.href = createdCardUrl;
+    }
+
+    async function copyCreatedCardLink() {
+      var url = createdShareUrl || createdCardUrl;
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+        setJoinStatus('ok', '名片連結已複製。');
+      } catch (e) {
+        prompt('請手動複製名片連結：', url);
+      }
+    }
+
+    document.getElementById('guestJoinForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      clearJoinStatus();
+
+      var name = getInputValue('guestName');
+      var phone = getInputValue('guestPhone');
+      var email = getInputValue('guestEmail');
+      var lineUrl = getInputValue('guestLineUrl');
+
+      if (!name) {
+        setJoinStatus('err', '請先填寫姓名。');
+        return;
+      }
+      if (!phone && !email && !lineUrl) {
+        setJoinStatus('err', '請至少填寫電話、Email 或 LINE 聯絡連結其中一項。');
+        return;
+      }
+      if (!window.UVACO_CLOUD || typeof UVACO_CLOUD.createGuestCardAutoApproved !== 'function') {
+        setJoinStatus('err', '系統尚未載入完成，請重新整理後再試一次。');
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        var result = await UVACO_CLOUD.createGuestCardAutoApproved({
+          referrer_user_id: getParam('ref'),
+          name: name,
+          title: getInputValue('guestTitle'),
+          company: getInputValue('guestCompany'),
+          department: getInputValue('guestDepartment'),
+          phone: phone,
+          email: email,
+          line_url: lineUrl,
+          website: getInputValue('guestWebsite')
+        });
+
+        if (!result || !result.success) {
+          var error = result && result.error ? result.error : 'CREATE_FAILED';
+          setJoinStatus('err', '名片建立失敗，請確認資料後再試一次。\n錯誤代碼：' + error);
+          return;
+        }
+
+        showSuccess(result.public_url, result.share_url);
+      } catch (e) {
+        setJoinStatus('err', '名片建立失敗，請稍後再試。');
+      } finally {
+        setSubmitting(false);
+      }
+    });
+  </script>
+</body>
+</html>

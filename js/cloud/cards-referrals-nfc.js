@@ -1,6 +1,6 @@
 import { getAuthContext } from './session.js';
 import { getClient, getPublicClient, hasConfig } from './clients.js';
-import { SUPABASE_URL } from './constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_ANON_JWT } from './constants.js';
 import { isAdmin } from './admin-roles.js';
 
 
@@ -221,7 +221,48 @@ export async function getMyReferrals() {
 // 生成邀請連結
 export function generateInviteLink(userId) {
   const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
-  return `${baseUrl}auth.html?ref=${encodeURIComponent(userId)}&next=edit.html`;
+  const url = new URL('guest-join.html', baseUrl);
+  if (userId) url.searchParams.set('ref', String(userId));
+  // 從 LINE 訊息點開時，要求 LINE 優先交給外部瀏覽器。
+  url.searchParams.set('openExternalBrowser', '1');
+  return url.toString();
+}
+
+// 訪客免登入建立名片：由後端系統自動審核通過並建立正式公開名片。
+export async function createGuestCardAutoApproved(payload) {
+  if (!hasConfig()) {
+    return { success: false, error: 'SUPABASE_NOT_CONFIGURED' };
+  }
+
+  const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/guest-card-intake';
+  const body = {
+    ...(payload || {}),
+    site_url: window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/')
+  };
+
+  try {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        apikey: SUPABASE_ANON_KEY,
+        authorization: 'Bearer ' + (SUPABASE_ANON_JWT || SUPABASE_ANON_KEY)
+      },
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.success) {
+      return {
+        success: false,
+        status: resp.status,
+        error: data.error || 'GUEST_CARD_CREATE_FAILED',
+        detail: data.detail || null
+      };
+    }
+    return data;
+  } catch (e) {
+    return { success: false, error: e && e.message ? e.message : String(e || 'NETWORK_ERROR') };
+  }
 }
 
 /* =========================================================================
