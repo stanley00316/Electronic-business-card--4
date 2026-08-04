@@ -146,6 +146,14 @@
 
 ## Supabase（雲端名片 / 全平台搜尋 / Storage / LINE 登入）
 
+### 目前正式專案狀態（2026-08-04）
+
+- **正式專案**：`https://nqxibryjhgftyxttopuo.supabase.co`
+- **已套用 migration**：最新已到 `20260804163000_enterprise_paid_features_phase1.sql`
+- **已部署 Edge Function**：`guest-card-intake`（線上 build 標記：`2026-08-04-guest-card-intake-2`）
+- **已啟用能力**：企業邀請免登入建立名片、客戶待跟進資料、NFC 感應來源統計。
+- **保留不變**：GitHub Pages repo 路徑仍是 `Electronic-business-card--4`，公開名片與 NFC 既有網址規則不變。
+
 ### 1) 基本設定
 
 - 在 `cloud.js` 填入：

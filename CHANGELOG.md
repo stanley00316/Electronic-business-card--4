@@ -1,5 +1,24 @@
 # 變更紀錄
 
+## 2026-08-04（部署：企業付費功能 Phase 1 後端正式上線）
+
+### 部署（Supabase 正式專案）
+
+- **部署內容**：
+  1. 已將 migration `20260804163000_enterprise_paid_features_phase1.sql` 套用到正式 Supabase 專案 `nqxibryjhgftyxttopuo`。
+  2. 已部署 `guest-card-intake` Edge Function，新版回應標記為 `x-uvaco-build: 2026-08-04-guest-card-intake-2`。
+  3. 已確認遠端 migration 歷史包含 `20260804163000`，且再次 dry-run 顯示 `Remote database is up to date`。
+- **正式啟用功能**：
+  - 公開名片的「留下資料」可寫入 `lead_inquiries` 客戶待跟進資料表。
+  - 企業後台「客戶追蹤」可讀取與更新待跟進狀態。
+  - NFC 感應來源可寫入 `card_views.source = 'nfc'`，支援後台顯示最後 NFC 感應時間與 NFC 感應次數。
+  - 企業邀請 token 流程已使用新版 `guest-card-intake`，不會把非登入訪客寫入 `card_invites.used_by`，避免外鍵錯誤。
+- **影響範圍**：只套用已規劃的新增欄位、資料表、RLS policy、RPC 與 Edge Function；沒有改 `card.html?id=...`、沒有改 `card.html?nfc=...`、沒有刪除既有資料。
+- **線上驗證**：
+  - `company-admin.html` 回應 HTTP 200。
+  - `card.html` 回應 HTTP 200。
+  - `guest-card-intake` 線上端點已回應，狀態為 Supabase Edge Runtime。
+
 ## 2026-08-04（新增：企業付費功能 Phase 1，批次管理、客戶追蹤與防詐騙驗證）
 
 ### 新增（企業管理中心）
