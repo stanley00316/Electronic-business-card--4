@@ -1,5 +1,17 @@
 # 變更紀錄
 
+## 2026-08-04（改善：PWA 新版提示改為手動更新，不再突兀重整）
+
+### 改善（手機 / PWA 快取更新）
+
+- **問題緣起**：原本 Service Worker 偵測到新版本後，前端會直接執行 `window.location.reload()`，如果使用者正在編輯名片、看客戶資料或操作後台，可能會突然被重整打斷。
+- **修正方式**：
+  1. `service-worker.js` 的新版通知改為 `SW_UPDATE_AVAILABLE`，只告知頁面「有新版可用」。
+  2. `js/common/sw-update.js` 改成顯示底部小提示，使用者可自行選擇「更新」或「稍後」。
+  3. 只有使用者按下「更新」時才會重新整理頁面；按「稍後」會關閉提示，不影響目前操作。
+- **影響範圍**：只改 PWA / Service Worker 更新提示，不改公開名片網址、不改 NFC 連結、不改 Supabase 資料表或 Edge Function。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.1`；引用 `common.js` 的頁面版本參數升為 `?v=20260804d`；已重新打包 `common.js`。
+
 ## 2026-08-04（部署：企業付費功能 Phase 1 後端正式上線）
 
 ### 部署（Supabase 正式專案）

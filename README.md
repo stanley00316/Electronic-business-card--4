@@ -98,6 +98,7 @@
   - 若本機仍保留舊 LINE 登入 token，會先讀取其中的使用者 ID 來開公開名片；這只用於公開瀏覽，不代表已登入管理功能
   - 從手機主畫面/PWA 圖示開啟但尚未記住名片 ID 時：停在提示畫面，由使用者手動點「登入一次」，避免自動 LINE 登入造成反覆閃爍
   - 編輯名片、設定、通訊錄與後台仍維持 LINE 登入保護
+- **新版快取提示**：Service Worker 偵測到新版時，只會顯示底部「更新 / 稍後」提示；不會自動重整頁面，避免使用者正在編輯或操作後台時被打斷。
 - **首次進入**：系統會依 Supabase 名片資料與 `localStorage.UVACO_ONBOARDED` 判斷是否進入新手流程
   - 使用者在 `edit.html` 按下「儲存」後，會寫入 `UVACO_ONBOARDED=1` 並回到 `directory.html`
 - **要跳過 onboarding**：可用 `directory.html?skipOnboarding=1`

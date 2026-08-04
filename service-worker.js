@@ -1,6 +1,6 @@
 // 數位身分平台 - Service Worker
 // 版本號：每次更新資源時需要更新此版本
-const CACHE_VERSION = 'v1.37.0';
+const CACHE_VERSION = 'v1.37.1';
 const CACHE_NAME = `digital-identity-${CACHE_VERSION}`;
 
 // 需要快取的靜態資源
@@ -81,7 +81,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 啟動事件：清理舊快取並通知所有客戶端重新載入
+// 啟動事件：清理舊快取並通知頁面顯示「可更新」提示
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating service worker...');
   event.waitUntil(
@@ -101,10 +101,10 @@ self.addEventListener('activate', (event) => {
         return self.clients.claim();
       })
       .then(() => {
-        // 通知所有客戶端有新版本，需要重新載入
+        // 這裡只通知頁面，由前端顯示更新提示，避免正在操作時被強制重整。
         return self.clients.matchAll().then((clients) => {
           clients.forEach((client) => {
-            client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION });
+            client.postMessage({ type: 'SW_UPDATE_AVAILABLE', version: CACHE_VERSION });
           });
         });
       })
