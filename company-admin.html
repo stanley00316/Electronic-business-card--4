@@ -337,18 +337,34 @@
     .link-output textarea { min-height: 120px; margin-bottom: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
     /* ── 客戶追蹤 ── */
-    .lead-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+    .lead-board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
     .lead-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .lead-stat.hot { border-color: rgba(245,158,11,.42); background: rgba(245,158,11,.08); }
     .lead-stat-value { font-size: 24px; font-weight: 800; color: var(--g); line-height: 1; }
+    .lead-stat.hot .lead-stat-value { color: #fbbf24; }
     .lead-stat-label { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
     .lead-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 14px; margin-bottom: 10px;
     }
+    .lead-card.lead-urgent { border-color: rgba(245,158,11,.42); }
     .lead-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
     .lead-name { font-size: 14px; font-weight: 800; }
     .lead-meta, .lead-need { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+    .lead-reminder {
+      display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px;
+      border-radius: 999px; color: #bbf7d0; background: rgba(34,197,94,.1);
+      font-size: 11px; font-weight: 800; margin-top: 6px;
+    }
+    .lead-reminder.urgent { color: #fbbf24; background: rgba(245,158,11,.12); }
+    .lead-contact-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .lead-contact-chip {
+      display: inline-flex; align-items: center; min-height: 28px; padding: 0 9px;
+      border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--border2);
+      color: var(--text-dim); font-size: 12px; max-width: 100%;
+    }
     .lead-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    @media (max-width: 980px) { .lead-board { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 720px) { .lead-board { grid-template-columns: repeat(2, 1fr); } .batch-bar { align-items: flex-start; flex-direction: column; } }
 
     /* ── NFC dropdown ── */
@@ -612,6 +628,7 @@
       </div>
 
       <div class="lead-board">
+        <div class="lead-stat hot"><div class="lead-stat-value" id="leadStatOverdue">—</div><div class="lead-stat-label">超過 1 天未聯絡</div></div>
         <div class="lead-stat"><div class="lead-stat-value" id="leadStatNew">—</div><div class="lead-stat-label">未聯絡</div></div>
         <div class="lead-stat"><div class="lead-stat-value" id="leadStatContacted">—</div><div class="lead-stat-label">已聯絡</div></div>
         <div class="lead-stat"><div class="lead-stat-value" id="leadStatWon">—</div><div class="lead-stat-label">成交</div></div>
@@ -626,6 +643,21 @@
           <option value="won">成交</option>
           <option value="invalid">無效</option>
         </select>
+        <select class="filter-sel" id="leadSourceSel" onchange="renderLeads()">
+          <option value="">全部來源</option>
+          <option value="nfc">NFC</option>
+          <option value="qr">QR Code</option>
+          <option value="line_share">LINE 分享</option>
+          <option value="web">網頁</option>
+        </select>
+        <select class="filter-sel" id="leadFollowSel" onchange="renderLeads()">
+          <option value="">全部時間</option>
+          <option value="overdue">只看超過 1 天未聯絡</option>
+          <option value="today">只看今日新增</option>
+          <option value="has_contact">只看有聯絡方式</option>
+        </select>
+        <button class="btn btn-outline" onclick="exportLeadCSV()">⬇ 匯出客戶</button>
+        <button class="btn btn-outline" onclick="copyLeadSummary()">複製摘要</button>
         <button class="btn btn-outline" onclick="loadLeads()" id="leadReloadBtn">↻ 重整</button>
       </div>
       <div id="leadMsg" style="min-height:20px;margin-bottom:10px;"></div>
@@ -932,7 +964,7 @@
 </nav>
 
 <script src="supabase.min.js"></script>
-<script src="cloud.js?v=20260804c"></script>
+<script src="cloud.js?v=20260804e"></script>
 <script>
 /* ════════════════════════════════════════════
    狀態變數
@@ -952,6 +984,7 @@ let selectedEmpIds = new Set();
 let bulkInviteRows = [];
 let createdInviteLinks = [];
 let allLeads = [];
+let shownLeads = [];
 // Modal 狀態
 let disableTarget = null;
 let nfcTarget     = null;
@@ -1802,17 +1835,34 @@ async function loadLeads() {
 
 function updateLeadStats() {
   const countBy = status => allLeads.filter(lead => (lead.status || 'new') === status).length;
+  setText('leadStatOverdue', allLeads.filter(isLeadOverdue).length);
   setText('leadStatNew', countBy('new'));
   setText('leadStatContacted', countBy('contacted'));
   setText('leadStatWon', countBy('won'));
   setText('leadStatInvalid', countBy('invalid'));
 }
 
+function getFilteredLeadRows() {
+  const filter = document.getElementById('leadStatusSel')?.value || '';
+  const source = document.getElementById('leadSourceSel')?.value || '';
+  const follow = document.getElementById('leadFollowSel')?.value || '';
+
+  return allLeads.filter(lead => {
+    const status = lead.status || 'new';
+    if (filter && status !== filter) return false;
+    if (source && (lead.source || 'web') !== source) return false;
+    if (follow === 'overdue' && !isLeadOverdue(lead)) return false;
+    if (follow === 'today' && !isLeadToday(lead)) return false;
+    if (follow === 'has_contact' && !leadHasContact(lead)) return false;
+    return true;
+  });
+}
+
 function renderLeads() {
   const list = document.getElementById('leadList');
   if (!list) return;
-  const filter = document.getElementById('leadStatusSel')?.value || '';
-  const rows = allLeads.filter(lead => !filter || (lead.status || 'new') === filter);
+  const rows = getFilteredLeadRows();
+  shownLeads = rows;
   if (!rows.length) {
     list.innerHTML = '<div class="empty-state"><div class="empty-icon">📌</div><div class="empty-text">目前沒有待跟進資料</div></div>';
     return;
@@ -1820,25 +1870,194 @@ function renderLeads() {
   list.innerHTML = rows.map(lead => {
     const emp = findEmp(lead.card_user_id) || {};
     const status = leadStatusBadge(lead.status || 'new');
+    const reminder = leadReminderBadge(lead);
     const contact = [lead.phone, lead.line, lead.email].filter(Boolean).join(' / ') || '未填';
-    return `<div class="lead-card">
+    const urgentClass = isLeadOverdue(lead) ? ' lead-urgent' : '';
+    return `<div class="lead-card${urgentClass}">
       <div class="lead-top">
         <div>
           <div class="lead-name">${esc(lead.customer_name || '未填姓名')}</div>
           <div class="lead-meta">名片：${esc(emp.name || lead.card_user_id || '')} · 來源：${leadSourceText(lead.source)} · ${fmtDate(lead.created_at)}</div>
+          ${reminder}
         </div>
         ${status}
       </div>
       <div class="lead-meta">聯絡方式：${esc(contact)}</div>
+      ${renderLeadContactChips(lead)}
       ${lead.need ? `<div class="lead-need">需求：${esc(lead.need)}</div>` : ''}
       ${lead.note ? `<div class="lead-need">備註：${esc(lead.note)}</div>` : ''}
       <div class="lead-actions">
-        <button class="btn btn-sm btn-outline" onclick="setLeadStatus('${lead.id}','contacted')">已聯絡</button>
-        <button class="btn btn-sm btn-green" onclick="setLeadStatus('${lead.id}','won')">成交</button>
-        <button class="btn btn-sm btn-outline" onclick="setLeadStatus('${lead.id}','invalid')">無效</button>
+        ${renderLeadContactActions(lead)}
+        <button class="btn btn-sm btn-outline" onclick="copyLeadContact('${leadIdArg(lead.id)}')">複製資料</button>
+        <button class="btn btn-sm btn-outline" onclick="setLeadStatus('${leadIdArg(lead.id)}','contacted')">已聯絡</button>
+        <button class="btn btn-sm btn-green" onclick="setLeadStatus('${leadIdArg(lead.id)}','won')">成交</button>
+        <button class="btn btn-sm btn-outline" onclick="setLeadStatus('${leadIdArg(lead.id)}','invalid')">無效</button>
+        ${(lead.status || 'new') !== 'new' ? `<button class="btn btn-sm btn-outline" onclick="setLeadStatus('${leadIdArg(lead.id)}','new')">改回未聯絡</button>` : ''}
       </div>
     </div>`;
   }).join('');
+}
+
+function leadHasContact(lead) {
+  return Boolean(String(lead.phone || lead.line || lead.email || '').trim());
+}
+
+function isLeadToday(lead) {
+  if (!lead.created_at) return false;
+  const created = new Date(lead.created_at);
+  const now = new Date();
+  return created.toDateString() === now.toDateString();
+}
+
+function isLeadOverdue(lead) {
+  if ((lead.status || 'new') !== 'new' || !lead.created_at) return false;
+  const created = new Date(lead.created_at).getTime();
+  return Number.isFinite(created) && (Date.now() - created) >= 86400000;
+}
+
+function leadAgeDays(lead) {
+  if (!lead.created_at) return 0;
+  const created = new Date(lead.created_at).getTime();
+  if (!Number.isFinite(created)) return 0;
+  return Math.max(0, Math.floor((Date.now() - created) / 86400000));
+}
+
+function leadReminderBadge(lead) {
+  if ((lead.status || 'new') !== 'new') return '';
+  if (isLeadOverdue(lead)) {
+    const days = Math.max(1, leadAgeDays(lead));
+    return `<span class="lead-reminder urgent">已等 ${days} 天，請優先聯絡</span>`;
+  }
+  return '<span class="lead-reminder">今日/近期新增</span>';
+}
+
+function renderLeadContactChips(lead) {
+  const chips = [];
+  if (lead.phone) chips.push(`<span class="lead-contact-chip">電話：${esc(lead.phone)}</span>`);
+  if (lead.line) chips.push(`<span class="lead-contact-chip">LINE：${esc(lead.line)}</span>`);
+  if (lead.email) chips.push(`<span class="lead-contact-chip">Email：${esc(lead.email)}</span>`);
+  return chips.length ? `<div class="lead-contact-row">${chips.join('')}</div>` : '';
+}
+
+function renderLeadContactActions(lead) {
+  const actions = [];
+  const telHref = getLeadTelHref(lead.phone);
+  const mailHref = getLeadMailHref(lead.email);
+  if (telHref) actions.push(`<a class="btn btn-sm btn-outline" href="${esc(telHref)}">撥電話</a>`);
+  if (mailHref) actions.push(`<a class="btn btn-sm btn-outline" href="${esc(mailHref)}">寄信</a>`);
+  if (lead.line) actions.push(`<button class="btn btn-sm btn-outline" onclick="copyLeadLine('${leadIdArg(lead.id)}')">複製 LINE</button>`);
+  return actions.join('');
+}
+
+function getLeadTelHref(phone) {
+  const value = String(phone || '').replace(/[^\d+*#,;]/g, '');
+  return value.length >= 3 ? `tel:${value}` : '';
+}
+
+function getLeadMailHref(email) {
+  const value = String(email || '').trim();
+  if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(value)) return '';
+  return `mailto:${value}`;
+}
+
+function leadIdArg(id) {
+  return esc(String(id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+}
+
+function leadStatusText(status) {
+  return ({ new:'未聯絡', contacted:'已聯絡', won:'成交', invalid:'無效' })[status || 'new'] || '未聯絡';
+}
+
+function getLeadContactText(lead) {
+  const emp = findEmp(lead.card_user_id) || {};
+  return [
+    `客戶：${lead.customer_name || '未填姓名'}`,
+    `名片：${emp.name || lead.card_user_id || ''}`,
+    `狀態：${leadStatusText(lead.status)}`,
+    `來源：${leadSourceTextPlain(lead.source)}`,
+    `時間：${lead.created_at ? new Date(lead.created_at).toLocaleString('zh-TW') : ''}`,
+    `電話：${lead.phone || ''}`,
+    `LINE：${lead.line || ''}`,
+    `Email：${lead.email || ''}`,
+    `需求：${lead.need || ''}`,
+    `備註：${lead.note || ''}`
+  ].join('\n');
+}
+
+function copyText(text, successMessage) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => toast(successMessage, 'success')).catch(() => fallbackCopyText(text, successMessage));
+  } else {
+    fallbackCopyText(text, successMessage);
+  }
+}
+
+function fallbackCopyText(text, successMessage) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', 'readonly');
+  area.style.position = 'fixed';
+  area.style.left = '-9999px';
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand('copy');
+  area.remove();
+  toast(successMessage, 'success');
+}
+
+function copyLeadContact(leadId) {
+  const lead = allLeads.find(row => String(row.id) === String(leadId));
+  if (!lead) { toast('找不到這筆客戶資料', 'error'); return; }
+  copyText(getLeadContactText(lead), '客戶資料已複製');
+}
+
+function copyLeadLine(leadId) {
+  const lead = allLeads.find(row => String(row.id) === String(leadId));
+  if (!lead || !lead.line) { toast('這筆資料沒有 LINE', 'error'); return; }
+  copyText(String(lead.line || ''), 'LINE 已複製');
+}
+
+function exportLeadCSV() {
+  const data = shownLeads.length ? shownLeads : getFilteredLeadRows();
+  if (!data.length) { toast('沒有客戶資料可匯出', 'error'); return; }
+  const hdrs = ['客戶姓名','對應員工','來源','狀態','待處理提醒','留資料時間','電話','LINE','Email','需求','備註'];
+  const rows = data.map(lead => {
+    const emp = findEmp(lead.card_user_id) || {};
+    return [
+      lead.customer_name || '',
+      emp.name || lead.card_user_id || '',
+      leadSourceTextPlain(lead.source),
+      leadStatusText(lead.status),
+      isLeadOverdue(lead) ? `超過 ${Math.max(1, leadAgeDays(lead))} 天未聯絡` : '',
+      lead.created_at ? new Date(lead.created_at).toLocaleString('zh-TW') : '',
+      lead.phone || '',
+      lead.line || '',
+      lead.email || '',
+      lead.need || '',
+      lead.note || ''
+    ];
+  });
+  const csv = '﻿' + [hdrs,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),
+    download: `客戶追蹤_${myCompany||activeCompany||'全部'}_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click(); URL.revokeObjectURL(a.href);
+  toast(`已匯出 ${data.length} 筆客戶資料`, 'success');
+}
+
+function copyLeadSummary() {
+  const overdue = allLeads.filter(isLeadOverdue).length;
+  const countBy = status => allLeads.filter(lead => (lead.status || 'new') === status).length;
+  const summary = [
+    `客戶追蹤摘要（${new Date().toLocaleString('zh-TW')}）`,
+    `超過 1 天未聯絡：${overdue}`,
+    `未聯絡：${countBy('new')}`,
+    `已聯絡：${countBy('contacted')}`,
+    `成交：${countBy('won')}`,
+    `無效：${countBy('invalid')}`
+  ].join('\n');
+  copyText(summary, '客戶摘要已複製');
 }
 
 async function setLeadStatus(leadId, status) {
@@ -1863,8 +2082,11 @@ function leadStatusBadge(status) {
   return `<span class="badge ${cls}"><span class="dot"></span>${label}</span>`;
 }
 function leadSourceText(source) {
+  return esc(leadSourceTextPlain(source));
+}
+function leadSourceTextPlain(source) {
   const map = { nfc:'NFC', line_share:'LINE 分享', qr:'QR Code', web:'網頁' };
-  return esc(map[source] || source || '網頁');
+  return map[source] || source || '網頁';
 }
 
 /* ════════════════════════════════════════════

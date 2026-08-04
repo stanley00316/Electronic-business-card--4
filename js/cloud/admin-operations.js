@@ -789,6 +789,7 @@ export async function updateLeadInquiryStatus(leadId, status, note = '') {
     updated_at: new Date().toISOString()
   };
   if (status === 'contacted') row.contacted_at = new Date().toISOString();
+  if (status === 'new') row.contacted_at = null;
 
   const { error } = await ctx.client
     .from('lead_inquiries')
