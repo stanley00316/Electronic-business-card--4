@@ -4,11 +4,14 @@
 -- Company admin: same ILIKE scope as cards_admin_* (managed_company or target_company vs cards.company).
 -- Run in Supabase SQL Editor before using rpc get_card_view_summaries_for_admin.
 
+drop function if exists public.get_card_view_summaries_for_admin(uuid[]);
 create or replace function public.get_card_view_summaries_for_admin(p_user_ids uuid[])
 returns table (
   user_id uuid,
   open_count bigint,
-  last_opened_at timestamptz
+  last_opened_at timestamptz,
+  nfc_scan_count bigint,
+  last_nfc_scanned_at timestamptz
 )
 language plpgsql
 stable
@@ -26,10 +29,7 @@ begin
     raise exception 'PERMISSION_DENIED_NOT_ADMIN' using errcode = '42501';
   end if;
 
-  select nullif(
-    trim(both from coalesce(au.managed_company, au.target_company, '')),
-    ''
-  )
+  select nullif(trim(both from coalesce(au.target_company, '')), '')
   into mc
   from public.admin_users au
   where au.user_id::text = auth.uid()::text
@@ -39,7 +39,9 @@ begin
   select
     v.card_user_id,
     count(*)::bigint,
-    max(v.viewed_at)
+    max(v.viewed_at),
+    count(*) filter (where v.source = 'nfc')::bigint,
+    max(v.viewed_at) filter (where v.source = 'nfc')
   from public.card_views v
   inner join public.cards c on c.user_id = v.card_user_id
   where v.card_user_id = any(p_user_ids)

@@ -50,6 +50,7 @@ import {
   getCardPublic,
   recordCardView,
   getCardViewStats,
+  submitLeadInquiry,
   recordReferral,
   getMyReferralCount,
   getMyReferrals,
@@ -73,11 +74,15 @@ import {
   enableEmployeeCard,
   updateNfcStatus,
   transferNfcCard,
+  batchUpdateEmployeeCards,
   createCardInvite,
   claimCardInvite,
+  getCardInvitePublic,
   getCardInvites,
   saveCompanySettings,
-  getCompanySettings
+  getCompanySettings,
+  getLeadInquiriesAdmin,
+  updateLeadInquiryStatus
 } from './admin-operations.js';
 import { searchCards, uploadMyAsset, getSignedAssetUrl, upsertMyCard } from './search-storage.js';
 import {
@@ -160,6 +165,7 @@ window.UVACO_CLOUD = {
 
   recordCardView,
   getCardViewStats,
+  submitLeadInquiry,
 
   recordReferral,
   getMyReferralCount,
@@ -182,11 +188,15 @@ window.UVACO_CLOUD = {
   enableEmployeeCard,
   updateNfcStatus,
   transferNfcCard,
+  batchUpdateEmployeeCards,
   createCardInvite,
   claimCardInvite,
+  getCardInvitePublic,
   getCardInvites,
   saveCompanySettings,
   getCompanySettings,
+  getLeadInquiriesAdmin,
+  updateLeadInquiryStatus,
 
   uploadMyAsset,
   getSignedAssetUrl,

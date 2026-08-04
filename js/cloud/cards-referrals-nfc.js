@@ -51,6 +51,20 @@ export async function getCardPublic(userId, options = {}) {
   return { card: data || null };
 }
 
+function getCardOpenSource() {
+  try {
+    if (typeof window !== 'undefined' && window.__uvacoCardOpenSource) {
+      return String(window.__uvacoCardOpenSource || 'web').slice(0, 40);
+    }
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search || '');
+      if (params.get('nfc')) return 'nfc';
+      if (params.get('openExternalBrowser')) return 'line_share';
+    }
+  } catch (_e) {}
+  return 'web';
+}
+
 // 記錄名片瀏覽（瀏覽統計功能）
 export async function recordCardView(userId) {
   if (!hasConfig() || !userId) return { success: false };
@@ -64,12 +78,18 @@ export async function recordCardView(userId) {
     if (!uid) return { success: false };
 
     const row = { card_user_id: uid };
+    row.source = getCardOpenSource();
     const ref = (typeof document !== 'undefined' && document.referrer) ? String(document.referrer).trim() : '';
     if (ref) row.referrer = ref.slice(0, 4096);
     const ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? String(navigator.userAgent).trim() : '';
     if (ua) row.user_agent = ua.slice(0, 4096);
 
-    const { error: viewError } = await client.from('card_views').insert(row);
+    let { error: viewError } = await client.from('card_views').insert(row);
+    if (viewError && /source|schema cache|column/i.test(String(viewError.message || viewError))) {
+      delete row.source;
+      const retry = await client.from('card_views').insert(row);
+      viewError = retry.error;
+    }
 
     if (viewError) {
       console.log('[Views] card_views 寫入略過:', viewError.message || viewError);
@@ -81,6 +101,57 @@ export async function recordCardView(userId) {
     console.error('[Views] 記錄瀏覽失敗:', e);
     return { success: false, error: e };
   }
+}
+
+function cleanLeadText(value, maxLength = 160) {
+  return String(value ?? '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+// 客戶在公開名片留下資料後，建立一筆待跟進名單。沒有 lead_inquiries 資料表時會安全失敗，不影響名片開啟。
+export async function submitLeadInquiry(payload = {}) {
+  if (!hasConfig()) return { success: false, error: 'SUPABASE_NOT_CONFIGURED' };
+
+  const cardUserId = cleanLeadText(payload.card_user_id || payload.cardUserId, 80);
+  const customerName = cleanLeadText(payload.customer_name || payload.customerName, 80);
+  const phone = cleanLeadText(payload.phone, 60);
+  const line = cleanLeadText(payload.line, 160);
+  const email = cleanLeadText(payload.email, 160).toLowerCase();
+  const need = cleanLeadText(payload.need, 500);
+
+  if (!cardUserId) return { success: false, error: 'CARD_REQUIRED' };
+  if (!customerName) return { success: false, error: 'NAME_REQUIRED' };
+  if (!phone && !line && !email) return { success: false, error: 'CONTACT_REQUIRED' };
+
+  const client = getPublicClient();
+  if (!client) return { success: false, error: 'CLIENT_NOT_READY' };
+
+  const row = {
+    card_user_id: cardUserId,
+    customer_name: customerName,
+    phone,
+    line,
+    email,
+    need,
+    status: 'new',
+    source: cleanLeadText(payload.source, 40) || getCardOpenSource(),
+    consent_at: new Date().toISOString()
+  };
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? String(navigator.userAgent).trim() : '';
+  if (ua) row.user_agent = ua.slice(0, 4096);
+
+  const { data, error } = await client
+    .from('lead_inquiries')
+    .insert(row)
+    .select('id')
+    .maybeSingle();
+
+  if (error) return { success: false, error: error.message || String(error) };
+  return { success: true, id: data?.id || null };
 }
 
 // 取得名片瀏覽統計

@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const BUILD_ID = "2026-08-04-guest-card-intake-1";
+const BUILD_ID = "2026-08-04-guest-card-intake-2";
 const DEFAULT_PUBLIC_SITE_URL = "https://stanley00316.github.io/Electronic-business-card--4/";
 
 function normalizeSecret(value: string | undefined | null) {
@@ -78,6 +78,17 @@ function normalizeUrl(value: string) {
   if (/^line:/i.test(raw)) return raw;
   if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(raw)) return "https://" + raw;
   return "";
+}
+
+function parseInviteNote(value: unknown) {
+  if (!value) return {};
+  if (typeof value === "object") return value as Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+  } catch (_e) {
+    return {};
+  }
 }
 
 function buildContactsHtml(phone: string, email: string, lineUrl: string) {
@@ -167,15 +178,43 @@ serve(async (req) => {
   // 蜜罐欄位：正常使用者不會填到，若有值就視為機器送件。
   if (cleanText(body.website, 120)) return bad("BOT_DETECTED", 422);
 
-  const name = cleanText(body.name, 80);
-  const title = cleanText(body.title, 80);
-  const company = cleanText(body.company, 100);
-  const department = cleanText(body.department, 80);
-  const phone = normalizePhone(cleanText(body.phone, 60));
-  const email = normalizeEmail(cleanText(body.email, 180));
-  const lineUrl = normalizeUrl(cleanText(body.line_url, 240));
+  let name = cleanText(body.name, 80);
+  let title = cleanText(body.title, 80);
+  let company = cleanText(body.company, 100);
+  let department = cleanText(body.department, 80);
+  let phone = normalizePhone(cleanText(body.phone, 60));
+  let email = normalizeEmail(cleanText(body.email, 180));
+  let lineUrl = normalizeUrl(cleanText(body.line_url, 240));
   const referrerUserId = cleanText(body.referrer_user_id, 80);
+  const inviteToken = cleanText(body.invite_token, 80);
   const siteUrl = normalizeSiteUrl(body.site_url);
+  let phoneExtension = cleanText(body.phone_extension, 30);
+  let companyAddress = cleanText(body.company_address, 220);
+
+  let invite: Record<string, unknown> | null = null;
+  if (inviteToken && isUuid(inviteToken)) {
+    const inviteResp = await supabaseRest(
+      SUPABASE_URL,
+      SERVICE_ROLE_KEY,
+      "/rest/v1/card_invites?token=eq." + encodeURIComponent(inviteToken) + "&used_at=is.null&expires_at=gt." + encodeURIComponent(new Date().toISOString()) + "&select=*",
+      { method: "GET" },
+    );
+    if (!inviteResp.ok) return bad("INVITE_READ_FAILED", 500, { status: inviteResp.status });
+    const inviteRows = await inviteResp.json().catch(() => []);
+    invite = Array.isArray(inviteRows) ? inviteRows[0] || null : null;
+    if (!invite) return bad("INVITE_INVALID_OR_EXPIRED", 404);
+
+    const note = parseInviteNote(invite.note);
+    name = name || cleanText(invite.name, 80);
+    title = title || cleanText(invite.title, 80);
+    company = company || cleanText(invite.target_company, 100);
+    department = department || cleanText(invite.department, 80);
+    phone = phone || normalizePhone(cleanText(invite.phone, 60));
+    email = email || normalizeEmail(cleanText(invite.email, 180));
+    lineUrl = lineUrl || normalizeUrl(cleanText(note.line_url || note.lineUrl, 240));
+    phoneExtension = phoneExtension || cleanText(note.phone_extension || note.phoneExtension, 30);
+    companyAddress = companyAddress || cleanText(note.company_address || note.companyAddress, 220);
+  }
 
   if (!name) return bad("NAME_REQUIRED");
   if (!phone && !email && !lineUrl) return bad("CONTACT_REQUIRED");
@@ -194,7 +233,11 @@ serve(async (req) => {
     contactsHtml,
     guestAutoApproved: true,
     guestApprovedAt: new Date().toISOString(),
-    guestSource: "guest-join",
+    guestSource: invite ? "employee-invite" : "guest-join",
+    inviteToken: invite ? inviteToken : "",
+    phoneExtension,
+    companyAddressZh: companyAddress,
+    companyAddressEn: "",
   };
 
   const insertResp = await supabaseRest(SUPABASE_URL, SERVICE_ROLE_KEY, "/rest/v1/cards?select=user_id", {
@@ -223,16 +266,28 @@ serve(async (req) => {
   }
 
   let referralRecorded = false;
-  if (isUuid(referrerUserId) && referrerUserId !== userId) {
+  const inviteCreatorId = invite ? cleanText(invite.created_by, 80) : "";
+  const referralOwnerId = isUuid(referrerUserId) ? referrerUserId : inviteCreatorId;
+  if (isUuid(referralOwnerId) && referralOwnerId !== userId) {
     const referralResp = await supabaseRest(SUPABASE_URL, SERVICE_ROLE_KEY, "/rest/v1/referrals", {
       method: "POST",
       headers: { prefer: "return=minimal" },
       body: JSON.stringify({
-        referrer_user_id: referrerUserId,
+        referrer_user_id: referralOwnerId,
         referred_user_id: userId,
       }),
     });
     referralRecorded = referralResp.ok;
+  }
+
+  if (invite) {
+    await supabaseRest(SUPABASE_URL, SERVICE_ROLE_KEY, "/rest/v1/card_invites?token=eq." + encodeURIComponent(inviteToken), {
+      method: "PATCH",
+      headers: { prefer: "return=minimal" },
+      body: JSON.stringify({
+        used_at: new Date().toISOString(),
+      }),
+    });
   }
 
   const publicUrl = `${siteUrl}card.html?id=${encodeURIComponent(userId)}`;

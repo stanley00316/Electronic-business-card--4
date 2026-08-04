@@ -182,7 +182,8 @@ function applyLockedFields(fields) {
 
   const LABELS = {
     name: '姓名', title: '職稱', company: '公司名稱',
-    department: '部門', email: 'Email', phone: '電話', theme: '名片主題'
+    department: '部門', email: 'Email', phone: '電話', theme: '名片主題',
+    logo: '公司 Logo', companyInfo: '公司資訊', contacts: '聯絡按鈕'
   };
 
   fields.forEach(field => {
@@ -215,6 +216,53 @@ function applyLockedFields(fields) {
         themeBtn.style.pointerEvents = 'none';
         themeBtn.style.opacity = '0.4';
         themeBtn.title = '🔒 名片主題由公司管理員鎖定';
+      }
+    }
+
+    if (field === 'logo') {
+      const logoWrap = document.querySelector('[onclick*="editLogo"]');
+      if (logoWrap) {
+        logoWrap.removeAttribute('onclick');
+        logoWrap.classList.remove('edit-clickable');
+        logoWrap.style.cursor = 'not-allowed';
+        logoWrap.style.opacity = '0.78';
+        logoWrap.title = '🔒 公司 Logo 由公司管理員鎖定';
+      }
+    }
+
+    if (field === 'companyInfo') {
+      const section = document.getElementById('companyInfoSection');
+      if (section) {
+        section.querySelectorAll('[contenteditable="true"]').forEach(el => {
+          el.contentEditable = 'false';
+          el.dataset.locked = '1';
+          el.style.cursor = 'not-allowed';
+          el.style.opacity = '0.72';
+        });
+        section.querySelectorAll('.info-delete-btn, .edit-add-btn').forEach(btn => {
+          btn.disabled = true;
+          btn.style.display = 'none';
+        });
+        section.querySelectorAll('.edit-clickable').forEach(el => {
+          el.classList.remove('edit-clickable');
+          el.removeAttribute('onclick');
+        });
+      }
+    }
+
+    if (field === 'contacts') {
+      const contacts = document.getElementById('previewContacts');
+      if (contacts) {
+        contacts.querySelectorAll('.edit-add-btn, .contact-delete-btn').forEach(btn => {
+          btn.disabled = true;
+          btn.style.display = 'none';
+        });
+        contacts.querySelectorAll('.edit-clickable').forEach(el => {
+          el.classList.remove('edit-clickable');
+          el.removeAttribute('onclick');
+          el.style.cursor = 'not-allowed';
+          el.title = '🔒 聯絡按鈕由公司管理員鎖定';
+        });
       }
     }
   });

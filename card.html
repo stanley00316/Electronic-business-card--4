@@ -59,7 +59,7 @@
 <!-- Supabase JS（CDN） -->
   <script src="supabase.min.js"></script>
   <!-- QR Code 生成器 -->
-<script src="cloud.js?v=20260804a"></script>
+<script src="cloud.js?v=20260804c"></script>
   <script src="common.js?v=20260708a"></script>
   <style>
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
@@ -284,6 +284,124 @@
         grid-column: auto;
       }
     }
+
+    .trust-panel {
+      display: none;
+      margin: 14px 0 10px;
+      padding: 13px 14px;
+      border-radius: 8px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.24);
+      color: #d1fae5;
+      text-align: left;
+    }
+    .trust-panel.show {
+      display: block;
+    }
+    .trust-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .trust-status {
+      flex-shrink: 0;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.16);
+      color: #86efac;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .trust-row {
+      display: flex;
+      gap: 8px;
+      color: rgba(255,255,255,0.82);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .trust-row b {
+      min-width: 72px;
+      color: rgba(255,255,255,0.62);
+      font-weight: 700;
+    }
+    .lead-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(0,0,0,0.72);
+    }
+    .lead-modal.show {
+      display: flex;
+    }
+    .lead-box {
+      width: min(440px, 100%);
+      border-radius: 12px;
+      background: #111827;
+      border: 1px solid rgba(255,255,255,0.14);
+      padding: 20px;
+      color: #fff;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.42);
+    }
+    .lead-box h3 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+    .lead-box p {
+      margin: 0 0 14px;
+      color: #9ca3af;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .lead-box label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: #d1d5db;
+      font-weight: 700;
+    }
+    .lead-box input,
+    .lead-box textarea {
+      width: 100%;
+      margin-top: 6px;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      padding: 10px 12px;
+      font-size: 15px;
+      outline: none;
+      font-family: inherit;
+    }
+    .lead-box textarea {
+      min-height: 82px;
+      resize: vertical;
+    }
+    .lead-box input:focus,
+    .lead-box textarea:focus {
+      border-color: rgba(34,197,94,0.8);
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.14);
+    }
+    .lead-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 14px;
+    }
+    .lead-status {
+      min-height: 20px;
+      margin-top: 10px;
+      color: #fca5a5;
+      font-size: 13px;
+      line-height: 1.5;
+    }
   </style>
 </head>
 
@@ -374,6 +492,17 @@
   <!-- 公司資訊區塊（直接使用 edit.html 儲存的 companyInfoHtml） -->
   <div class="company-info-section" id="companyInfoSection" style="display:none"></div>
 
+  <div class="trust-panel" id="trustPanel">
+    <div class="trust-title">
+      <span>公司驗證資訊</span>
+      <span class="trust-status" id="trustEmploymentStatus">在職中</span>
+    </div>
+    <div class="trust-row" id="trustCompanyRow"><b>公司</b><span id="trustCompanyName">-</span></div>
+    <div class="trust-row" id="trustTaxRow"><b>統編</b><span id="trustTaxId">-</span></div>
+    <div class="trust-row" id="trustContactRow"><b>官方聯絡</b><span id="trustOfficialContact">-</span></div>
+    <div class="trust-row"><b>最後更新</b><span id="trustUpdatedAt">-</span></div>
+  </div>
+
   <div class="divider"></div>
 
   <!-- 標題：聯絡方式 -->
@@ -422,9 +551,44 @@
           <span class="lang-zh">加入通訊錄</span>
           <span class="lang-en">Save Contact</span>
         </a>
+        <button class="btn btn-secondary" onclick="openLeadModal()" style="display: inline-flex; align-items: center; gap: 8px; width: auto;">
+          <span class="lang-zh">留下資料</span>
+          <span class="lang-en">Contact Me</span>
+        </button>
       </div>
     </div>
 
+</div>
+
+<div class="lead-modal" id="leadModal" onclick="closeLeadModal(event)">
+  <div class="lead-box">
+    <h3>留下資料</h3>
+    <p>送出後，名片主人或公司管理員會在後台看到待跟進名單。</p>
+    <label>姓名
+      <input id="leadName" maxlength="80" autocomplete="name" placeholder="請輸入姓名">
+    </label>
+    <label>電話
+      <input id="leadPhone" maxlength="60" autocomplete="tel" inputmode="tel" placeholder="手機或公司電話">
+    </label>
+    <label>LINE
+      <input id="leadLine" maxlength="160" placeholder="LINE ID 或連結">
+    </label>
+    <label>Email
+      <input id="leadEmail" maxlength="160" autocomplete="email" inputmode="email" placeholder="可留空">
+    </label>
+    <label style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">網站
+      <input id="leadWebsite" autocomplete="off" tabindex="-1">
+    </label>
+    <label>想詢問的內容
+      <textarea id="leadNeed" maxlength="500" placeholder="可簡單寫需求，例如：想了解服務、報價或合作"></textarea>
+    </label>
+    <p style="margin-top:4px;">送出代表同意公司為聯絡服務目的保存這筆資料。</p>
+    <div class="lead-status" id="leadSubmitStatus"></div>
+    <div class="lead-actions">
+      <button class="btn btn-secondary" onclick="closeLeadModal()">取消</button>
+      <button class="btn btn-primary" id="leadSubmitBtn" onclick="submitLeadForm()">送出</button>
+    </div>
+  </div>
 </div>
 
 <!-- QR Code 彈窗 -->
@@ -510,6 +674,7 @@ const UVACO_QRCODE_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0
 let __uvacoQrLibPromise = null;
 // 這裡保存公開名片載入後的資料，讓「加入通訊錄」可直接產生手機聯絡人檔。
 let __uvacoPublicCardContext = null;
+let __uvacoLeadModalOpenedAt = 0;
 function loadQRCodeScript() {
   if (typeof QRCode !== 'undefined') return Promise.resolve();
   if (__uvacoQrLibPromise) return __uvacoQrLibPromise;
@@ -925,6 +1090,51 @@ function applyCompanyInfo(pj) {
   section.style.display = 'block';
 }
 
+function getCompanyInfoValue(selectors) {
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    const text = cleanVCardText(el?.textContent || '')
+      .replace(/在地圖中查看/g, '')
+      .replace(/View on map/gi, '')
+      .trim();
+    if (text && text !== '-' && text !== '（未設定）' && text !== '（Not Set）') return text;
+  }
+  return '';
+}
+
+function getOfficialContactFromButtons() {
+  const officialLine = document.querySelector('#viewerContacts a[data-contact-type="official-line"]');
+  if (officialLine) return cleanVCardText(officialLine.textContent || '官方 LINE');
+  const companyPhone = document.querySelector('#viewerContacts a[data-contact-type="company-phone"]');
+  if (companyPhone) {
+    const href = String(companyPhone.getAttribute('href') || '').replace(/^tel:/i, '');
+    return href || cleanVCardText(companyPhone.textContent || '公司電話');
+  }
+  return '';
+}
+
+function renderTrustPanel(card, pj) {
+  const panel = document.getElementById('trustPanel');
+  if (!panel) return;
+
+  const company = safeText(pj.companyZh || pj.companyCanonical || card.company || '');
+  const taxId = safeText(pj.companyTaxId || pj.taxId || getCompanyInfoValue(['#previewTaxIdZh', '#previewTaxIdEn', '.info-item-tax .info-value']));
+  const officialContact = safeText(pj.officialContact || getOfficialContactFromButtons() || pj.companyWebsite || pj.website || '');
+  const updatedAt = card.updated_at ? new Date(card.updated_at).toLocaleDateString('zh-TW') : '';
+
+  if (!company && !taxId && !officialContact && !updatedAt) {
+    panel.classList.remove('show');
+    return;
+  }
+
+  document.getElementById('trustCompanyName').textContent = company || '未提供';
+  document.getElementById('trustTaxId').textContent = taxId || '未提供';
+  document.getElementById('trustOfficialContact').textContent = officialContact || '請以公司公開資訊為準';
+  document.getElementById('trustUpdatedAt').textContent = updatedAt || '未提供';
+  document.getElementById('trustEmploymentStatus').textContent = card.admin_disabled ? '已停用' : '在職中';
+  panel.classList.add('show');
+}
+
 function applyContacts(pj, card) {
   const group = document.getElementById('viewerContacts');
   if (!group) return;
@@ -943,6 +1153,7 @@ function applyContacts(pj, card) {
       // 移除 contenteditable/onclick
       group.querySelectorAll('[contenteditable="true"]').forEach(el => el.removeAttribute('contenteditable'));
       group.querySelectorAll('.edit-clickable').forEach(el => el.removeAttribute('onclick'));
+      group.querySelectorAll('a[data-contact-type]').forEach(el => el.removeAttribute('onclick'));
       enhanceWeChatContactLinks(group);
     } catch (e) {}
   } else {
@@ -980,6 +1191,91 @@ function applyContacts(pj, card) {
   } catch (e) {}
 }
 
+function openLeadModal() {
+  if (!__uvacoPublicCardContext || !__uvacoPublicCardContext.userId) {
+    alert('名片資料尚未載入完成，請稍候再試。');
+    return;
+  }
+  const modal = document.getElementById('leadModal');
+  if (!modal) return;
+  document.getElementById('leadSubmitStatus').textContent = '';
+  document.getElementById('leadSubmitBtn').disabled = false;
+  __uvacoLeadModalOpenedAt = Date.now();
+  modal.classList.add('show');
+  setTimeout(() => document.getElementById('leadName')?.focus(), 60);
+}
+
+function closeLeadModal(event) {
+  if (event && event.target && event.target.id !== 'leadModal') return;
+  const modal = document.getElementById('leadModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function leadInput(id) {
+  const el = document.getElementById(id);
+  return el ? String(el.value || '').trim() : '';
+}
+
+async function submitLeadForm() {
+  const status = document.getElementById('leadSubmitStatus');
+  const btn = document.getElementById('leadSubmitBtn');
+  const name = leadInput('leadName');
+  const phone = leadInput('leadPhone');
+  const line = leadInput('leadLine');
+  const email = leadInput('leadEmail');
+  const need = leadInput('leadNeed');
+  const website = leadInput('leadWebsite');
+
+  if (website || (Date.now() - __uvacoLeadModalOpenedAt < 800)) {
+    showCopyToast('已送出，謝謝你。');
+    closeLeadModal();
+    return;
+  }
+
+  if (!name) {
+    status.textContent = '請先填寫姓名。';
+    return;
+  }
+  if (!phone && !line && !email) {
+    status.textContent = '請至少填寫電話、LINE 或 Email 其中一項。';
+    return;
+  }
+  if (!window.UVACO_CLOUD || typeof UVACO_CLOUD.submitLeadInquiry !== 'function') {
+    status.textContent = '系統尚未載入完成，請重新整理後再試一次。';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '送出中…';
+  status.textContent = '';
+  try {
+    const result = await UVACO_CLOUD.submitLeadInquiry({
+      card_user_id: __uvacoPublicCardContext.userId,
+      customer_name: name,
+      phone,
+      line,
+      email,
+      need,
+      source: window.__uvacoCardOpenSource || ''
+    });
+    if (!result || !result.success) {
+      status.textContent = '目前無法送出，請改用名片上的電話或 LINE 聯絡。';
+      return;
+    }
+    showCopyToast('已送出，謝謝你。');
+    ['leadName','leadPhone','leadLine','leadEmail','leadNeed','leadWebsite'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    closeLeadModal();
+  } catch (e) {
+    status.textContent = '送出失敗，請稍後再試。';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '送出';
+  }
+}
+
 function openMap(addressType, event) {
   event.stopPropagation();
   event.preventDefault();
@@ -1009,6 +1305,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // 如果是 NFC 卡片連結，先查詢對應的用戶 ID
     if (nfcCardId && !userId) {
+      window.__uvacoCardOpenSource = 'nfc';
       try {
         const nfcRes = await UVACO_CLOUD.getCardByNfcId(nfcCardId);
         if (nfcRes?.card?.user_id) {
@@ -1143,6 +1440,7 @@ document.addEventListener('DOMContentLoaded', function () {
       await applyAssets(pj);
       applyCompanyInfo(pj);
       applyContacts(pj, card);
+      renderTrustPanel(card, pj);
       __uvacoPublicCardContext = {
         userId,
         nfcCardId,

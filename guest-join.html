@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="styles.css?v=20260610a">
   <meta name="theme-color" content="#22c55e">
   <script src="supabase.min.js"></script>
-  <script src="cloud.js?v=20260804a"></script>
+  <script src="cloud.js?v=20260804c"></script>
   <style>
     body {
       min-height: 100vh;
@@ -155,6 +155,20 @@
       background: rgba(239, 68, 68, 0.13);
       border: 1px solid rgba(239, 68, 68, 0.28);
     }
+    .join-invite-summary {
+      display: none;
+      margin: 0 0 16px;
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.24);
+      color: #bbf7d0;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .join-invite-summary.show {
+      display: block;
+    }
     .join-success {
       display: none;
       margin-top: 16px;
@@ -223,6 +237,7 @@
     </header>
 
     <section class="join-panel" id="joinPanel">
+      <div id="inviteSummary" class="join-invite-summary"></div>
       <form id="guestJoinForm" novalidate>
         <div class="join-grid">
           <label class="join-field">
@@ -291,6 +306,7 @@
   <script>
     var createdCardUrl = '';
     var createdShareUrl = '';
+    var loadedInvite = null;
 
     function getParam(name) {
       try {
@@ -319,6 +335,17 @@
       return el ? String(el.value || '').trim() : '';
     }
 
+    function setInputValue(id, value, lock) {
+      var el = document.getElementById(id);
+      if (!el || !value) return;
+      el.value = value;
+      if (lock) {
+        el.readOnly = true;
+        el.style.opacity = '0.72';
+        el.style.cursor = 'not-allowed';
+      }
+    }
+
     function setSubmitting(isSubmitting) {
       var btn = document.getElementById('guestSubmitBtn');
       if (!btn) return;
@@ -343,6 +370,36 @@
       if (success) success.classList.add('show');
       var form = document.getElementById('guestJoinForm');
       if (form) form.style.display = 'none';
+    }
+
+    async function loadInviteDefaults() {
+      var token = getParam('invite');
+      if (!token) return;
+      if (!window.UVACO_CLOUD || typeof UVACO_CLOUD.getCardInvitePublic !== 'function') return;
+
+      try {
+        var result = await UVACO_CLOUD.getCardInvitePublic(token);
+        if (!result || !result.invite) {
+          setJoinStatus('err', '這個邀請連結已過期或已使用，請向公司管理員重新索取。');
+          return;
+        }
+        loadedInvite = result.invite;
+        setInputValue('guestName', loadedInvite.name, false);
+        setInputValue('guestTitle', loadedInvite.title, false);
+        setInputValue('guestCompany', loadedInvite.company, true);
+        setInputValue('guestDepartment', loadedInvite.department, false);
+        setInputValue('guestPhone', loadedInvite.phone, false);
+        setInputValue('guestEmail', loadedInvite.email, false);
+        setInputValue('guestLineUrl', loadedInvite.line_url, false);
+
+        var summary = document.getElementById('inviteSummary');
+        if (summary) {
+          summary.textContent = '公司已先幫你建立基本資料。請確認姓名、電話或 LINE 是否正確，再按下方按鈕建立名片。';
+          summary.classList.add('show');
+        }
+      } catch (e) {
+        setJoinStatus('err', '邀請資料載入失敗，請重新整理後再試一次。');
+      }
     }
 
     function openCreatedCard() {
@@ -386,6 +443,7 @@
       try {
         var result = await UVACO_CLOUD.createGuestCardAutoApproved({
           referrer_user_id: getParam('ref'),
+          invite_token: getParam('invite'),
           name: name,
           title: getInputValue('guestTitle'),
           company: getInputValue('guestCompany'),
@@ -393,6 +451,8 @@
           phone: phone,
           email: email,
           line_url: lineUrl,
+          phone_extension: loadedInvite && loadedInvite.phone_extension ? loadedInvite.phone_extension : '',
+          company_address: loadedInvite && loadedInvite.company_address ? loadedInvite.company_address : '',
           website: getInputValue('guestWebsite')
         });
 
@@ -409,6 +469,8 @@
         setSubmitting(false);
       }
     });
+
+    loadInviteDefaults();
   </script>
 </body>
 </html>

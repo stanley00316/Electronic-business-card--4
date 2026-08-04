@@ -1,7 +1,51 @@
 import { getAuthContext } from './session.js';
 import { isAdmin } from './admin-roles.js';
 import { uploadRawAsset } from './search-storage.js';
+import { getPublicClient } from './clients.js';
 
+function cleanText(value, maxLength = 160) {
+  return String(value ?? '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function parseProfileJson(value) {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_e) {
+      return {};
+    }
+  }
+  return value && typeof value === 'object' ? value : {};
+}
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function cardBelongsToManagedCompany(card, managedCompany) {
+  if (!managedCompany) return true;
+  const targetCompany = String(card?.company || '').toLowerCase();
+  const myCompany = String(managedCompany || '').toLowerCase();
+  return !targetCompany || targetCompany.includes(myCompany);
+}
+
+function normalizeInviteNote(note) {
+  if (!note) return {};
+  if (typeof note === 'object') return note;
+  try {
+    const parsed = JSON.parse(String(note));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_e) {
+    return {};
+  }
+}
 
 // 後台批次查詢：名片開啟次數與最後一次時間（card_views 聚合，含本人開啟）
 export async function getCardViewSummariesForAdmin(userIds) {
@@ -36,7 +80,9 @@ export async function getCardViewSummariesForAdmin(userIds) {
     if (!uid) continue;
     map.set(String(uid), {
       openCount: Number(row.open_count || 0),
-      lastOpenedAt: row.last_opened_at || null
+      lastOpenedAt: row.last_opened_at || null,
+      nfcScanCount: Number(row.nfc_scan_count || 0),
+      lastNfcScannedAt: row.last_nfc_scanned_at || null
     });
   }
   return map;
@@ -359,7 +405,7 @@ export async function adminUpdateCard(targetUserId, payload) {
   // 讀取目標名片公司以做公司權限比對
   const { data: targetCard, error: qErr } = await client
     .from('cards')
-    .select('user_id,company')
+    .select('user_id,company,profile_json,theme')
     .eq('user_id', uid)
     .maybeSingle();
   if (qErr) throw qErr;
@@ -374,6 +420,10 @@ export async function adminUpdateCard(targetUserId, payload) {
     }
   }
 
+  const baseProfileJson = hasOwn(payload, 'profile_json')
+    ? parseProfileJson(payload?.profile_json)
+    : parseProfileJson(targetCard.profile_json);
+
   const updateData = {
     name:       payload?.name       || '',
     phone:      payload?.phone      || '',
@@ -381,8 +431,8 @@ export async function adminUpdateCard(targetUserId, payload) {
     company:    payload?.company    || '',
     title:      payload?.title      || '',
     department: payload?.department ?? null,
-    theme:      Number(payload?.theme || 1),
-    profile_json: payload?.profile_json || {},
+    theme:      Number(payload?.theme || targetCard.theme || 1),
+    profile_json: baseProfileJson,
     updated_at: new Date().toISOString()
   };
 
@@ -393,6 +443,90 @@ export async function adminUpdateCard(targetUserId, payload) {
 
   if (error) throw error;
   return true;
+}
+
+// 企業後台批次修改員工資料。這裡只改管理員指定的欄位，保留原本名片樣式、Logo、聯絡按鈕與個人內容。
+export async function batchUpdateEmployeeCards(userIds, updates = {}) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
+
+  const ids = [
+    ...new Set(
+      (userIds || [])
+        .map((id) => String(id || '').trim())
+        .filter(Boolean)
+    )
+  ].slice(0, 200);
+  if (!ids.length) throw new Error('NO_SELECTED_EMPLOYEES');
+
+  const { data: cards, error: readErr } = await ctx.client
+    .from('cards')
+    .select('user_id,company,profile_json,theme')
+    .in('user_id', ids);
+  if (readErr) throw readErr;
+
+  const allowedCards = (cards || []).filter((card) => cardBelongsToManagedCompany(card, adminStatus.managedCompany));
+  const allowedIds = new Set(allowedCards.map((card) => String(card.user_id)));
+  const skipped = ids.length - allowedIds.size;
+  const results = [];
+
+  for (const card of allowedCards) {
+    const profileJson = parseProfileJson(card.profile_json);
+    const row = { updated_at: new Date().toISOString() };
+
+    if (hasOwn(updates, 'title')) row.title = cleanText(updates.title, 100);
+    if (hasOwn(updates, 'department')) row.department = cleanText(updates.department, 100) || null;
+    if (hasOwn(updates, 'company')) row.company = cleanText(updates.company, 120);
+    if (hasOwn(updates, 'email')) row.email = cleanText(updates.email, 180);
+    if (hasOwn(updates, 'phone')) row.phone = cleanText(updates.phone, 60);
+
+    if (updates.status === 'disabled') {
+      row.admin_disabled = true;
+      row.admin_disabled_by = ctx.userId;
+      row.admin_disabled_at = new Date().toISOString();
+      row.admin_disabled_reason = cleanText(updates.reason, 160) || '批次停用';
+    }
+    if (updates.status === 'active') {
+      row.admin_disabled = false;
+      row.admin_disabled_by = null;
+      row.admin_disabled_at = null;
+      row.admin_disabled_reason = null;
+    }
+
+    if (hasOwn(updates, 'phoneExtension')) {
+      profileJson.phoneExtension = cleanText(updates.phoneExtension, 30);
+    }
+    if (hasOwn(updates, 'companyAddress')) {
+      profileJson.companyAddressZh = cleanText(updates.companyAddress, 220);
+      profileJson.companyAddressEn = profileJson.companyAddressEn || '';
+    }
+
+    if (hasOwn(updates, 'phoneExtension') || hasOwn(updates, 'companyAddress')) {
+      row.profile_json = profileJson;
+    }
+
+    const { error } = await ctx.client
+      .from('cards')
+      .update(row)
+      .eq('user_id', card.user_id);
+
+    results.push({
+      userId: card.user_id,
+      success: !error,
+      error: error ? (error.message || String(error)) : ''
+    });
+  }
+
+  return {
+    success: results.every((r) => r.success),
+    updated: results.filter((r) => r.success).length,
+    failed: results.filter((r) => !r.success).length,
+    skipped,
+    results
+  };
 }
 
 // 管理員代替其他使用者上傳大頭貼／Logo（給 edit.html 的 adminMode 用）
@@ -462,6 +596,41 @@ export async function createCardInvite(data) {
 
   if (error) throw error;
   return { token: invite.token };
+}
+
+// 免登入邀請頁用：只用 token 讀取未過期、未使用的邀請，方便幫 3C 小白預填欄位。
+export async function getCardInvitePublic(token) {
+  const uid = String(token || '').trim();
+  if (!uid) return { invite: null };
+
+  const client = getPublicClient();
+  if (!client) return { invite: null };
+
+  const { data, error } = await client
+    .from('card_invites')
+    .select('token,name,title,department,target_company,email,phone,note,expires_at,used_at')
+    .eq('token', uid)
+    .maybeSingle();
+
+  if (error || !data) return { invite: null, error };
+
+  const note = normalizeInviteNote(data.note);
+  return {
+    invite: {
+      token: data.token,
+      name: data.name || '',
+      title: data.title || '',
+      department: data.department || '',
+      company: data.target_company || '',
+      email: data.email || '',
+      phone: data.phone || '',
+      line_url: note.line_url || note.lineUrl || '',
+      phone_extension: note.phone_extension || note.phoneExtension || '',
+      company_address: note.company_address || note.companyAddress || '',
+      expires_at: data.expires_at || '',
+      used_at: data.used_at || null
+    }
+  };
 }
 
 // 領取邀請（員工登入後呼叫，自動建立名片）
@@ -570,4 +739,62 @@ export async function getCardInvites() {
   const { data, error } = await query;
   if (error) return { rows: [] };
   return { rows: data || [] };
+}
+
+/* ── 客戶追蹤（簡易 CRM）──────────────────────────────────── */
+
+export async function getLeadInquiriesAdmin() {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return { rows: [], error: 'NO_SESSION' };
+
+  const me = await isAdmin();
+  if (!me || !me.isAdmin) return { rows: [], error: 'NOT_ADMIN' };
+
+  let allowedIds = null;
+  if (me.managedCompany) {
+    const cards = await getAllCardsAdmin();
+    allowedIds = new Set((cards.rows || []).map((card) => String(card.user_id)));
+    if (!allowedIds.size) return { rows: [] };
+  }
+
+  let query = ctx.client
+    .from('lead_inquiries')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  if (allowedIds) query = query.in('card_user_id', [...allowedIds]);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('[Leads] 讀取待跟進名單失敗:', error.message || error);
+    return { rows: [], error: error.message || String(error) };
+  }
+  return { rows: data || [] };
+}
+
+export async function updateLeadInquiryStatus(leadId, status, note = '') {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+
+  const me = await isAdmin();
+  if (!me || !me.isAdmin) throw new Error('NOT_ADMIN');
+
+  const allowed = ['new', 'contacted', 'won', 'invalid'];
+  if (!allowed.includes(status)) throw new Error('INVALID_LEAD_STATUS');
+
+  const row = {
+    status,
+    note: cleanText(note, 600) || null,
+    updated_at: new Date().toISOString()
+  };
+  if (status === 'contacted') row.contacted_at = new Date().toISOString();
+
+  const { error } = await ctx.client
+    .from('lead_inquiries')
+    .update(row)
+    .eq('id', leadId);
+
+  if (error) throw error;
+  return { success: true };
 }
