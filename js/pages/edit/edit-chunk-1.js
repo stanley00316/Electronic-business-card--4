@@ -126,6 +126,36 @@ if (typeof preloadAllThemes === 'function') {
   }
 })();
 
+// 這裡把使用者輸入的微信號整理成手機可嘗試開啟微信 App 的連結。
+// 若微信 App 或瀏覽器不支援外部開啟，公開名片頁仍會複製微信號作為備援。
+function getWeChatIdFromLink(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const chatMatch = raw.match(/^weixin:\/\/dl\/chat\?([^#&]+)/i);
+  if (chatMatch) {
+    try {
+      return decodeURIComponent(chatMatch[1]).trim();
+    } catch (e) {
+      return String(chatMatch[1] || '').trim();
+    }
+  }
+  if (/^weixin:/i.test(raw) || /^https?:\/\//i.test(raw)) return '';
+  return raw.replace(/^@+/, '').trim();
+}
+
+function isSafeWeChatId(value) {
+  const id = String(value || '').trim();
+  return /^[A-Za-z][A-Za-z0-9_-]{5,31}$/.test(id) || /^wxid_[A-Za-z0-9_-]{6,64}$/.test(id);
+}
+
+function normalizeWeChatContactLink(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^weixin:/i.test(raw) || /^https?:\/\//i.test(raw)) return raw;
+  const id = getWeChatIdFromLink(raw);
+  return id ? 'weixin://dl/chat?' + encodeURIComponent(id) : '';
+}
+
 // 鎖定公司管理員指定的欄位（設定為不可編輯並顯示鎖定提示）
 function applyLockedFields(fields) {
   if (!fields || !fields.length) return;
@@ -733,11 +763,21 @@ function restoreContactsFunctionality() {
       type = 'twitter';
     } else if (href.includes('youtube.com')) {
       type = 'youtube';
-    } else if (href.includes('wechat') || href.includes('weixin')) {
+    } else if (href.includes('wechat') || href.includes('weixin') || (btn.innerHTML || '').includes('wechat-logo')) {
       type = 'wechat';
     }
 
-    const currentLink = href;
+    let currentLink = href;
+    if (type === 'wechat') {
+      const normalized = (typeof normalizeWeChatContactLink === 'function') ? normalizeWeChatContactLink(currentLink) : currentLink;
+      if (normalized) {
+        currentLink = normalized;
+        btn.setAttribute('href', currentLink);
+      }
+      btn.dataset.contactType = 'wechat';
+      const wechatId = (typeof getWeChatIdFromLink === 'function') ? getWeChatIdFromLink(currentLink) : '';
+      if (wechatId) btn.dataset.wechatId = wechatId;
+    }
     btn.onclick = function(event) { editContact(event, type, currentLink); };
   });
 
@@ -995,4 +1035,3 @@ function setFontSize(size) {
   
   updateToolbarState(currentStyledElement);
 }
-

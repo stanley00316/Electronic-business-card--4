@@ -239,7 +239,7 @@ function selectContactType(type, labelZh, labelEn) {
       break;
     case 'wechat':
       defaultLink = '';
-      placeholderText = '例：your_wechat_id';
+      placeholderText = '例：wxid_0endyjaii0ju12';
       buttonTextZh = '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat"> 微信';
       buttonTextEn = '<img src="wechat-logo.svg" alt="WeChat" class="btn-icon-wechat"> WeChat';
       break;
@@ -634,11 +634,11 @@ function showLinkInputModal(defaultLink, currentLang) {
           <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟微信 App</div>
             <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊「我」→ 查看微信號</div>
-            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 直接輸入您的微信號</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 直接輸入您的微信號，系統會自動轉成可開啟微信的按鈕</div>
           </div>
           <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
             <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">輸入格式範例：</div>
-            <code style="color:var(--uvaco-green);word-break:break-all;">your_wechat_id</code>
+            <code style="color:var(--uvaco-green);word-break:break-all;">wxid_0endyjaii0ju12</code>
           </div>
         </div>`;
         en = `<div style="text-align:left;">
@@ -646,11 +646,11 @@ function showLinkInputModal(defaultLink, currentLang) {
           <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open WeChat App</div>
             <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap "Me" → View WeChat ID</div>
-            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Enter your WeChat ID directly</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Enter your WeChat ID. The button will try to open WeChat automatically.</div>
           </div>
           <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
             <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Input format example:</div>
-            <code style="color:var(--uvaco-green);word-break:break-all;">your_wechat_id</code>
+            <code style="color:var(--uvaco-green);word-break:break-all;">wxid_0endyjaii0ju12</code>
           </div>
         </div>`;
       } else if (t === 'whatsapp') {
@@ -868,7 +868,21 @@ function submitLinkInput(event) {
     }
   }
 
-  // WeChat：保持原樣（微信 ID）
+  // WeChat：可輸入微信號，系統轉成手機可嘗試開啟的 weixin:// 連結。
+  if (t === 'wechat') {
+    const v = newLink.trim();
+    if (!/^weixin:/i.test(v) && !/^https?:\/\//i.test(v)) {
+      const wechatId = (typeof getWeChatIdFromLink === 'function') ? getWeChatIdFromLink(v) : v.replace(/^@+/, '').trim();
+      if (!wechatId || (typeof isSafeWeChatId === 'function' && !isSafeWeChatId(wechatId))) {
+        if (fail(
+          '請輸入有效的微信號，例如：wxid_0endyjaii0ju12\n微信號只接受英文字母、數字、底線或連字號。',
+          'Please enter a valid WeChat ID, e.g. wxid_0endyjaii0ju12'
+        )) return;
+      }
+      newLink = (typeof normalizeWeChatContactLink === 'function') ? normalizeWeChatContactLink(wechatId) : ('weixin://dl/chat?' + encodeURIComponent(wechatId));
+    }
+  }
+
   // WhatsApp：自動添加 https://wa.me/
   if (t === 'whatsapp') {
     if (!/^https?:\/\//i.test(newLink)) {

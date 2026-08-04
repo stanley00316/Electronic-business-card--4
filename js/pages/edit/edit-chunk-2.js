@@ -894,8 +894,11 @@ function editContact(event, type, currentLink) {
     currentLink: currentLink
   };
   
-  // 顯示連結輸入模態框，預填當前連結
-  showLinkInputModal(currentLink, currentLang);
+  // 顯示連結輸入模態框；微信按鈕編輯時顯示微信號，避免使用者看到難懂的 weixin:// 連結。
+  const inputLink = (type === 'wechat' && typeof getWeChatIdFromLink === 'function')
+    ? (getWeChatIdFromLink(currentLink) || currentLink)
+    : currentLink;
+  showLinkInputModal(inputLink, currentLang);
 }
 
 // 刪除聯絡方式按鈕

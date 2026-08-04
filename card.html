@@ -590,6 +590,92 @@ function getContactLinkLabel(href, fallbackLabel) {
   return cleanVCardText(fallbackLabel) || '連結';
 }
 
+function getWeChatIdFromContactHref(href, fallbackId) {
+  const fallback = cleanVCardText(fallbackId || '');
+  if (fallback) return fallback;
+  const raw = String(href || '').trim();
+  const chatMatch = raw.match(/^weixin:\/\/dl\/chat\?([^#&]+)/i);
+  if (chatMatch) {
+    try {
+      return cleanVCardText(decodeURIComponent(chatMatch[1]));
+    } catch (e) {
+      return cleanVCardText(chatMatch[1]);
+    }
+  }
+  if (/^weixin:/i.test(raw) || /^https?:\/\//i.test(raw)) return '';
+  return cleanVCardText(raw.replace(/^@+/, ''));
+}
+
+function isWeChatContactAnchor(anchor) {
+  if (!anchor) return false;
+  const href = String(anchor.getAttribute('href') || '').toLowerCase();
+  const type = String(anchor.dataset.contactType || '').toLowerCase();
+  const html = String(anchor.innerHTML || '').toLowerCase();
+  return type === 'wechat' || href.startsWith('weixin:') || href.includes('wechat') || html.includes('wechat-logo');
+}
+
+function normalizeWeChatContactAnchor(anchor) {
+  if (!isWeChatContactAnchor(anchor)) return '';
+  const href = String(anchor.getAttribute('href') || '').trim();
+  const wechatId = getWeChatIdFromContactHref(href, anchor.dataset.wechatId);
+  anchor.dataset.contactType = 'wechat';
+  if (wechatId) anchor.dataset.wechatId = wechatId;
+  if (wechatId && !/^weixin:/i.test(href) && !/^https?:\/\//i.test(href)) {
+    anchor.setAttribute('href', 'weixin://dl/chat?' + encodeURIComponent(wechatId));
+  }
+  anchor.target = '_blank';
+  anchor.rel = 'noopener';
+  return wechatId;
+}
+
+function copyWeChatIdQuietly(wechatId) {
+  if (!wechatId || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+    return Promise.resolve(false);
+  }
+  return navigator.clipboard.writeText(wechatId).then(function () {
+    return true;
+  }).catch(function () {
+    return false;
+  });
+}
+
+function handleWeChatContactClick(event) {
+  const anchor = event.currentTarget;
+  const href = String(anchor.getAttribute('href') || '').trim();
+  if (!/^weixin:/i.test(href)) return;
+
+  event.preventDefault();
+  const lang = localStorage.getItem('lang') || 'zh';
+  const wechatId = getWeChatIdFromContactHref(href, anchor.dataset.wechatId);
+  copyWeChatIdQuietly(wechatId);
+
+  // 先嘗試開啟微信 App；如果瀏覽器沒有切走，再提示使用者用已複製的微信號搜尋。
+  window.location.href = href;
+  window.setTimeout(function () {
+    if (document.visibilityState === 'hidden') return;
+    if (wechatId) {
+      showCopyToast(lang === 'zh'
+        ? '已複製微信號：' + wechatId + '，若微信沒有自動開啟，請到微信搜尋貼上'
+        : 'WeChat ID copied: ' + wechatId + '. Search it in WeChat if the app did not open.');
+    } else {
+      showCopyToast(lang === 'zh'
+        ? '若微信沒有自動開啟，請手動開啟微信'
+        : 'If WeChat did not open, please open WeChat manually.');
+    }
+  }, 900);
+}
+
+function enhanceWeChatContactLinks(group) {
+  if (!group) return;
+  group.querySelectorAll('a[href]').forEach(function (anchor) {
+    normalizeWeChatContactAnchor(anchor);
+    if (/^weixin:/i.test(String(anchor.getAttribute('href') || ''))) {
+      anchor.removeEventListener('click', handleWeChatContactClick);
+      anchor.addEventListener('click', handleWeChatContactClick);
+    }
+  });
+}
+
 function textFromHtmlFragment(html) {
   const box = document.createElement('div');
   box.innerHTML = filterSystemHtml(String(html || ''));
@@ -623,6 +709,16 @@ function collectVisibleContactLinks() {
 
     if (/^mailto:/i.test(href)) {
       uniquePush(emails, normalizeMailForVCard(href));
+      return;
+    }
+
+    if (isWeChatContactAnchor(anchor)) {
+      const wechatId = getWeChatIdFromContactHref(href, anchor.dataset.wechatId);
+      if (wechatId) uniquePush(notes, 'WeChat ID: ' + wechatId);
+      if (/^https?:\/\//i.test(href)) {
+        uniquePush(urls, href);
+        uniquePush(notes, 'WeChat: ' + href);
+      }
       return;
     }
 
@@ -847,6 +943,7 @@ function applyContacts(pj, card) {
       // 移除 contenteditable/onclick
       group.querySelectorAll('[contenteditable="true"]').forEach(el => el.removeAttribute('contenteditable'));
       group.querySelectorAll('.edit-clickable').forEach(el => el.removeAttribute('onclick'));
+      enhanceWeChatContactLinks(group);
     } catch (e) {}
   } else {
     // fallback：只用 phone/email

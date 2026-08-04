@@ -1,9 +1,35 @@
 // 編輯頁主邏輯：公司資訊、地址、主題、地圖與清理工具。
+function getPreviewContactButtonsByHref(currentLink) {
+  return Array.from(document.querySelectorAll('#previewContacts a[href]'))
+    .filter(btn => String(btn.getAttribute('href') || '') === String(currentLink || ''));
+}
+
+function decorateContactButton(btn, type, link) {
+  if (!btn) return;
+  btn.setAttribute('href', link);
+  btn.dataset.contactType = type || '';
+  if (type === 'wechat') {
+    const wechatId = (typeof getWeChatIdFromLink === 'function') ? getWeChatIdFromLink(link) : '';
+    if (wechatId) btn.dataset.wechatId = wechatId;
+  } else {
+    delete btn.dataset.wechatId;
+  }
+
+  const opensExternal = ['website', 'line', 'official-line', 'facebook', 'instagram', 'linkedin', 'twitter', 'youtube', 'wechat', 'whatsapp'].includes(type);
+  if (opensExternal) {
+    btn.target = '_blank';
+    btn.rel = 'noopener';
+  } else {
+    btn.removeAttribute('target');
+    btn.removeAttribute('rel');
+  }
+}
+
 function updateContactButtons(type, currentLink, newLink) {
   // 更新所有相關的按鈕連結（中文和英文）
-  const buttons = document.querySelectorAll(`#previewContacts a[href="${currentLink}"]`);
+  const buttons = getPreviewContactButtonsByHref(currentLink);
   buttons.forEach(btn => {
-    btn.href = newLink;
+    decorateContactButton(btn, type, newLink);
     // 更新 onclick 事件中的連結參數
     btn.onclick = function(e) {
       editContact(e, type, newLink);
@@ -604,10 +630,7 @@ function addContactButtonToPreview(type, newLink, buttonTextZh, buttonTextEn) {
   // 創建中文按鈕
   const btnZh = document.createElement('a');
   btnZh.className = 'btn btn-secondary lang-zh edit-clickable';
-  btnZh.href = newLink;
-  if (type === 'website' || type === 'line' || type === 'official-line' || type === 'facebook' || type === 'instagram' || type === 'linkedin' || type === 'twitter' || type === 'youtube' || type === 'whatsapp') {
-    btnZh.target = '_blank';
-  }
+  decorateContactButton(btnZh, type, newLink);
   if (type === 'vcf') {
     btnZh.download = 'Contact.vcf';
   }
@@ -619,10 +642,7 @@ function addContactButtonToPreview(type, newLink, buttonTextZh, buttonTextEn) {
   // 創建英文按鈕
   const btnEn = document.createElement('a');
   btnEn.className = 'btn btn-secondary lang-en edit-clickable';
-  btnEn.href = newLink;
-  if (type === 'website' || type === 'line' || type === 'official-line' || type === 'facebook' || type === 'instagram' || type === 'linkedin' || type === 'twitter' || type === 'youtube' || type === 'whatsapp') {
-    btnEn.target = '_blank';
-  }
+  decorateContactButton(btnEn, type, newLink);
   if (type === 'vcf') {
     btnEn.download = 'Contact.vcf';
   }

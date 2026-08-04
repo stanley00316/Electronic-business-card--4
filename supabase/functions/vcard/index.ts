@@ -183,6 +183,31 @@ function getContactLinkLabel(href: string, fallbackLabel: string) {
   return cleanVCardText(fallbackLabel) || "連結";
 }
 
+function getWeChatIdFromHref(href: string, fallbackId: string) {
+  const fallback = cleanVCardText(fallbackId || "");
+  if (fallback) return fallback;
+  const raw = String(href || "").trim();
+  const chatMatch = raw.match(/^weixin:\/\/dl\/chat\?([^#&]+)/i);
+  if (chatMatch) {
+    try {
+      return cleanVCardText(decodeURIComponent(chatMatch[1]));
+    } catch (_e) {
+      return cleanVCardText(chatMatch[1]);
+    }
+  }
+  if (/^weixin:/i.test(raw) || /^https?:\/\//i.test(raw)) return "";
+  return cleanVCardText(raw.replace(/^@+/, ""));
+}
+
+function isWeChatContact(href: string, inner: string, contactType: string) {
+  const h = String(href || "").toLowerCase();
+  const html = String(inner || "").toLowerCase();
+  return String(contactType || "").toLowerCase() === "wechat" ||
+    h.startsWith("weixin:") ||
+    h.includes("wechat") ||
+    html.includes("wechat-logo");
+}
+
 function getAttr(tag: string, attrName: string) {
   const re = new RegExp("\\s" + attrName + "\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^>\\s]+))", "i");
   const match = tag.match(re);
@@ -202,6 +227,8 @@ function collectHtmlContactLinks(html: unknown) {
 
     const imgAlt = String(inner || "").replace(/<img\b([^>]*)>/gi, (_img, imgAttrs) => getAttr(" " + imgAttrs, "alt") + " ");
     const label = cleanVCardText(htmlToText(imgAlt || inner));
+    const contactType = String(getAttr(" " + attrs, "data-contact-type") || "").trim();
+    const dataWeChatId = String(getAttr(" " + attrs, "data-wechat-id") || "").trim();
 
     if (/^tel:/i.test(href)) {
       uniquePush(phones, normalizePhoneForVCard(href));
@@ -210,6 +237,16 @@ function collectHtmlContactLinks(html: unknown) {
 
     if (/^mailto:/i.test(href)) {
       uniquePush(emails, normalizeMailForVCard(href));
+      return "";
+    }
+
+    if (isWeChatContact(href, inner, contactType)) {
+      const wechatId = getWeChatIdFromHref(href, dataWeChatId);
+      if (wechatId) uniquePush(notes, "WeChat ID: " + wechatId);
+      if (/^https?:\/\//i.test(href)) {
+        uniquePush(urls, href);
+        uniquePush(notes, "WeChat: " + href);
+      }
       return "";
     }
 
