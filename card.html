@@ -208,6 +208,82 @@
     .add-home-banner-btn.secondary:hover {
       background: rgba(255, 255, 255, 0.3);
     }
+
+    /* LINE 訊息開啟提示：只在 LINE 內建瀏覽器出現，協助好友改用外部瀏覽器 */
+    .line-browser-banner {
+      display: none;
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 9999;
+      width: min(440px, calc(100% - 28px));
+      background: rgba(17, 24, 39, 0.94);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .line-browser-banner.show {
+      display: block;
+      animation: bannerSlideUp 0.28s ease-out;
+    }
+    .line-browser-banner-title {
+      margin: 0 0 4px;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .line-browser-banner-desc {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .line-browser-banner-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .line-browser-banner-btn {
+      min-height: 38px;
+      padding: 9px 10px;
+      border: 0;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .line-browser-banner-btn:active {
+      transform: translateY(1px);
+    }
+    .line-browser-banner-btn.primary {
+      background: #06c755;
+      color: #fff;
+    }
+    .line-browser-banner-btn.secondary {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+    .line-browser-banner-btn.ghost {
+      grid-column: 1 / -1;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    @media (max-width: 360px) {
+      .line-browser-banner-actions {
+        grid-template-columns: 1fr;
+      }
+      .line-browser-banner-btn.ghost {
+        grid-column: auto;
+      }
+    }
   </style>
 </head>
 
@@ -234,6 +310,17 @@
         </button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- LINE 內建瀏覽器提示：來源是 LINE 訊息時，協助好友改用外部瀏覽器 -->
+<div id="lineBrowserBanner" class="line-browser-banner" aria-live="polite">
+  <p class="line-browser-banner-title">建議用外部瀏覽器開啟</p>
+  <p class="line-browser-banner-desc">目前是在 LINE 內建瀏覽器中開啟。若加入通訊錄或下載名片不順，請改用手機預設瀏覽器。</p>
+  <div class="line-browser-banner-actions">
+    <button type="button" class="line-browser-banner-btn primary" onclick="openExternalBrowserFromLine()">外部瀏覽器開啟</button>
+    <button type="button" class="line-browser-banner-btn secondary" onclick="copyExternalCardLink()">複製連結</button>
+    <button type="button" class="line-browser-banner-btn ghost" onclick="dismissLineBrowserBanner()">繼續瀏覽</button>
   </div>
 </div>
 
@@ -811,6 +898,8 @@ function openMap(addressType, event) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  initLineBrowserBanner();
+
   (async function () {
     const params = new URLSearchParams(window.location.search || '');
     let userId = params.get('id');
@@ -878,6 +967,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.getElementById('cardDisabledPage').style.display = 'flex';
         document.getElementById('addHomeBanner').style.display = 'none';
+        suppressLineBrowserBanner();
         return;
       }
 
@@ -1006,7 +1096,7 @@ function applyOwnerThemeToWholePage(themeNumber) {
 }
 
 function shareMyCard() {
-  const url = window.location.href;
+  const url = getCardShareUrl();
   const title = document.title;
   const text = '這是我的電子名片，請惠賜指教！';
 
@@ -1025,16 +1115,9 @@ function shareMyCard() {
 
 // 複製名片連結
 function copyCardLink() {
-  const url = window.location.href;
+  const url = getCardShareUrl();
   const lang = localStorage.getItem('lang') || 'zh';
-  
-  navigator.clipboard.writeText(url).then(function() {
-    // 顯示成功提示
-    showCopyToast(lang === 'zh' ? '連結已複製！' : 'Link copied!');
-  }, function(err) {
-    console.error('Could not copy text: ', err);
-    prompt(lang === 'zh' ? '請手動複製連結：' : 'Please copy manually:', url);
-  });
+  copyUrlToClipboard(url, lang === 'zh' ? '連結已複製！' : 'Link copied!');
 }
 
 // 顯示複製成功提示
@@ -1073,7 +1156,7 @@ function showCopyToast(message) {
 
 // 社群分享功能
 function getShareInfo() {
-  const url = window.location.href;
+  const url = getCardShareUrl();
   const nameEl = document.getElementById('viewerNameZh');
   const name = nameEl?.textContent?.trim() || '數位名片';
   const lang = localStorage.getItem('lang') || 'zh';
@@ -1081,6 +1164,100 @@ function getShareInfo() {
     ? `${name} 的數位名片，歡迎交流！` 
     : `${name}'s Digital Business Card`;
   return { url, name, text };
+}
+
+// 這裡統一產生「從 LINE 訊息點開時，優先要求外部瀏覽器」的分享網址。
+function getCardShareUrl() {
+  return getExternalBrowserFriendlyUrl();
+}
+
+function getExternalBrowserFriendlyUrl() {
+  const url = new URL(window.location.href);
+  url.hash = '';
+  url.searchParams.set('openExternalBrowser', '1');
+  url.searchParams.delete('openInAppBrowser');
+  return url.toString();
+}
+
+function isLineInAppBrowser() {
+  return /Line\//i.test(navigator.userAgent || '');
+}
+
+function getLineBannerDismissKey() {
+  try {
+    const url = new URL(window.location.href);
+    return 'UVACO_LINE_BROWSER_BANNER_DISMISSED:' + url.pathname + ':' + (url.searchParams.get('id') || url.searchParams.get('nfc') || '');
+  } catch (e) {
+    return 'UVACO_LINE_BROWSER_BANNER_DISMISSED';
+  }
+}
+
+function initLineBrowserBanner() {
+  const banner = document.getElementById('lineBrowserBanner');
+  if (!banner || !isLineInAppBrowser()) return;
+  try {
+    if (sessionStorage.getItem(getLineBannerDismissKey()) === '1') return;
+  } catch (e) {}
+  window.setTimeout(function () {
+    if (banner.dataset.suppressed === '1') return;
+    banner.classList.add('show');
+  }, 600);
+}
+
+function dismissLineBrowserBanner() {
+  const banner = document.getElementById('lineBrowserBanner');
+  if (banner) {
+    banner.dataset.suppressed = '1';
+    banner.classList.remove('show');
+  }
+  try {
+    sessionStorage.setItem(getLineBannerDismissKey(), '1');
+  } catch (e) {}
+}
+
+function suppressLineBrowserBanner() {
+  const banner = document.getElementById('lineBrowserBanner');
+  if (!banner) return;
+  banner.dataset.suppressed = '1';
+  banner.classList.remove('show');
+}
+
+function copyUrlToClipboard(url, successMessage) {
+  const lang = localStorage.getItem('lang') || 'zh';
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(url).then(function() {
+      showCopyToast(successMessage || (lang === 'zh' ? '連結已複製！' : 'Link copied!'));
+    }, function(err) {
+      console.error('Could not copy text: ', err);
+      prompt(lang === 'zh' ? '請手動複製連結：' : 'Please copy manually:', url);
+    });
+    return;
+  }
+  prompt(lang === 'zh' ? '請手動複製連結：' : 'Please copy manually:', url);
+}
+
+function copyExternalCardLink() {
+  const lang = localStorage.getItem('lang') || 'zh';
+  copyUrlToClipboard(
+    getExternalBrowserFriendlyUrl(),
+    lang === 'zh' ? '外部瀏覽器連結已複製！' : 'External browser link copied!'
+  );
+}
+
+function openExternalBrowserFromLine() {
+  const url = getExternalBrowserFriendlyUrl();
+  try {
+    if (window.liff && typeof window.liff.openWindow === 'function') {
+      window.liff.openWindow({ url: url, external: true });
+      return;
+    }
+  } catch (e) {
+    console.warn('LIFF 外部開啟失敗，改用一般網址導向:', e);
+  }
+  window.location.href = url;
+  window.setTimeout(function () {
+    copyExternalCardLink();
+  }, 900);
 }
 
 // 分享到 LINE
@@ -1232,7 +1409,7 @@ async function showQRCode() {
   try {
     const modal = document.getElementById('qrModal');
     const qrcodeContainer = document.getElementById('qrcode');
-    const url = window.location.href;
+    const url = getCardShareUrl();
 
     // 清除舊的 QR Code
     qrcodeContainer.innerHTML = '';
