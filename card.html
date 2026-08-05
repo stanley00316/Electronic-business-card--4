@@ -1117,6 +1117,14 @@ function renderTrustPanel(card, pj) {
   const panel = document.getElementById('trustPanel');
   if (!panel) return;
 
+  // 公司驗證資訊僅限已訂購企業方案的名片顯示（card.is_enterprise === true）。
+  // 個人名片（is_enterprise 為 false／未設定）直接移除此節點，不做條件式 CSS 隱藏，
+  // 避免公司驗證用的 DOM 結構殘留在個人名片頁面。
+  if (!card || card.is_enterprise !== true) {
+    panel.remove();
+    return;
+  }
+
   const company = safeText(pj.companyZh || pj.companyCanonical || card.company || '');
   const taxId = safeText(pj.companyTaxId || pj.taxId || getCompanyInfoValue(['#previewTaxIdZh', '#previewTaxIdEn', '.info-item-tax .info-value']));
   const officialContact = safeText(pj.officialContact || getOfficialContactFromButtons() || pj.companyWebsite || pj.website || '');

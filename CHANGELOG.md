@@ -1,5 +1,20 @@
 # 變更紀錄
 
+## 2026-08-05（修正：公司驗證資訊改為依名片類型條件渲染，僅企業方案顯示）
+
+### 修正（公開名片頁 → 公司驗證資訊）
+
+- **問題緣起**：公開名片頁的「公司驗證資訊」區塊（trust panel）原本只要 `company`、統編、官方聯絡、最後更新任一有值就會顯示，與名片是否屬於已訂購企業方案的公司無關；個人名片只要填了公司欄位也會被誤判為需要顯示公司驗證資訊。
+- **確認現況**（修改前先盤點既有元件與資料欄位，避免自行假設）：
+  1. `card.html` 的 `trustPanel` 由 `renderTrustPanel(card, pj)` 填值並用 `.show` class 控制顯示，`card` 來自 `getCardPublic()`（`cards` 表 `select('*')`）。
+  2. 盤點 `cards` 表既有欄位（`supabase-setup.sql`、`enterprise-phase1.sql` 及既有 migrations）與 `subscriptions` / `pricing_plans`（個人月費/季費/年費訂閱，不分個人版／企業版）、`admin_users.managed_company`、`company_settings`，確認目前資料庫**沒有**任何欄位代表「此名片屬於已訂購企業方案的公司」。
+- **修正方式**：
+  1. 新增 `supabase/migrations/20260805190000_cards_is_enterprise_flag.sql`：於 `cards` 表新增 `is_enterprise BOOLEAN NOT NULL DEFAULT false` 欄位（含索引與欄位註解），做為公司驗證資訊顯示與否的旗標，預設所有名片皆為個人名片。
+  2. `card.html` 的 `renderTrustPanel()` 改為先檢查 `card.is_enterprise === true`；非企業方案名片會直接 `panel.remove()` 移除節點，不再只靠 CSS `.show` class 隱藏；企業方案名片維持原本欄位填值與顯示樣式不變。
+- **待辦（尚未包含在本次修改）**：目前後台尚無 UI 可將 `is_enterprise` 設為 `true`，需先套用上述 migration，並由 super admin 手動於 Supabase 將對應公司名片的 `is_enterprise` 更新為 `true`，或後續再開發企業後台批次設定介面。
+- **影響範圍**：只改 `card.html` 公司驗證資訊區塊的渲染條件與新增資料庫欄位；不改 `companyInfoSection`（公司資訊區塊）、不改聯絡方式、不改既有 `card.html?id=...` / `card.html?nfc=...` 網址規則、不影響現有已訂閱的個人訂閱系統。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.6`。
+
 ## 2026-08-05（檢視：新增聯絡方式符合現況與新手操作）
 
 ### 修正（編輯名片頁 → 新增聯絡方式）
@@ -743,7 +758,6 @@
 - **核心修復（`saveCard is not defined`）**：將原本被錯位切割的 `edit-chunk-2/3/4/5.js` 重新合併為可執行腳本（主邏輯集中於 `edit-chunk-2.js`），`edit-chunk-3/4/5.js` 改為安全佔位檔，並移除 `wizard.js` 外層 `<script>` 包裝，修正前端語法錯誤連鎖造成的功能遺失。
 - **二次快取強制更新**：`edit.html` 腳本與樣式版本再次升級為 `20260423b`，`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.21.10`，確保用戶端一定拿到本次 chunk 修正版。
 
-
 ## 2026-04-14
 
 ### 調整（名片開啟統計：本人開啟也計入）
@@ -779,7 +793,6 @@
 - **資料庫**：新增腳本 [card_view_summaries_admin_rpc.sql](card_view_summaries_admin_rpc.sql)，請在 Supabase SQL Editor 執行後，後台統計才會有正確數據（未執行前 RPC 失敗時畫面仍顯示次數 0、尚無紀錄）。
 - **快取**：`admin.html` 的 `cloud.js` 查詢參數改為 `?v=20260414a`。
 
-
 ## 2026-04-13
 
 ### 調整（統一 JSON 為 UTF-8 宣告）
@@ -788,7 +801,6 @@
 - **前端**：`js/cloud/subscription.js`、`subscription.html` 送出 JSON 時同步標明 `charset=utf-8`。
 - **雲端模組**：`line-liff.js`、`search-storage.js`、`oauth-google-apple.js` 對 Supabase／外部 API 的 JSON 請求標頭同步加上 `charset=utf-8`。
 - **除錯探針**：`js/cloud/index.js` 的 ingest 請求已將 `runId` 設為 `post-fix`；請重新執行 `npm run build:cloud` 以更新根目錄的 `cloud.js`。
-
 
 ### 新增（設定頁：名片最後被瀏覽／多久未被開）
 
