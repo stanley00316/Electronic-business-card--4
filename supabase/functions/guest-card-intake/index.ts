@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const BUILD_ID = "2026-08-04-guest-card-intake-2";
+const BUILD_ID = "2026-08-05-guest-card-intake-dedup";
 const DEFAULT_PUBLIC_SITE_URL = "https://stanley00316.github.io/Electronic-business-card--4/";
 
 function normalizeSecret(value: string | undefined | null) {
