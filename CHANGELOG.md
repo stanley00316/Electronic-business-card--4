@@ -1,5 +1,17 @@
 # 變更紀錄
 
+## 2026-08-05（修正：邀請好友加入頁不再直接顯示技術錯誤代碼）
+
+### 修正（guest-join.html → 建立名片失敗提示）
+
+- **問題緣起**：全系統做「3C 小白友善度」檢視時發現，`edit.html` 的存檔失敗提示已經刻意不把英文錯誤代碼直接顯示在畫面上（`save-feedback.js` 有明確註解「絕不直接拼進畫面文字」），但 `guest-join.html`（給完全不熟悉系統的訪客/朋友填的頁面）沒有跟上同一個原則，送出失敗時會直接顯示「錯誤代碼：CARD_CREATE_FAILED」這類英文技術代碼，對象反而是系統裡最不懂技術的使用者。
+- **修正方式**：
+  1. 新增 `friendlyGuestJoinErrorMessage()`，把 `guest-card-intake` 可能回傳的錯誤代碼（邀請已過期、系統忙碌、設定未完成等）轉成白話中文說明。
+  2. 技術錯誤代碼改成只印到瀏覽器 console（`console.error`），畫面文字一律顯示白話說明，方便你之後直接對照 Supabase 後台 `guest-card-intake` 的 Logs 排查，不需要靠訪客回報一串代碼。
+- **影響範圍**：只改 `guest-join.html` 送出失敗時的提示文字；不改建立名片的成功流程、不改查重邏輯、不改 `card.html?id=...` / `card.html?nfc=...` 網址規則。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.9`。
+
+
 ## 2026-08-05（修正：邀請好友／員工邀請避免同一人建立兩張互不相通的名片）
 
 ### 修正（guest-card-intake → 免登入建立名片）

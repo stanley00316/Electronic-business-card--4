@@ -330,6 +330,21 @@
       box.textContent = '';
     }
 
+    // 把後端回傳的技術錯誤代碼轉成白話文，原則比照 edit.html 的存檔錯誤提示：
+    // 畫面上一律不直接顯示英文錯誤代碼，代碼只印到 console，方便你之後對照 Supabase 後台的 Logs 排查。
+    function friendlyGuestJoinErrorMessage(errorCode) {
+      var messages = {
+        BOT_DETECTED: '這次送出被系統判斷為異常請求，請重新整理頁面後再試一次；如果一直發生，麻煩直接聯絡我們協助處理。',
+        INVITE_INVALID_OR_EXPIRED: '這個邀請連結已經過期或已經被使用過了，請向邀請你的人索取新的連結。',
+        INVITE_READ_FAILED: '讀取邀請資料時發生問題，請重新整理頁面後再試一次。',
+        CARD_CREATE_FAILED: '名片建立時發生問題，不是你填寫的資料有錯，麻煩稍後再試一次；如果一直失敗，請聯絡我們協助處理。',
+        MISSING_SUPABASE_SECRETS: '系統目前設定尚未完成，暫時無法建立名片，請聯絡我們協助處理。',
+        METHOD_NOT_ALLOWED: '系統暫時發生問題，請重新整理頁面後再試一次。',
+        INVALID_JSON: '系統暫時發生問題，請重新整理頁面後再試一次。'
+      };
+      return messages[errorCode] || '名片建立沒有成功，請稍後再試一次；如果一直不行，麻煩直接聯絡我們協助處理。';
+    }
+
     function getInputValue(id) {
       var el = document.getElementById(id);
       return el ? String(el.value || '').trim() : '';
@@ -467,7 +482,8 @@
 
         if (!result || !result.success) {
           var error = result && result.error ? result.error : 'CREATE_FAILED';
-          setJoinStatus('err', '名片建立失敗，請確認資料後再試一次。\n錯誤代碼：' + error);
+          console.error('guest-card-intake failed:', error); // 技術代碼只留在 console，方便對照 Supabase Logs
+          setJoinStatus('err', friendlyGuestJoinErrorMessage(error));
           return;
         }
 
