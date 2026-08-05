@@ -1,5 +1,22 @@
 # 變更紀錄
 
+## 2026-08-05（檢視：新增聯絡方式符合現況與新手操作）
+
+### 修正（編輯名片頁 → 新增聯絡方式）
+
+- **檢視結果**：目前新增聯絡方式共有公司電話、個人電話、Email、網站、LINE、官方 LINE、Facebook、Instagram、LinkedIn、X、YouTube、微信、WhatsApp、其他。公開名片按鈕與資料格式大致可用，但部分平台的新增說明與輸入防呆不夠符合現況，3C 小白容易照著填錯。
+- **修正重點**：
+  1. 個人 LINE 改成明確要求貼「加好友連結」，不再讓使用者誤貼 LINE ID；說明同步加入 LINE 新版與舊版取得行動條碼連結路徑。
+  2. 官方 LINE 可直接輸入 `@官方帳號ID`，系統會自動轉成 LINE 官方建議的 `line.me/R/ti/p/%40...` 連結。
+  3. Facebook、LinkedIn、X、YouTube 的提示改成「找不到複製連結時可直接輸入公開帳號」，降低新手操作門檻。
+  4. YouTube 修正只輸入 `@頻道帳號` 時會變成錯誤網址的問題，現在會轉成 `https://www.youtube.com/@...`。
+  5. WhatsApp 支援台灣使用者直接輸入 `0912345678`，系統會自動轉成 `https://wa.me/886912345678`。
+  6. 空白輸入提前阻擋，避免網站、YouTube 等類型被整理成無效的 `https://` 或 `https://@...`。
+  7. 將 LINE、社群與 WhatsApp 的輸入整理規則集中到 `edit-contact-normalizers.js`，讓 `edit-chunk-3.js` 維持在 900 行內。
+  8. 站內固定「LINE 官方帳號」連結改成 `%40` 編碼格式，與 LINE 官方帳號連結規格一致。
+- **影響範圍**：只改編輯頁「新增聯絡方式」的提示文字、前端輸入整理與快取版本；不改公開 `card.html?id=...`、不改 `card.html?nfc=...`、不改 Supabase 專案、不改資料表。
+- **快取更新**：`edit.html` 內 `edit-contact-normalizers.js` 版本參數升為 `?v=20260805b`，`edit-chunk-3.js` 版本參數升為 `?v=20260805c`；`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.5`。
+
 ## 2026-08-05（修正：Instagram 新增步驟符合現況）
 
 ### 修正（編輯名片頁 → 新增 Instagram）
