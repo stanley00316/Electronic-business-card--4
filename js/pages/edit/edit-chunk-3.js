@@ -283,12 +283,18 @@ function showLinkInputModal(defaultLink, currentLang) {
   const overlay = document.getElementById('linkInputOverlay');
   const inputField = document.getElementById('linkInputField');
   const help = document.getElementById('linkInputHelp');
+  const t = window.isEditingContact && window.editingContactInfo ? window.editingContactInfo.type : (window.currentContactType ? window.currentContactType.type : '');
 
   if (overlay && inputField) {
     inputField.value = defaultLink || '';
     // 使用 currentContactType 中的 placeholder，若無則使用預設值
     const customPlaceholder = window.currentContactType && window.currentContactType.placeholder;
     inputField.placeholder = customPlaceholder || (currentLang === 'zh' ? '請輸入連結' : 'Please enter link');
+    // IG 可直接填 @帳號，不一定要先找完整連結；標題跟輸入內容一致，避免使用者誤會。
+    const titleZh = overlay.querySelector('.link-input-title.lang-zh');
+    const titleEn = overlay.querySelector('.link-input-title.lang-en');
+    if (titleZh) titleZh.textContent = t === 'instagram' ? '輸入 IG 帳號或連結' : '輸入連結';
+    if (titleEn) titleEn.textContent = t === 'instagram' ? 'Enter IG username or link' : 'Enter Link';
     // 重置提交標記（包括全局標記）
     inputField.dataset.submitted = 'false';
     window.isSubmittingLink = false;
@@ -298,7 +304,6 @@ function showLinkInputModal(defaultLink, currentLang) {
 
     // 範例/說明（A）
     if (help) {
-      const t = window.isEditingContact && window.editingContactInfo ? window.editingContactInfo.type : (window.currentContactType ? window.currentContactType.type : '');
       let zh = '請輸入完整連結（包含 https://）。';
       let en = 'Please enter a full link (including https://).';
       if (t === 'line') {
@@ -456,26 +461,28 @@ function showLinkInputModal(defaultLink, currentLang) {
           <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📸 如何取得 Instagram 個人連結：</div>
           <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> 開啟 Instagram App</div>
-            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊右下角「個人檔案」</div>
-            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊右上角「≡」→「QR 圖碼」</div>
-            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> 點擊「分享」→「複製連結」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> 點擊右下角自己的頭像，進入個人檔案</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> 點擊「分享個人檔案」</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> 點擊「複製連結」；看不到按鈕時，直接輸入 @帳號也可以</div>
           </div>
           <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
-            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">連結格式範例：</div>
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">可輸入格式：</div>
             <code style="color:var(--uvaco-green);word-break:break-all;">https://www.instagram.com/yourname</code>
+            <code style="display:block;color:var(--uvaco-green);word-break:break-all;margin-top:4px;">@yourname</code>
           </div>
         </div>`;
         en = `<div style="text-align:left;">
           <div style="font-weight:600;color:var(--uvaco-green);margin-bottom:10px;">📸 How to get your Instagram link:</div>
           <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</span> Open Instagram App</div>
-            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap "Profile" (bottom right)</div>
-            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Tap "≡" → "QR Code" (top right)</div>
-            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> Tap "Share" → "Copy Link"</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</span> Tap your profile picture at the bottom right</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</span> Tap "Share profile"</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;min-width:20px;border-radius:50%;background:var(--uvaco-green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</span> Tap "Copy link"; if you do not see it, enter @username instead</div>
           </div>
           <div style="padding:10px;background:rgba(0,200,83,0.1);border-radius:8px;">
-            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Link format example:</div>
+            <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Accepted formats:</div>
             <code style="color:var(--uvaco-green);word-break:break-all;">https://www.instagram.com/yourname</code>
+            <code style="display:block;color:var(--uvaco-green);word-break:break-all;margin-top:4px;">@yourname</code>
           </div>
         </div>`;
       } else if (t === 'linkedin') {
