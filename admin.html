@@ -68,12 +68,86 @@
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
     .qr-box { background:#fff; padding:30px; border-radius:16px; text-align:center; color:#000; }
     #qrImage { width: 250px; height: 250px; margin: 20px 0; }
+
+    /* ===== 白話文提示彈窗（取代原生 alert/confirm/prompt） =====
+       視覺沿用 edit.html 的 save-feedback 樣式，這裡是管理後台自己的版本，
+       避免管理員操作時被瀏覽器原生跳窗打斷、體驗跟其他頁面不一致。 */
+    .admin-feedback-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .admin-feedback-overlay.show { display: flex; }
+    .admin-feedback-modal {
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 32px 28px 28px;
+      text-align: center;
+      animation: adminFeedbackSlideUp 0.3s ease;
+    }
+    @keyframes adminFeedbackSlideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .admin-feedback-icon { font-size: 44px; line-height: 1; margin-bottom: 12px; }
+    .admin-feedback-title { font-size: 19px; font-weight: 700; color: #fff; margin: 0 0 12px; }
+    .admin-feedback-msg { font-size: 14px; line-height: 1.6; color: #9ca3af; margin: 0 0 20px; white-space: pre-line; text-align: left; }
+    .admin-feedback-input {
+      width: 100%;
+      display: none;
+      margin: 0 0 20px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .admin-feedback-actions { display: flex; flex-direction: column; gap: 10px; }
+    .admin-feedback-btn {
+      width: 100%;
+      padding: 13px 20px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+    .admin-feedback-btn-primary { background: #1faf53; color: #fff; }
+    .admin-feedback-btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .admin-feedback-btn-secondary { background: rgba(255,255,255,0.1); color: #fff; }
+    .admin-feedback-btn-secondary:hover { background: rgba(255,255,255,0.15); }
   </style>
   <script src="supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="cloud.js?v=20260804e"></script>
 </head>
 <body>
+
+<!-- 白話文提示彈窗（取代原生 alert/confirm/prompt），由本頁 script 內的 adminAlert/adminConfirm/adminPrompt 控制 -->
+<div id="adminFeedbackOverlay" class="admin-feedback-overlay">
+  <div class="admin-feedback-modal">
+    <div class="admin-feedback-icon" id="adminFeedbackIcon"></div>
+    <h2 class="admin-feedback-title" id="adminFeedbackTitle"></h2>
+    <p class="admin-feedback-msg" id="adminFeedbackMsg"></p>
+    <input type="text" class="admin-feedback-input" id="adminFeedbackInput">
+    <div class="admin-feedback-actions" id="adminFeedbackActions"></div>
+  </div>
+</div>
 
 <h1>NFC 名片量產管理</h1>
 
@@ -292,6 +366,90 @@
 </div>
 
 <script>
+// ===== 白話文提示彈窗（取代原生 alert()/confirm()/prompt()） =====
+// 原生瀏覽器彈窗看起來生硬、容易被漏看，且無法在同一頁面內統一樣式。
+// 這裡統一用畫面內的彈窗元件取代，操作邏輯不變（一樣會擋住後續程式碼直到使用者按下按鈕），
+// 只是改成 Promise/await 的寫法。
+
+function showAdminFeedback(kind, opts) {
+  opts = opts || {};
+  const overlay = document.getElementById('adminFeedbackOverlay');
+  const iconEl = document.getElementById('adminFeedbackIcon');
+  const titleEl = document.getElementById('adminFeedbackTitle');
+  const msgEl = document.getElementById('adminFeedbackMsg');
+  const inputEl = document.getElementById('adminFeedbackInput');
+  const actionsEl = document.getElementById('adminFeedbackActions');
+
+  // 保底：萬一彈窗 DOM 不存在（理論上不會發生），退回原生 alert/confirm/prompt，避免訊息整個消失不見
+  if (!overlay || !iconEl || !titleEl || !msgEl || !inputEl || !actionsEl) {
+    if (kind === 'prompt') return Promise.resolve(window.prompt(opts.msg || '', opts.defaultValue || ''));
+    if (kind === 'confirm') return Promise.resolve(window.confirm(opts.msg || ''));
+    window.alert(opts.msg || '');
+    return Promise.resolve(true);
+  }
+
+  const defaultIcon = kind === 'error' ? '⚠️' : (kind === 'confirm' ? '❓' : (kind === 'prompt' ? '📝' : '✅'));
+  iconEl.textContent = opts.icon || defaultIcon;
+  titleEl.textContent = opts.title || '';
+  msgEl.textContent = opts.msg || '';
+  actionsEl.innerHTML = '';
+
+  const isPrompt = kind === 'prompt';
+  inputEl.style.display = isPrompt ? 'block' : 'none';
+  inputEl.value = isPrompt ? (opts.defaultValue || '') : '';
+
+  function closeOverlay() {
+    overlay.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  return new Promise(function (resolve) {
+    let actions;
+    if (opts.actions && opts.actions.length) {
+      actions = opts.actions;
+    } else if (kind === 'confirm' || kind === 'prompt') {
+      actions = [
+        { label: '取消', primary: false, result: null },
+        { label: '確定', primary: true, resultFromInput: isPrompt }
+      ];
+    } else {
+      actions = [{ label: '知道了', primary: true, result: true }];
+    }
+
+    actions.forEach(function (action) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'admin-feedback-btn ' + (action.primary ? 'admin-feedback-btn-primary' : 'admin-feedback-btn-secondary');
+      btn.textContent = action.label || '';
+      btn.onclick = function () {
+        const result = action.resultFromInput ? inputEl.value : (action.result !== undefined ? action.result : !!action.primary);
+        closeOverlay();
+        resolve(result);
+      };
+      actionsEl.appendChild(btn);
+    });
+
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    if (isPrompt) setTimeout(function () { inputEl.focus(); }, 50);
+  });
+}
+
+// 取代 alert(message)：顯示訊息，使用者按「知道了」後 resolve
+function adminAlert(msg, title) {
+  return showAdminFeedback('info', { title: title || '提示', msg: msg });
+}
+
+// 取代 confirm(message)：resolve true/false
+function adminConfirm(msg, title) {
+  return showAdminFeedback('confirm', { title: title || '請確認', msg: msg });
+}
+
+// 取代 prompt(message)：resolve 使用者輸入的文字，取消則 resolve null
+function adminPrompt(msg, title, defaultValue) {
+  return showAdminFeedback('prompt', { title: title || '請輸入', msg: msg, defaultValue: defaultValue || '' });
+}
+
 let allData = [];
 let adminStatus = null;
 
@@ -335,7 +493,7 @@ async function init() {
   // 2. 檢查權限
   adminStatus = await UVACO_CLOUD.isAdmin();
   if (!adminStatus || !adminStatus.isAdmin) {
-    alert('權限不足：您不是管理員。');
+    await adminAlert('權限不足：您不是管理員。');
     window.location.href = 'directory.html';
     return;
   }
@@ -489,7 +647,7 @@ function filterTable() {
 }
 
 function copyLink(url) {
-  navigator.clipboard.writeText(url).then(() => alert('已複製連結：\n' + url));
+  navigator.clipboard.writeText(url).then(() => adminAlert('已複製連結：\n' + url));
 }
 
 let currentQRName = '';
@@ -540,7 +698,7 @@ async function saveNfcId() {
   const nfcId = document.getElementById('nfcIdInput').value.trim();
   
   if (!userId) {
-    alert('錯誤：找不到用戶 ID');
+    await adminAlert('錯誤：找不到用戶 ID');
     return;
   }
   
@@ -548,23 +706,23 @@ async function saveNfcId() {
     if (UVACO_CLOUD.setNfcCardId) {
       const result = await UVACO_CLOUD.setNfcCardId(userId, nfcId || null);
       if (result.success) {
-        alert(nfcId ? `NFC 卡片 ID 已設定為：${nfcId}` : 'NFC 卡片綁定已清除');
+        await adminAlert(nfcId ? `NFC 卡片 ID 已設定為：${nfcId}` : 'NFC 卡片綁定已清除');
         document.getElementById('nfcModal').style.display = 'none';
         reloadData(); // 重新載入表格
       } else {
-        alert('設定失敗：' + (result.error?.message || '未知錯誤'));
+        await adminAlert('設定失敗：' + (result.error?.message || '未知錯誤'));
       }
     } else {
-      alert('功能尚未啟用，請確認 cloud.js 版本');
+      await adminAlert('功能尚未啟用，請確認 cloud.js 版本');
     }
   } catch (e) {
     console.error('NFC 設定錯誤:', e);
-    alert('設定失敗：' + (e.message || e));
+    await adminAlert('設定失敗：' + (e.message || e));
   }
 }
 
 async function clearNfcId() {
-  if (!confirm('確定要清除此用戶的 NFC 卡片綁定？')) return;
+  if (!await adminConfirm('確定要清除此用戶的 NFC 卡片綁定？')) return;
 
   document.getElementById('nfcIdInput').value = '';
   await saveNfcId();
@@ -576,7 +734,7 @@ let stickerModalSelectedMaterial = null;
 let stickerModalSelectedColor = null;
 
 // 開啟設定彈窗：帶入 userId 是「單筆設定」，不帶（傳 null）則是對目前勾選的名片「批次設定」
-function openStickerModal(userId) {
+async function openStickerModal(userId) {
   if (userId) {
     const row = allData.find((r) => String(r.user_id) === String(userId));
     document.getElementById('stickerModalTitle').textContent = (row && row.name ? row.name : '此名片') + ' - 設定貼紙材質/顏色';
@@ -587,7 +745,7 @@ function openStickerModal(userId) {
   } else {
     const ids = getSelectedCardIds();
     if (ids.length === 0) {
-      alert('請先在名片列表勾選至少一筆名片，再批次設定貼紙材質/顏色。');
+      await adminAlert('請先在名片列表勾選至少一筆名片，再批次設定貼紙材質/顏色。');
       return;
     }
     document.getElementById('stickerModalTitle').textContent = `批次設定貼紙材質/顏色（共 ${ids.length} 筆）`;
@@ -625,14 +783,14 @@ function selectStickerOption(material, color) {
 
 async function saveStickerOption() {
   if (!stickerModalSelectedMaterial || !stickerModalSelectedColor) {
-    alert('請先點選一種材質/顏色，再按儲存。');
+    await adminAlert('請先點選一種材質/顏色，再按儲存。');
     return;
   }
   await applyStickerOptionToTargets(stickerModalSelectedMaterial, stickerModalSelectedColor);
 }
 
 async function clearStickerOption() {
-  if (!confirm('確定要清除貼紙材質/顏色設定？')) return;
+  if (!await adminConfirm('確定要清除貼紙材質/顏色設定？')) return;
   await applyStickerOptionToTargets(null, null);
 }
 
@@ -643,7 +801,7 @@ async function applyStickerOptionToTargets(material, color) {
     : getSelectedCardIds();
 
   if (targetIds.length === 0 || !targetIds[0]) {
-    alert('找不到要設定的名片。');
+    await adminAlert('找不到要設定的名片。');
     return;
   }
 
@@ -658,7 +816,7 @@ async function applyStickerOptionToTargets(material, color) {
     reloadData();
   } catch (e) {
     console.error('設定貼紙材質/顏色失敗:', e);
-    alert('設定失敗：' + (e.message || e));
+    await adminAlert('設定失敗：' + (e.message || e));
   }
 }
 
@@ -668,12 +826,12 @@ function editCard(userId) {
 }
 
 async function deleteCard(userId) {
-  const ok = confirm('確定要刪除此名片嗎？此動作無法復原。');
+  const ok = await adminConfirm('確定要刪除此名片嗎？此動作無法復原。');
   if (!ok) return;
   try {
     await UVACO_CLOUD.deleteCard(userId);
     await reloadData();
-    alert('已刪除。');
+    await adminAlert('已刪除。');
   } catch (e) {
     try { console.error('deleteCard failed', e); } catch (_e) {}
     const msg = String(e?.message || e || '');
@@ -685,14 +843,14 @@ async function deleteCard(userId) {
       .join('\n');
     // 常見：Supabase / Postgres RLS policy 自我參照，會回傳 stack depth limit exceeded
     if (/stack\s+depth\s+limit\s+exceeded/i.test(msg)) {
-      alert(
+      await adminAlert(
         '刪除失敗：資料庫權限規則（RLS policy）可能有「自我查表」造成遞迴，導致 stack depth limit exceeded。\n\n' +
         '請到 Supabase SQL Editor 重新執行專案的 update_admin_schema.sql（最新版已修正此問題），再重試刪除。\n\n' +
         (extra ? ('\n\n' + extra) : '')
       );
       return;
     }
-    alert('刪除失敗：' + msg + (extra ? ('\n\n' + extra) : ''));
+    await adminAlert('刪除失敗：' + msg + (extra ? ('\n\n' + extra) : ''));
   }
 }
 
@@ -725,32 +883,32 @@ async function saveAdminUser() {
   const uid = (document.getElementById('adminUserIdInput')?.value || '').trim();
   const company = (document.getElementById('adminCompanyInput')?.value || '').trim();
   if (!uid) {
-    alert('請輸入 User ID');
+    await adminAlert('請輸入 User ID');
     return;
   }
   try {
     await UVACO_CLOUD.upsertAdminUser(uid, company);
     await loadAdmins();
-    alert('已更新管理員。');
+    await adminAlert('已更新管理員。');
   } catch (e) {
-    alert('更新失敗：' + String(e?.message || e || ''));
+    await adminAlert('更新失敗：' + String(e?.message || e || ''));
   }
 }
 
 async function removeAdminUser() {
   const uid = (document.getElementById('adminUserIdInput')?.value || '').trim();
   if (!uid) {
-    alert('請輸入要移除的 User ID');
+    await adminAlert('請輸入要移除的 User ID');
     return;
   }
-  const ok = confirm('確定要移除此管理員嗎？');
+  const ok = await adminConfirm('確定要移除此管理員嗎？');
   if (!ok) return;
   try {
     await UVACO_CLOUD.deleteAdminUser(uid);
     await loadAdmins();
-    alert('已移除管理員。');
+    await adminAlert('已移除管理員。');
   } catch (e) {
-    alert('移除失敗：' + String(e?.message || e || ''));
+    await adminAlert('移除失敗：' + String(e?.message || e || ''));
   }
 }
 
@@ -853,15 +1011,15 @@ async function savePricingPlan() {
   const description_en = document.getElementById('pricingDescEnInput').value.trim();
   
   if (!name) {
-    alert('請輸入方案名稱');
+    await adminAlert('請輸入方案名稱');
     return;
   }
   if (!price || price < 0) {
-    alert('請輸入有效的價格');
+    await adminAlert('請輸入有效的價格');
     return;
   }
   if (!duration_days || duration_days < 1) {
-    alert('請輸入有效的天數');
+    await adminAlert('請輸入有效的天數');
     return;
   }
   
@@ -878,49 +1036,49 @@ async function savePricingPlan() {
     });
     
     if (result.success) {
-      alert(id ? '方案已更新' : '方案已新增');
+      await adminAlert(id ? '方案已更新' : '方案已新增');
       clearPricingForm();
       await loadPricingPlans();
     } else {
-      alert('儲存失敗：' + (result.error || '未知錯誤'));
+      await adminAlert('儲存失敗：' + (result.error || '未知錯誤'));
     }
   } catch (e) {
     console.error('儲存價格方案失敗:', e);
-    alert('儲存失敗：' + (e.message || e));
+    await adminAlert('儲存失敗：' + (e.message || e));
   }
 }
 
 async function deletePricingPlan(planId) {
-  if (!confirm('確定要停用此價格方案嗎？')) return;
+  if (!await adminConfirm('確定要停用此價格方案嗎？')) return;
   
   try {
     const result = await UVACO_CLOUD.deletePricingPlan(planId);
     if (result.success) {
-      alert('方案已停用');
+      await adminAlert('方案已停用');
       await loadPricingPlans();
     } else {
-      alert('停用失敗：' + (result.error || '未知錯誤'));
+      await adminAlert('停用失敗：' + (result.error || '未知錯誤'));
     }
   } catch (e) {
     console.error('停用價格方案失敗:', e);
-    alert('停用失敗：' + (e.message || e));
+    await adminAlert('停用失敗：' + (e.message || e));
   }
 }
 
 async function reactivatePricingPlan(planId) {
-  if (!confirm('確定要重新啟用此價格方案嗎？')) return;
+  if (!await adminConfirm('確定要重新啟用此價格方案嗎？')) return;
   
   try {
     const result = await UVACO_CLOUD.reactivatePricingPlan(planId);
     if (result.success) {
-      alert('方案已啟用');
+      await adminAlert('方案已啟用');
       await loadPricingPlans();
     } else {
-      alert('啟用失敗：' + (result.error || '未知錯誤'));
+      await adminAlert('啟用失敗：' + (result.error || '未知錯誤'));
     }
   } catch (e) {
     console.error('啟用價格方案失敗:', e);
-    alert('啟用失敗：' + (e.message || e));
+    await adminAlert('啟用失敗：' + (e.message || e));
   }
 }
 
@@ -1104,12 +1262,12 @@ async function confirmExtendSubscription() {
   const reason = document.getElementById('extendReasonInput').value.trim();
   
   if (!userId) {
-    alert('錯誤：找不到用戶 ID');
+    await adminAlert('錯誤：找不到用戶 ID');
     return;
   }
   
   if (!days || days < 1) {
-    alert('請輸入有效的延長天數');
+    await adminAlert('請輸入有效的延長天數');
     return;
   }
   
@@ -1117,15 +1275,15 @@ async function confirmExtendSubscription() {
     const result = await UVACO_CLOUD.extendSubscription(userId, days, reason);
     if (result.success) {
       const newEnd = new Date(result.newEndDate).toLocaleDateString('zh-TW');
-      alert(`訂閱已延長 ${days} 天\n新到期日：${newEnd}`);
+      await adminAlert(`訂閱已延長 ${days} 天\n新到期日：${newEnd}`);
       document.getElementById('subscriptionModal').style.display = 'none';
       loadSubscriptions();
     } else {
-      alert('延長失敗：' + (result.error || '未知錯誤'));
+      await adminAlert('延長失敗：' + (result.error || '未知錯誤'));
     }
   } catch (e) {
     console.error('延長訂閱錯誤:', e);
-    alert('延長失敗：' + (e.message || e));
+    await adminAlert('延長失敗：' + (e.message || e));
   }
 }
 
@@ -1136,12 +1294,12 @@ async function confirmReduceSubscription() {
   const reason = document.getElementById('extendReasonInput').value.trim();
 
   if (!userId) {
-    alert('錯誤：找不到用戶 ID');
+    await adminAlert('錯誤：找不到用戶 ID');
     return;
   }
 
   if (!days || days < 1) {
-    alert('請輸入有效的減少天數');
+    await adminAlert('請輸入有效的減少天數');
     return;
   }
 
@@ -1149,44 +1307,44 @@ async function confirmReduceSubscription() {
     const result = await UVACO_CLOUD.reduceSubscription(userId, days, reason || '管理員手動減少訂閱');
     if (result.success) {
       if (result.autoCancelled) {
-        alert(`已減少 ${days} 天\n此用戶已到期，系統已自動停用並隱藏名片`);
+        await adminAlert(`已減少 ${days} 天\n此用戶已到期，系統已自動停用並隱藏名片`);
       } else {
         const newEnd = new Date(result.newEndDate).toLocaleDateString('zh-TW');
-        alert(`訂閱已減少 ${days} 天\n新到期日：${newEnd}`);
+        await adminAlert(`訂閱已減少 ${days} 天\n新到期日：${newEnd}`);
       }
       document.getElementById('subscriptionModal').style.display = 'none';
       setSubscriptionModalMode('extend');
       loadSubscriptions();
     } else {
       if (result.error === 'SUBSCRIPTION_NOT_FOUND') {
-        alert('減少失敗：此用戶尚未建立訂閱紀錄');
+        await adminAlert('減少失敗：此用戶尚未建立訂閱紀錄');
       } else {
-        alert('減少失敗：' + (result.error || '未知錯誤'));
+        await adminAlert('減少失敗：' + (result.error || '未知錯誤'));
       }
     }
   } catch (e) {
     console.error('減少訂閱錯誤:', e);
-    alert('減少失敗：' + (e.message || e));
+    await adminAlert('減少失敗：' + (e.message || e));
   }
 }
 
 // 停用訂閱確認
 async function confirmDeactivate(userId, userName) {
-  const reason = prompt(`確定要停用「${userName}」的訂閱嗎？\n\n停用後：\n- 名片將無法被外部瀏覽\n- 用戶自己仍可查看\n\n請輸入停用原因（選填）：`);
+  const reason = await adminPrompt(`確定要停用「${userName}」的訂閱嗎？\n\n停用後：\n- 名片將無法被外部瀏覽\n- 用戶自己仍可查看\n\n請輸入停用原因（選填）：`);
   
   if (reason === null) return; // 用戶點擊取消
   
   try {
     const result = await UVACO_CLOUD.deactivateSubscription(userId, reason || '管理員手動停用');
     if (result.success) {
-      alert(`已停用「${userName}」的訂閱\n名片已設為不可見`);
+      await adminAlert(`已停用「${userName}」的訂閱\n名片已設為不可見`);
       loadSubscriptions();
     } else {
-      alert('停用失敗：' + (result.error || '未知錯誤'));
+      await adminAlert('停用失敗：' + (result.error || '未知錯誤'));
     }
   } catch (e) {
     console.error('停用訂閱錯誤:', e);
-    alert('停用失敗：' + (e.message || e));
+    await adminAlert('停用失敗：' + (e.message || e));
   }
 }
 
@@ -1211,7 +1369,7 @@ async function confirmReactivateSubscription() {
   const reason = document.getElementById('extendReasonInput').value.trim();
   
   if (!userId) {
-    alert('錯誤：找不到用戶 ID');
+    await adminAlert('錯誤：找不到用戶 ID');
     return;
   }
   
@@ -1219,16 +1377,16 @@ async function confirmReactivateSubscription() {
     const result = await UVACO_CLOUD.reactivateUserSubscription(userId, days, reason || '管理員重新啟用');
     if (result.success) {
       const newEnd = new Date(result.newEndDate).toLocaleDateString('zh-TW');
-      alert(`訂閱已重新啟用\n有效期：${days} 天\n到期日：${newEnd}`);
+      await adminAlert(`訂閱已重新啟用\n有效期：${days} 天\n到期日：${newEnd}`);
       document.getElementById('subscriptionModal').style.display = 'none';
       setSubscriptionModalMode('extend');
       loadSubscriptions();
     } else {
-      alert('啟用失敗：' + (result.error || '未知錯誤'));
+      await adminAlert('啟用失敗：' + (result.error || '未知錯誤'));
     }
   } catch (e) {
     console.error('重新啟用錯誤:', e);
-    alert('啟用失敗：' + (e.message || e));
+    await adminAlert('啟用失敗：' + (e.message || e));
   }
 }
 
@@ -1294,10 +1452,10 @@ function getSelectedCardIds() {
 }
 
 // 按下「輸出貼紙PDF」：先檢查有沒有勾選，再開啟輸入英文公司名稱的彈窗
-function openPdfExportModal() {
+async function openPdfExportModal() {
   const ids = getSelectedCardIds();
   if (ids.length === 0) {
-    alert('請先在名片列表勾選至少一筆名片，再輸出貼紙 PDF。');
+    await adminAlert('請先在名片列表勾選至少一筆名片，再輸出貼紙 PDF。');
     return;
   }
 
@@ -1317,7 +1475,7 @@ function openPdfExportModal() {
 async function confirmPdfExport() {
   const ids = getSelectedCardIds();
   if (ids.length === 0) {
-    alert('請先勾選至少一筆名片。');
+    await adminAlert('請先勾選至少一筆名片。');
     return;
   }
   const companyNameEn = document.getElementById('pdfCompanyNameEnInput').value.trim();
@@ -1335,7 +1493,7 @@ async function confirmPdfExport() {
     document.getElementById('pdfExportModal').style.display = 'none';
   } catch (e) {
     console.error('輸出貼紙 PDF 失敗:', e);
-    alert('輸出失敗：' + (e.message || e));
+    await adminAlert('輸出失敗：' + (e.message || e));
   } finally {
     confirmBtn.disabled = false;
     confirmBtn.textContent = '確認並產生 PDF';

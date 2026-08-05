@@ -1,5 +1,18 @@
 # 變更紀錄
 
+## 2026-08-05（改善：管理後台改用畫面內提示彈窗，取代瀏覽器原生 alert/confirm/prompt）
+
+### 改善（admin.html → 操作提示與確認）
+
+- **問題緣起**：全系統做「3C 小白友善度」檢視時發現，`admin.html` 大量使用瀏覽器原生 `alert()`（54 處）、`confirm()`（6 處）、`prompt()`（1 處），跟 `edit.html` 已經改用的白話文提示彈窗風格不一致，原生彈窗容易被漏看、無法統一樣式，日常操作（刪除名片、移除管理員、停用訂閱等）體驗比其他頁面明顯落後。
+- **修正方式**：
+  1. 新增 `showAdminFeedback()` 與對應的 `adminAlert()` / `adminConfirm()` / `adminPrompt()`，視覺沿用 `edit.html` save-feedback 的圓角卡片風格，行為與原生 `alert/confirm/prompt` 相同（一樣會擋住後續程式碼直到使用者按下按鈕），只是改成 Promise/await 寫法；若彈窗 DOM 意外不存在，會自動退回原生 `alert/confirm/prompt`，不會讓訊息整個消失。
+  2. 全面把 `admin.html` 內的 `alert(...)` 換成 `await adminAlert(...)`、`confirm(...)` 換成 `await adminConfirm(...)`、唯一一處 `prompt(...)`（停用訂閱原因輸入）換成 `await adminPrompt(...)`；`copyLink()`、`openStickerModal()`、`openPdfExportModal()` 因為呼叫到彈窗，一併調整為可以正確等待彈窗結果的寫法。
+  3. 逐一確認所有新增的 `await adminAlert/adminConfirm/adminPrompt` 呼叫都位在 `async function` 內，並用語法檢查確認整份檔案沒有壞掉。
+- **影響範圍**：只改 `admin.html` 的提示/確認呈現方式，所有判斷邏輯、資料操作順序、API 呼叫完全不變；不影響 `card.html`、`edit.html`、`guest-join.html` 等其他頁面。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.11`。
+
+
 ## 2026-08-05（新增：常見問題頁與邀請好友加入頁 UX 加強）
 
 ### 新增（faq.html → 使用者自助說明）
