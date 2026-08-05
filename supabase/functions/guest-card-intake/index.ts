@@ -126,6 +126,31 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+// 查重：用電話或 Email 比對現有 cards，避免同一個人因為重複點連結／被重複邀請而產生兩張互不相通的名片。
+// 只有電話或 Email 其中一項有值才查（LINE 連結沒有獨立欄位可查，略過）。
+async function findExistingCardByContact(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  phone: string,
+  email: string,
+) {
+  const filters: string[] = [];
+  if (phone) filters.push(`phone.eq.${encodeURIComponent(phone)}`);
+  if (email) filters.push(`email.eq.${encodeURIComponent(email)}`);
+  if (!filters.length) return null;
+
+  const query = filters.length > 1 ? `or=(${filters.join(",")})` : filters[0];
+  const resp = await supabaseRest(
+    supabaseUrl,
+    serviceRoleKey,
+    `/rest/v1/cards?select=user_id,name&${query}&limit=1`,
+    { method: "GET" },
+  );
+  if (!resp.ok) return null;
+  const rows = await resp.json().catch(() => []);
+  return Array.isArray(rows) && rows[0] ? (rows[0] as { user_id: string; name?: string }) : null;
+}
+
 async function supabaseRest(
   supabaseUrl: string,
   serviceRoleKey: string,
@@ -218,6 +243,34 @@ serve(async (req) => {
 
   if (!name) return bad("NAME_REQUIRED");
   if (!phone && !email && !lineUrl) return bad("CONTACT_REQUIRED");
+
+  // 查重：電話或 Email 已存在於現有名片，就不建新的，直接回傳既有名片連結。
+  const existingCard = await findExistingCardByContact(SUPABASE_URL, SERVICE_ROLE_KEY, phone, email);
+  if (existingCard && existingCard.user_id) {
+    if (invite) {
+      await supabaseRest(SUPABASE_URL, SERVICE_ROLE_KEY, "/rest/v1/card_invites?token=eq." + encodeURIComponent(inviteToken), {
+        method: "PATCH",
+        headers: { prefer: "return=minimal" },
+        body: JSON.stringify({
+          used_at: new Date().toISOString(),
+        }),
+      });
+    }
+
+    const existingUserId = String(existingCard.user_id);
+    const existingPublicUrl = `${siteUrl}card.html?id=${encodeURIComponent(existingUserId)}`;
+    const existingShareUrl = `${existingPublicUrl}&openExternalBrowser=1`;
+
+    return json({
+      success: true,
+      build: BUILD_ID,
+      duplicate: true,
+      user_id: existingUserId,
+      public_url: existingPublicUrl,
+      share_url: existingShareUrl,
+      referral_recorded: false,
+    });
+  }
 
   const userId = crypto.randomUUID();
   const contactsHtml = buildContactsHtml(phone, email, lineUrl);

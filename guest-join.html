@@ -293,7 +293,7 @@
       <div id="joinStatus" class="join-status" role="status"></div>
 
       <div id="joinSuccess" class="join-success">
-        <p class="join-success-title">名片已建立完成</p>
+        <p class="join-success-title" id="joinSuccessTitle">名片已建立完成</p>
         <a id="guestCardLink" class="join-link" href="#" target="_blank" rel="noopener"></a>
         <div class="join-actions">
           <button type="button" class="join-btn primary" onclick="openCreatedCard()">開啟我的名片</button>
@@ -353,13 +353,22 @@
       btn.textContent = isSubmitting ? '正在建立名片...' : '送出並建立名片';
     }
 
-    function showSuccess(publicUrl, shareUrl) {
+    function showSuccess(publicUrl, shareUrl, isDuplicate) {
       createdCardUrl = publicUrl || '';
       createdShareUrl = shareUrl || publicUrl || '';
       try {
         localStorage.setItem('UVACO_LAST_GUEST_CARD_URL', createdCardUrl);
         localStorage.setItem('UVACO_LAST_GUEST_CARD_SHARE_URL', createdShareUrl);
       } catch (e) {}
+
+      var title = document.getElementById('joinSuccessTitle');
+      if (title) {
+        // 電話或 Email 已經對應到現有名片時，後端不會新建一筆，這裡改顯示對應的提示文字，
+        // 避免使用者誤以為又重新建立了一張新名片。
+        title.textContent = isDuplicate
+          ? '這支電話／Email 已經有名片了，這是你的名片連結'
+          : '名片已建立完成';
+      }
 
       var link = document.getElementById('guestCardLink');
       if (link) {
@@ -462,7 +471,7 @@
           return;
         }
 
-        showSuccess(result.public_url, result.share_url);
+        showSuccess(result.public_url, result.share_url, !!result.duplicate);
       } catch (e) {
         setJoinStatus('err', '名片建立失敗，請稍後再試。');
       } finally {

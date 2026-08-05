@@ -1,5 +1,19 @@
 # 變更紀錄
 
+## 2026-08-05（修正：邀請好友／員工邀請避免同一人建立兩張互不相通的名片）
+
+### 修正（guest-card-intake → 免登入建立名片）
+
+- **問題緣起**：後台會看到同一個人出現兩筆名片資料。追查後確認 `guest-card-intake` 這個免登入建立名片的 Edge Function，每次送出都用 `crypto.randomUUID()` 直接建一筆新資料，完全沒有查重機制；只要同一個人被重複邀請、重複點連結，或表單被重新送出第二次，就會各自產生一張互不相通的公開名片。
+- **修正方式**：
+  1. 新增 `findExistingCardByContact()`：送出前先用電話或 Email（只在有值時才比對）查詢 `cards` 表是否已有相符資料。
+  2. 若查到既有名片，不再新建，直接回傳既有名片的 `public_url` / `share_url`，並標記 `duplicate: true`；若這次送出是透過員工邀請連結，仍會把該邀請標記為已使用，避免同一組連結被無限重複領用。
+  3. `guest-join.html` 收到 `duplicate: true` 時，成功畫面標題改顯示「這支電話／Email 已經有名片了，這是你的名片連結」，不再顯示「名片已建立完成」造成使用者誤會又建立了一張新名片。
+- **影響範圍**：只改 `guest-card-intake` 送出前的查重判斷與 `guest-join.html` 對應提示文字；不改既有名片欄位、不改 `card.html?id=...` / `card.html?nfc=...` 網址規則、不影響原本沒有重複的正常建立流程。
+- **待部署**：`supabase/functions/guest-card-intake/index.ts` 屬於 Supabase Edge Function，GitHub Pages 部署**不會**自動更新它，需要另外到 Supabase Dashboard 重新部署這個函式，新的查重邏輯才會生效。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.8`。
+
+
 ## 2026-08-05（修正：公開名片頁職稱空白時不再顯示「-」）
 
 ### 修正（公開名片頁 → 職務／職稱顯示）
