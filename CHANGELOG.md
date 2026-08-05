@@ -1,5 +1,18 @@
 # 變更紀錄
 
+## 2026-08-05（維護：編輯頁拆分與快取更新）
+
+### 維護（編輯名片頁）
+
+- **問題緣起**：編輯頁部分 JavaScript 檔案接近或超過專案約定的 900 行，長期維護時不利於排查問題。
+- **調整內容**：
+  1. 新增 `js/pages/edit/edit-contact-normalizers.js`，集中處理微信號輸入整理。
+  2. 新增 `js/pages/edit/edit-font-toolbar.js`，集中處理姓名、職稱與標語的文字樣式工具列。
+  3. 新增 `js/pages/edit/edit-slogans.js`，集中處理標語新增與刪除。
+  4. `edit-chunk-1.js`、`edit-chunk-2.js`、`edit-chunk-3.js` 都降到 900 行內，降低後續維護成本。
+  5. `edit.html` 已加入新拆分檔案並更新版本參數；`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.3`。
+- **影響範圍**：只整理編輯頁前端檔案載入與快取，不改公開 `card.html?id=...`、不改 `card.html?nfc=...`、不改 Supabase 專案與資料表。
+
 ## 2026-08-04（新增：企業客戶追蹤待辦、匯出與一鍵聯絡）
 
 ### 新增（企業管理中心 → 客戶追蹤）

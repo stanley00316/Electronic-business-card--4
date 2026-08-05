@@ -7,6 +7,7 @@
 ### 原始碼結構與建置
 
 - **模組約定**：`js/cloud/*.js`、`js/common/*.js` 與 `js/pages/**/*.js` 等**原始檔**維持每檔約 **≤900 行**，方便維護。
+- **編輯頁拆分**：`edit.html` 會依序載入 `js/pages/edit/edit-*.js`；微信輸入整理、文字樣式工具列與標語管理已拆成小檔，避免主編輯檔過長。
 - **根目錄 `cloud.js` / `common.js`**：為 **esbuild** 由 `js/cloud/index.js`、`js/common/index.js` 打包產生的 **IIFE**（已 minify）。修改雲端或共用邏輯後請執行：
   - `npm install`（僅需一次，安裝開發依賴）
   - `npm run build:static`
