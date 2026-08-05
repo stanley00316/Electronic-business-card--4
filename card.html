@@ -472,9 +472,9 @@
   <div class="name lang-zh" id="viewerNameZh">-</div>
   <div class="name lang-en" id="viewerNameEn">-</div>
 
-  <!-- 職務 -->
-  <div class="tagline lang-zh" id="viewerTitleZh">-</div>
-  <div class="tagline lang-en" id="viewerTitleEn">-</div>
+  <!-- 職務：未填寫時由 JS 完全隱藏（不顯示 -），初始先隱藏避免載入瞬間閃過空字樣 -->
+  <div class="tagline lang-zh" id="viewerTitleZh" style="display:none;"></div>
+  <div class="tagline lang-en" id="viewerTitleEn" style="display:none;"></div>
 
   <!-- 標語（由 JS 動態填入，或 fallback 到預設） -->
   <div id="viewerSlogansZh">
@@ -1390,8 +1390,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
       renderBilingualName('viewerNameZh', nameZh);
       renderBilingualName('viewerNameEn', nameEn);
-      document.getElementById('viewerTitleZh').textContent = titleZh || '-';
-      document.getElementById('viewerTitleEn').textContent = titleEn || '-';
+      // 職稱沒填寫時完全不渲染這行文字（不再 fallback 顯示 "-"）
+      const titleZhEl = document.getElementById('viewerTitleZh');
+      if (titleZh) {
+        titleZhEl.textContent = titleZh;
+        titleZhEl.style.display = '';
+      } else {
+        titleZhEl.textContent = '';
+        titleZhEl.style.display = 'none';
+      }
+      const titleEnEl = document.getElementById('viewerTitleEn');
+      if (titleEn) {
+        titleEnEl.textContent = titleEn;
+        titleEnEl.style.display = '';
+      } else {
+        titleEnEl.textContent = '';
+        titleEnEl.style.display = 'none';
+      }
       document.getElementById('viewerCompanyStrongZh').textContent = companyZh || '-';
       document.getElementById('viewerCompanyStrongEn').textContent = companyEn || '-';
       
