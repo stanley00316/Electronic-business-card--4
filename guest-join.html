@@ -181,9 +181,22 @@
       display: block;
     }
     .join-success-title {
-      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 6px;
       font-size: 17px;
       font-weight: 800;
+    }
+    .join-success-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+    .join-success-hint {
+      margin: 0 0 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.72);
     }
     .join-link {
       display: block;
@@ -293,13 +306,18 @@
       <div id="joinStatus" class="join-status" role="status"></div>
 
       <div id="joinSuccess" class="join-success">
-        <p class="join-success-title">名片已建立完成</p>
+        <p class="join-success-title"><span class="join-success-icon" id="joinSuccessIcon">✅</span><span id="joinSuccessTitle">名片已建立完成</span></p>
+        <p class="join-success-hint" id="joinSuccessHint">點下面「開啟我的名片」就能看到你的專屬名片，記得把連結存起來。</p>
         <a id="guestCardLink" class="join-link" href="#" target="_blank" rel="noopener"></a>
         <div class="join-actions">
           <button type="button" class="join-btn primary" onclick="openCreatedCard()">開啟我的名片</button>
           <button type="button" class="join-btn secondary" onclick="copyCreatedCardLink()">複製名片連結</button>
         </div>
       </div>
+
+      <p style="text-align:center; margin-top:18px; font-size:12px;">
+        <a href="faq.html" style="color:#9ca3af; text-decoration:underline;">操作上有疑問？先看常見問題</a>
+      </p>
     </section>
   </main>
 
@@ -330,6 +348,21 @@
       box.textContent = '';
     }
 
+    // 把後端回傳的技術錯誤代碼轉成白話文，原則比照 edit.html 的存檔錯誤提示：
+    // 畫面上一律不直接顯示英文錯誤代碼，代碼只印到 console，方便你之後對照 Supabase 後台的 Logs 排查。
+    function friendlyGuestJoinErrorMessage(errorCode) {
+      var messages = {
+        BOT_DETECTED: '這次送出被系統判斷為異常請求，請重新整理頁面後再試一次；如果一直發生，麻煩直接聯絡我們協助處理。',
+        INVITE_INVALID_OR_EXPIRED: '這個邀請連結已經過期或已經被使用過了，請向邀請你的人索取新的連結。',
+        INVITE_READ_FAILED: '讀取邀請資料時發生問題，請重新整理頁面後再試一次。',
+        CARD_CREATE_FAILED: '名片建立時發生問題，不是你填寫的資料有錯，麻煩稍後再試一次；如果一直失敗，請聯絡我們協助處理。',
+        MISSING_SUPABASE_SECRETS: '系統目前設定尚未完成，暫時無法建立名片，請聯絡我們協助處理。',
+        METHOD_NOT_ALLOWED: '系統暫時發生問題，請重新整理頁面後再試一次。',
+        INVALID_JSON: '系統暫時發生問題，請重新整理頁面後再試一次。'
+      };
+      return messages[errorCode] || '名片建立沒有成功，請稍後再試一次；如果一直不行，麻煩直接聯絡我們協助處理。';
+    }
+
     function getInputValue(id) {
       var el = document.getElementById(id);
       return el ? String(el.value || '').trim() : '';
@@ -353,13 +386,30 @@
       btn.textContent = isSubmitting ? '正在建立名片...' : '送出並建立名片';
     }
 
-    function showSuccess(publicUrl, shareUrl) {
+    function showSuccess(publicUrl, shareUrl, isDuplicate) {
       createdCardUrl = publicUrl || '';
       createdShareUrl = shareUrl || publicUrl || '';
       try {
         localStorage.setItem('UVACO_LAST_GUEST_CARD_URL', createdCardUrl);
         localStorage.setItem('UVACO_LAST_GUEST_CARD_SHARE_URL', createdShareUrl);
       } catch (e) {}
+
+      // 電話或 Email 已經對應到現有名片時，後端不會新建一筆，這裡改用不同的圖示／標題／說明文字，
+      // 讓使用者一眼就看出「這不是新建立的名片，是原本就有的那張」，並清楚知道下一步要按哪個按鈕。
+      var icon = document.getElementById('joinSuccessIcon');
+      var title = document.getElementById('joinSuccessTitle');
+      var hint = document.getElementById('joinSuccessHint');
+      if (icon) icon.textContent = isDuplicate ? '📇' : '✅';
+      if (title) {
+        title.textContent = isDuplicate
+          ? '你已經有名片了'
+          : '名片已建立完成';
+      }
+      if (hint) {
+        hint.textContent = isDuplicate
+          ? '系統找到你原本用這支電話或 Email 建立過的名片，不會重複建立。直接點下面「開啟我的名片」就能打開，不用再填一次資料。'
+          : '點下面「開啟我的名片」就能看到你的專屬名片，記得把連結存起來。';
+      }
 
       var link = document.getElementById('guestCardLink');
       if (link) {
@@ -458,11 +508,12 @@
 
         if (!result || !result.success) {
           var error = result && result.error ? result.error : 'CREATE_FAILED';
-          setJoinStatus('err', '名片建立失敗，請確認資料後再試一次。\n錯誤代碼：' + error);
+          console.error('guest-card-intake failed:', error); // 技術代碼只留在 console，方便對照 Supabase Logs
+          setJoinStatus('err', friendlyGuestJoinErrorMessage(error));
           return;
         }
 
-        showSuccess(result.public_url, result.share_url);
+        showSuccess(result.public_url, result.share_url, !!result.duplicate);
       } catch (e) {
         setJoinStatus('err', '名片建立失敗，請稍後再試。');
       } finally {

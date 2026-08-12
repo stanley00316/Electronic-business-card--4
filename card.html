@@ -472,9 +472,9 @@
   <div class="name lang-zh" id="viewerNameZh">-</div>
   <div class="name lang-en" id="viewerNameEn">-</div>
 
-  <!-- 職務 -->
-  <div class="tagline lang-zh" id="viewerTitleZh">-</div>
-  <div class="tagline lang-en" id="viewerTitleEn">-</div>
+  <!-- 職務：未填寫時由 JS 完全隱藏（不顯示 -），初始先隱藏避免載入瞬間閃過空字樣 -->
+  <div class="tagline lang-zh" id="viewerTitleZh" style="display:none;"></div>
+  <div class="tagline lang-en" id="viewerTitleEn" style="display:none;"></div>
 
   <!-- 標語（由 JS 動態填入，或 fallback 到預設） -->
   <div id="viewerSlogansZh">
@@ -1117,6 +1117,14 @@ function renderTrustPanel(card, pj) {
   const panel = document.getElementById('trustPanel');
   if (!panel) return;
 
+  // 公司驗證資訊僅限已訂購企業方案的名片顯示（card.is_enterprise === true）。
+  // 個人名片（is_enterprise 為 false／未設定）直接移除此節點，不做條件式 CSS 隱藏，
+  // 避免公司驗證用的 DOM 結構殘留在個人名片頁面。
+  if (!card || card.is_enterprise !== true) {
+    panel.remove();
+    return;
+  }
+
   const company = safeText(pj.companyZh || pj.companyCanonical || card.company || '');
   const taxId = safeText(pj.companyTaxId || pj.taxId || getCompanyInfoValue(['#previewTaxIdZh', '#previewTaxIdEn', '.info-item-tax .info-value']));
   const officialContact = safeText(pj.officialContact || getOfficialContactFromButtons() || pj.companyWebsite || pj.website || '');
@@ -1382,8 +1390,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
       renderBilingualName('viewerNameZh', nameZh);
       renderBilingualName('viewerNameEn', nameEn);
-      document.getElementById('viewerTitleZh').textContent = titleZh || '-';
-      document.getElementById('viewerTitleEn').textContent = titleEn || '-';
+      // 職稱沒填寫時完全不渲染這行文字（不再 fallback 顯示 "-"）
+      const titleZhEl = document.getElementById('viewerTitleZh');
+      if (titleZh) {
+        titleZhEl.textContent = titleZh;
+        titleZhEl.style.display = '';
+      } else {
+        titleZhEl.textContent = '';
+        titleZhEl.style.display = 'none';
+      }
+      const titleEnEl = document.getElementById('viewerTitleEn');
+      if (titleEn) {
+        titleEnEl.textContent = titleEn;
+        titleEnEl.style.display = '';
+      } else {
+        titleEnEl.textContent = '';
+        titleEnEl.style.display = 'none';
+      }
       document.getElementById('viewerCompanyStrongZh').textContent = companyZh || '-';
       document.getElementById('viewerCompanyStrongEn').textContent = companyEn || '-';
       

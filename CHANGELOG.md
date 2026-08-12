@@ -40,6 +40,92 @@
 - **資料復原說明**：診斷過程中發現，過去這個錯字造成「所有人都被導向」的其中一張名片（姓名：夏薇恩，建立於 2026-03-12），在清除測試資料時被誤刪，已立即用系統回傳的完整原始資料一字不差復原（建立時間、修改時間與所有欄位均與復原前相同），並確認網址可正常開啟。用於清理與復原的暫時性函式已在完成後立即從 Supabase 移除。
 - **影響範圍**：只修正 `supabase/functions/guest-card-intake/index.ts` 的查重查詢邏輯；不改前端 `guest-join.html`、`settings.html` 邀請連結產生方式、不改資料表結構。
 
+## 2026-08-05（改善：管理後台改用畫面內提示彈窗，取代瀏覽器原生 alert/confirm/prompt）
+
+### 改善（admin.html → 操作提示與確認）
+
+- **問題緣起**：全系統做「3C 小白友善度」檢視時發現，`admin.html` 大量使用瀏覽器原生 `alert()`（54 處）、`confirm()`（6 處）、`prompt()`（1 處），跟 `edit.html` 已經改用的白話文提示彈窗風格不一致，原生彈窗容易被漏看、無法統一樣式，日常操作（刪除名片、移除管理員、停用訂閱等）體驗比其他頁面明顯落後。
+- **修正方式**：
+  1. 新增 `showAdminFeedback()` 與對應的 `adminAlert()` / `adminConfirm()` / `adminPrompt()`，視覺沿用 `edit.html` save-feedback 的圓角卡片風格，行為與原生 `alert/confirm/prompt` 相同（一樣會擋住後續程式碼直到使用者按下按鈕），只是改成 Promise/await 寫法；若彈窗 DOM 意外不存在，會自動退回原生 `alert/confirm/prompt`，不會讓訊息整個消失。
+  2. 全面把 `admin.html` 內的 `alert(...)` 換成 `await adminAlert(...)`、`confirm(...)` 換成 `await adminConfirm(...)`、唯一一處 `prompt(...)`（停用訂閱原因輸入）換成 `await adminPrompt(...)`；`copyLink()`、`openStickerModal()`、`openPdfExportModal()` 因為呼叫到彈窗，一併調整為可以正確等待彈窗結果的寫法。
+  3. 逐一確認所有新增的 `await adminAlert/adminConfirm/adminPrompt` 呼叫都位在 `async function` 內，並用語法檢查確認整份檔案沒有壞掉。
+- **影響範圍**：只改 `admin.html` 的提示/確認呈現方式，所有判斷邏輯、資料操作順序、API 呼叫完全不變；不影響 `card.html`、`edit.html`、`guest-join.html` 等其他頁面。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.11`。
+
+
+## 2026-08-05（新增：常見問題頁與邀請好友加入頁 UX 加強）
+
+### 新增（faq.html → 使用者自助說明）
+
+- **問題緣起**：全系統做「3C 小白友善度」檢視時發現，除了 `edit.html` 內建的欄位說明外，整個系統沒有任何獨立的「怎麼用／常見問題」頁面；使用者卡住時只能直接聯絡管理員，重複問題無法自助解決。
+- **新增內容**：
+  1. 新增 `faq.html`，整理成四大類：收到別人分享的名片連結、被邀請建立自己的名片、登入卡住怎麼辦、名片本人（已登入使用者）操作，以及企業員工／NFC 相關問題，共約 12 題手風琴式收合問答，底部附 LINE 官方帳號聯絡入口。
+  2. 在 `settings.html`「編輯名片」下方新增「常見問題」項目；`auth.html` 底部連結列新增「常見問題」；`guest-join.html` 表單下方新增「操作上有疑問？先看常見問題」連結。
+  3. `service-worker.js` 的 `STATIC_ASSETS` 加入 `faq.html`，確保離線／PWA 情境下也能開啟。
+- **影響範圍**：純新增頁面與導覽連結，不改任何既有登入、編輯、名片顯示邏輯。
+
+### 改善（guest-join.html → 建立成功／查重命中畫面）
+
+- **問題緣起**：上一版查重機制上線後，「已經有名片」的提示只是一行純文字，跟「新建立成功」的畫面幾乎長得一樣，3C 小白不容易一眼看出差異、不確定下一步該做什麼。
+- **修正方式**：成功畫面新增圖示（✅ 新建立／📇 查到既有名片）與一行白話說明文字，明確告知「這不是新建立的名片」以及下一步要按哪個按鈕，不需要使用者自己讀懂差異。
+- **影響範圍**：只改 `guest-join.html` 建立成功畫面的呈現方式，不改查重判斷邏輯、不改資料庫欄位。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.10`。
+
+
+## 2026-08-05（修正：邀請好友加入頁不再直接顯示技術錯誤代碼）
+
+### 修正（guest-join.html → 建立名片失敗提示）
+
+- **問題緣起**：全系統做「3C 小白友善度」檢視時發現，`edit.html` 的存檔失敗提示已經刻意不把英文錯誤代碼直接顯示在畫面上（`save-feedback.js` 有明確註解「絕不直接拼進畫面文字」），但 `guest-join.html`（給完全不熟悉系統的訪客/朋友填的頁面）沒有跟上同一個原則，送出失敗時會直接顯示「錯誤代碼：CARD_CREATE_FAILED」這類英文技術代碼，對象反而是系統裡最不懂技術的使用者。
+- **修正方式**：
+  1. 新增 `friendlyGuestJoinErrorMessage()`，把 `guest-card-intake` 可能回傳的錯誤代碼（邀請已過期、系統忙碌、設定未完成等）轉成白話中文說明。
+  2. 技術錯誤代碼改成只印到瀏覽器 console（`console.error`），畫面文字一律顯示白話說明，方便你之後直接對照 Supabase 後台 `guest-card-intake` 的 Logs 排查，不需要靠訪客回報一串代碼。
+- **影響範圍**：只改 `guest-join.html` 送出失敗時的提示文字；不改建立名片的成功流程、不改查重邏輯、不改 `card.html?id=...` / `card.html?nfc=...` 網址規則。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.9`。
+
+
+## 2026-08-05（修正：邀請好友／員工邀請避免同一人建立兩張互不相通的名片）
+
+### 修正（guest-card-intake → 免登入建立名片）
+
+- **問題緣起**：後台會看到同一個人出現兩筆名片資料。追查後確認 `guest-card-intake` 這個免登入建立名片的 Edge Function，每次送出都用 `crypto.randomUUID()` 直接建一筆新資料，完全沒有查重機制；只要同一個人被重複邀請、重複點連結，或表單被重新送出第二次，就會各自產生一張互不相通的公開名片。
+- **修正方式**：
+  1. 新增 `findExistingCardByContact()`：送出前先用電話或 Email（只在有值時才比對）查詢 `cards` 表是否已有相符資料。
+  2. 若查到既有名片，不再新建，直接回傳既有名片的 `public_url` / `share_url`，並標記 `duplicate: true`；若這次送出是透過員工邀請連結，仍會把該邀請標記為已使用，避免同一組連結被無限重複領用。
+  3. `guest-join.html` 收到 `duplicate: true` 時，成功畫面標題改顯示「這支電話／Email 已經有名片了，這是你的名片連結」，不再顯示「名片已建立完成」造成使用者誤會又建立了一張新名片。
+- **影響範圍**：只改 `guest-card-intake` 送出前的查重判斷與 `guest-join.html` 對應提示文字；不改既有名片欄位、不改 `card.html?id=...` / `card.html?nfc=...` 網址規則、不影響原本沒有重複的正常建立流程。
+- **待部署**：`supabase/functions/guest-card-intake/index.ts` 屬於 Supabase Edge Function，GitHub Pages 部署**不會**自動更新它，需要另外到 Supabase Dashboard 重新部署這個函式，新的查重邏輯才會生效。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.8`。
+
+
+## 2026-08-05（修正：公開名片頁職稱空白時不再顯示「-」）
+
+### 修正（公開名片頁 → 職務／職稱顯示）
+
+- **問題緣起**：`card.html` 公開名片頁的職稱欄位（`viewerTitleZh` / `viewerTitleEn`）在未填寫時會 fallback 顯示一個「-」符號，訪客看到會誤以為是資料異常或殘缺，觀感不佳。
+- **確認現況**：職稱欄位在 HTML 預設值與 JS 渲染（`titleZh || '-'` / `titleEn || '-'`）都會塞入「-」；姓名欄位（`viewerNameZh` / `viewerNameEn`）也有類似 fallback，但本次僅處理職稱，姓名維持原樣不變。
+- **修正方式**：
+  1. `viewerTitleZh` / `viewerTitleEn` 這兩個 DOM 節點初始改為 `display:none` 且無文字內容，避免載入瞬間閃過空字樣。
+  2. JS 渲染邏輯改為：職稱有值才寫入文字並顯示該行；沒有值則清空文字並維持隱藏，不再 fallback 顯示「-」。
+- **影響範圍**：只改公開名片頁職稱那一行的顯示邏輯；不影響姓名、公司、聯絡方式、公司驗證資訊區塊，不改 `card.html?id=...` / `card.html?nfc=...` 網址規則，不改資料庫欄位。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.7`。
+
+
+## 2026-08-05（修正：公司驗證資訊改為依名片類型條件渲染，僅企業方案顯示）
+
+### 修正（公開名片頁 → 公司驗證資訊）
+
+- **問題緣起**：公開名片頁的「公司驗證資訊」區塊（trust panel）原本只要 `company`、統編、官方聯絡、最後更新任一有值就會顯示，與名片是否屬於已訂購企業方案的公司無關；個人名片只要填了公司欄位也會被誤判為需要顯示公司驗證資訊。
+- **確認現況**（修改前先盤點既有元件與資料欄位，避免自行假設）：
+  1. `card.html` 的 `trustPanel` 由 `renderTrustPanel(card, pj)` 填值並用 `.show` class 控制顯示，`card` 來自 `getCardPublic()`（`cards` 表 `select('*')`）。
+  2. 盤點 `cards` 表既有欄位（`supabase-setup.sql`、`enterprise-phase1.sql` 及既有 migrations）與 `subscriptions` / `pricing_plans`（個人月費/季費/年費訂閱，不分個人版／企業版）、`admin_users.managed_company`、`company_settings`，確認目前資料庫**沒有**任何欄位代表「此名片屬於已訂購企業方案的公司」。
+- **修正方式**：
+  1. 新增 `supabase/migrations/20260805190000_cards_is_enterprise_flag.sql`：於 `cards` 表新增 `is_enterprise BOOLEAN NOT NULL DEFAULT false` 欄位（含索引與欄位註解），做為公司驗證資訊顯示與否的旗標，預設所有名片皆為個人名片。
+  2. `card.html` 的 `renderTrustPanel()` 改為先檢查 `card.is_enterprise === true`；非企業方案名片會直接 `panel.remove()` 移除節點，不再只靠 CSS `.show` class 隱藏；企業方案名片維持原本欄位填值與顯示樣式不變。
+- **待辦（尚未包含在本次修改）**：目前後台尚無 UI 可將 `is_enterprise` 設為 `true`，需先套用上述 migration，並由 super admin 手動於 Supabase 將對應公司名片的 `is_enterprise` 更新為 `true`，或後續再開發企業後台批次設定介面。
+- **影響範圍**：只改 `card.html` 公司驗證資訊區塊的渲染條件與新增資料庫欄位；不改 `companyInfoSection`（公司資訊區塊）、不改聯絡方式、不改既有 `card.html?id=...` / `card.html?nfc=...` 網址規則、不影響現有已訂閱的個人訂閱系統。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.6`。
+
 ## 2026-08-05（檢視：新增聯絡方式符合現況與新手操作）
 
 ### 修正（編輯名片頁 → 新增聯絡方式）
@@ -783,7 +869,6 @@
 - **核心修復（`saveCard is not defined`）**：將原本被錯位切割的 `edit-chunk-2/3/4/5.js` 重新合併為可執行腳本（主邏輯集中於 `edit-chunk-2.js`），`edit-chunk-3/4/5.js` 改為安全佔位檔，並移除 `wizard.js` 外層 `<script>` 包裝，修正前端語法錯誤連鎖造成的功能遺失。
 - **二次快取強制更新**：`edit.html` 腳本與樣式版本再次升級為 `20260423b`，`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.21.10`，確保用戶端一定拿到本次 chunk 修正版。
 
-
 ## 2026-04-14
 
 ### 調整（名片開啟統計：本人開啟也計入）
@@ -819,7 +904,6 @@
 - **資料庫**：新增腳本 [card_view_summaries_admin_rpc.sql](card_view_summaries_admin_rpc.sql)，請在 Supabase SQL Editor 執行後，後台統計才會有正確數據（未執行前 RPC 失敗時畫面仍顯示次數 0、尚無紀錄）。
 - **快取**：`admin.html` 的 `cloud.js` 查詢參數改為 `?v=20260414a`。
 
-
 ## 2026-04-13
 
 ### 調整（統一 JSON 為 UTF-8 宣告）
@@ -828,7 +912,6 @@
 - **前端**：`js/cloud/subscription.js`、`subscription.html` 送出 JSON 時同步標明 `charset=utf-8`。
 - **雲端模組**：`line-liff.js`、`search-storage.js`、`oauth-google-apple.js` 對 Supabase／外部 API 的 JSON 請求標頭同步加上 `charset=utf-8`。
 - **除錯探針**：`js/cloud/index.js` 的 ingest 請求已將 `runId` 設為 `post-fix`；請重新執行 `npm run build:cloud` 以更新根目錄的 `cloud.js`。
-
 
 ### 新增（設定頁：名片最後被瀏覽／多久未被開）
 
