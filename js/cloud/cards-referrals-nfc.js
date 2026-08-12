@@ -299,6 +299,87 @@ export function generateInviteLink(userId) {
   return url.toString();
 }
 
+/* =========================================================================
+ * 9.55 平台通訊錄：手動新增的好友（Directory Contacts）
+ * 存進 Supabase 的 directory_contacts（每人只能看到/修改自己的資料，RLS 已限制），
+ * 不再只存在瀏覽器 localStorage，換裝置、換瀏覽器登入也看得到。
+ * ========================================================================= */
+
+// 取得目前登入者手動新增的好友清單
+export async function getMyContacts() {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return { contacts: [] };
+
+  try {
+    const { data, error } = await ctx.client
+      .from('directory_contacts')
+      .select('id, contact_json, created_at')
+      .eq('owner_user_id', ctx.userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.log('[DirectoryContacts] 取得好友清單失敗:', error.message);
+      return { contacts: [], error };
+    }
+
+    return { contacts: data || [] };
+  } catch (e) {
+    return { contacts: [], error: e };
+  }
+}
+
+// 新增一筆手動好友（contactData 為姓名/公司/電話等欄位組成的物件，整包存進 contact_json）
+export async function addMyContact(contactData) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return { success: false, error: 'NOT_AUTHENTICATED' };
+
+  const name = String(contactData && contactData.name || '').trim();
+  if (!name) return { success: false, error: 'NAME_REQUIRED' };
+
+  try {
+    const { data, error } = await ctx.client
+      .from('directory_contacts')
+      .insert({
+        owner_user_id: ctx.userId,
+        contact_json: { ...contactData, name }
+      })
+      .select('id, contact_json, created_at')
+      .single();
+
+    if (error) {
+      console.log('[DirectoryContacts] 新增好友失敗:', error.message);
+      return { success: false, error };
+    }
+
+    return { success: true, contact: data };
+  } catch (e) {
+    return { success: false, error: e };
+  }
+}
+
+// 刪除一筆手動好友
+export async function deleteMyContact(contactId) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok || !contactId) return { success: false };
+
+  try {
+    const { error } = await ctx.client
+      .from('directory_contacts')
+      .delete()
+      .eq('id', contactId)
+      .eq('owner_user_id', ctx.userId);
+
+    if (error) {
+      console.log('[DirectoryContacts] 刪除好友失敗:', error.message);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e };
+  }
+}
+
 // 訪客免登入建立名片：由後端系統自動審核通過並建立正式公開名片。
 export async function createGuestCardAutoApproved(payload) {
   if (!hasConfig()) {

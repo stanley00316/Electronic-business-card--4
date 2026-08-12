@@ -72,6 +72,9 @@ async function gotoMyCard(event) {
         }
       }
 
+      // 把舊版只存在瀏覽器本機的「新增好友」資料，一次性搬到雲端帳號底下（換裝置也看得到）
+      await migrateLegacyLocalFriends();
+
       // 全平台名片搜尋（登入後可搜尋所有已建立名片的人）
       await refreshDirectoryResults();
     }
@@ -139,21 +142,87 @@ window.__uvacoDirectoryState = window.__uvacoDirectoryState || {
   loading: false
 };
 
-// 從 localStorage 讀取「新增好友」手動存下的本機聯絡人（與 directory-b 共用 directoryFriends）
-function getStoredFriends() {
-  try {
-    const raw = localStorage.getItem('directoryFriends');
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
+// 「新增好友」手動存下的聯絡人：改存 Supabase 的 directory_contacts（換裝置、換瀏覽器登入也看得到）
+// 用一個記憶體快取包住，避免每次搜尋/篩選都重打一次 API；新增或刪除後會強制重新抓取。
+window.__uvacoDirectoryState.contacts = window.__uvacoDirectoryState.contacts || [];
+window.__uvacoDirectoryState.contactsLoaded = false;
+
+async function getStoredFriends(forceRefresh) {
+  if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig() || typeof UVACO_CLOUD.getMyContacts !== 'function') {
     return [];
+  }
+  if (window.__uvacoDirectoryState.contactsLoaded && !forceRefresh) {
+    return window.__uvacoDirectoryState.contacts;
+  }
+  const { contacts } = await UVACO_CLOUD.getMyContacts();
+  const normalized = (contacts || []).map(row => {
+    const cj = (row && row.contact_json && typeof row.contact_json === 'object') ? row.contact_json : {};
+    return { ...cj, id: row.id, createdAt: row.created_at };
+  });
+  window.__uvacoDirectoryState.contacts = normalized;
+  window.__uvacoDirectoryState.contactsLoaded = true;
+  return normalized;
+}
+
+// 舊版：新增好友資料只存在瀏覽器 localStorage，換裝置或清瀏覽器資料就會不見。
+// 這裡把還留在本機的舊資料一次性搬進雲端帳號，搬完就清掉本機備份，只搬一次。
+const LEGACY_FRIENDS_KEY = 'directoryFriends';
+const LEGACY_FRIENDS_MIGRATED_KEY = 'directoryFriendsMigratedV2';
+
+async function migrateLegacyLocalFriends() {
+  try {
+    if (localStorage.getItem(LEGACY_FRIENDS_MIGRATED_KEY)) return;
+    if (!window.UVACO_CLOUD || typeof UVACO_CLOUD.addMyContact !== 'function') return;
+
+    const raw = localStorage.getItem(LEGACY_FRIENDS_KEY);
+    const legacy = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(legacy) && legacy.length) {
+      for (const f of legacy) {
+        if (!f || !String(f.name || '').trim()) continue;
+        await UVACO_CLOUD.addMyContact({
+          name: f.name || '',
+          company: f.company || '',
+          position: f.position || '',
+          phone: f.phone || '',
+          email: f.email || '',
+          category: f.category || '',
+          categoryDisplay: f.categoryDisplay || '',
+          regionZone: f.regionZone || '',
+          regionCity: f.regionCity || '',
+          regionDistrict: f.regionDistrict || '',
+          field: f.field || '',
+          fieldDisplay: f.fieldDisplay || ''
+        });
+      }
+      window.__uvacoDirectoryState.contactsLoaded = false; // 搬完強制重新抓取一次
+    }
+    localStorage.setItem(LEGACY_FRIENDS_MIGRATED_KEY, '1');
+    localStorage.removeItem(LEGACY_FRIENDS_KEY);
+  } catch (e) {
+    // 搬遷失敗不影響正常使用，之後還是可以繼續用雲端新增好友
   }
 }
 
-function setStoredFriends(list) {
+// 手動刪除一筆好友
+async function removeMyContact(contactId) {
+  if (!contactId) return;
+  const currentLang = getCurrentLang();
+  const msg = currentLang === 'zh' ? '確定要刪除這位好友嗎？' : 'Delete this contact?';
+  if (!confirm(msg)) return;
+  if (!window.UVACO_CLOUD || typeof UVACO_CLOUD.deleteMyContact !== 'function') return;
+
   try {
-    localStorage.setItem('directoryFriends', JSON.stringify(list));
-  } catch (e) {}
+    const result = await UVACO_CLOUD.deleteMyContact(contactId);
+    if (!result || !result.success) {
+      alert(currentLang === 'zh' ? '刪除失敗，請稍後再試。' : 'Failed to delete. Please try again.');
+      return;
+    }
+    await getStoredFriends(true);
+    if (typeof refreshCompanyIndex === 'function') await refreshCompanyIndex();
+    searchDirectory();
+  } catch (e) {
+    alert(currentLang === 'zh' ? '刪除失敗，請稍後再試。' : 'Failed to delete. Please try again.');
+  }
 }
 
 // 判斷本機聯絡人是否符合搜尋關鍵字（比對姓名、公司、職務、電話、Email 與分類等欄位）
@@ -205,13 +274,14 @@ async function refreshDirectoryResults() {
     // 排除自己（我的名片已在上方面板顯示）
     const filtered = myId ? all.filter(r => String(r?.user_id || '') !== myId) : all;
 
-    // 合併雲端搜尋結果與「新增好友」手動存下的本機聯絡人，避免只有本地資料時主列表永遠為 0
-    const pals = getStoredFriends();
+    // 合併雲端搜尋結果與「新增好友」存在自己帳號底下的聯絡人，避免只有這類資料時主列表永遠為 0
+    const pals = await getStoredFriends();
     const localRows = pals
       .filter(f => f && localFriendMatchesQuery(f, q))
       .map((f, idx) => ({
         __localFriend: true,
-        localKey: 'lf-' + String(f.createdAt != null ? f.createdAt : idx) + '-' + idx,
+        id: f.id || '',
+        localKey: 'lf-' + String(f.id != null ? f.id : idx),
         name: String(f.name || '').trim(),
         company: String(f.company || '').trim(),
         title: String(f.position || '').trim(),
@@ -285,10 +355,15 @@ function renderDirectoryResults(rows) {
         ? `<a class="btn btn-secondary lang-zh" href="${escapeHtml(mailHref)}">Email</a>` +
           `<a class="btn btn-secondary lang-en" href="${escapeHtml(mailHref)}">Email</a>`
         : '';
+      const contactId = escapeHtml(String(r.id || ''));
+      const deleteBtn = contactId
+        ? `<a class="btn btn-secondary lang-zh" href="javascript:void(0)" onclick="removeMyContact('${contactId}')" style="color:#f87171;">\u522a\u9664</a>` +
+          `<a class="btn btn-secondary lang-en" href="javascript:void(0)" onclick="removeMyContact('${contactId}')" style="color:#f87171;">Delete</a>`
+        : '';
 
       const actionsWrap =
-        phoneBtns || mailBtns
-          ? `<div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${phoneBtns}${mailBtns}</div>`
+        phoneBtns || mailBtns || deleteBtn
+          ? `<div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${phoneBtns}${mailBtns}${deleteBtn}</div>`
           : `<div style="flex:0 0 auto;opacity:.75;font-size:12px;" class="lang-zh">\u7121\u96fb\u8a71\uff0fEmail</div><div style="flex:0 0 auto;opacity:.75;font-size:12px;display:none;" class="lang-en">No phone / email</div>`;
 
       return `

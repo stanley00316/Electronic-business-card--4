@@ -124,11 +124,11 @@ function wireOtherToCustom(selectEl, kind) {
   }
 }
 
-function initDirectoryIndexes() {
+async function initDirectoryIndexes() {
   // 類別和專業領域已改為兩層式選擇器，不再需要初始化 select
   // 保留此函數以備其他索引初始化需求
-  
-  refreshCompanyIndex();
+
+  await refreshCompanyIndex();
 
   // 讓語言切換立即反映到新加入的 option 文字
   if (typeof updateDirectorySelectOptions === 'function') {
@@ -268,7 +268,7 @@ function initRegionCascade(zoneSel, citySel, distSel, opts) {
   // 自訂邏輯已由 initDirectoryIndexes() 以 targets 方式統一掛載
 }
 
-function refreshCompanyIndex() {
+async function refreshCompanyIndex() {
   const filterCompany = document.getElementById('filterCompany');
   if (!filterCompany) return;
 
@@ -292,7 +292,7 @@ function refreshCompanyIndex() {
     { key: 'puzhong', zh: '葡眾企業', en: 'Puzhong Enterprise' }
   ];
 
-  const friends = getStoredFriends();
+  const friends = await getStoredFriends();
   const extraNames = friends
     .map(f => (f && f.company ? String(f.company).trim() : ''))
     .filter(Boolean);
@@ -768,9 +768,12 @@ function switchAddFriendTab(tab) {
 }
 
 // 提交單筆新增
-function submitSingleFriend(event) {
+async function submitSingleFriend(event) {
   event.preventDefault();
-  
+
+  const zhElements = document.querySelectorAll('.lang-zh');
+  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
+
   const friendData = {
     name: document.getElementById('friendName').value,
     company: document.getElementById('friendCompany').value,
@@ -786,28 +789,46 @@ function submitSingleFriend(event) {
     fieldDisplay: (document.getElementById('friendFieldDisplay')?.value || '')
   };
 
-  // 存到 localStorage，作為「公司索引」與後續通訊錄資料來源
-  const friends = getStoredFriends();
-  friends.push({
-    ...friendData,
-    createdAt: Date.now()
-  });
-  setStoredFriends(friends);
-  refreshCompanyIndex();
-  
-  // 這裡可以連接實際的 API
-  console.log('新增好友:', friendData);
-  
-  const zhElements = document.querySelectorAll('.lang-zh');
-  const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
-  const msg = currentLang === 'zh' ? '好友已新增！' : 'Friend added successfully!';
-  alert(msg);
-  
-  // 關閉模態框
-  closeAddFriendModal();
-  
-  // 刷新搜尋結果
-  searchDirectory();
+  if (!String(friendData.name || '').trim()) {
+    alert(currentLang === 'zh' ? '請輸入姓名' : 'Please enter a name');
+    return;
+  }
+  if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig() || typeof UVACO_CLOUD.addMyContact !== 'function') {
+    alert(currentLang === 'zh' ? '系統尚未載入完成，請重新整理後再試一次。' : 'System not ready. Please refresh and try again.');
+    return;
+  }
+
+  const submitBtn = event.target.querySelector('.add-friend-btn-submit');
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    // 存進 Supabase 的 directory_contacts，掛在目前登入帳號底下——換裝置、換瀏覽器登入也看得到
+    const result = await UVACO_CLOUD.addMyContact(friendData);
+    if (!result || !result.success) {
+      const msg = currentLang === 'zh'
+        ? '新增好友失敗，請確認已登入後再試一次。'
+        : 'Failed to add friend. Please make sure you are logged in and try again.';
+      alert(msg);
+      return;
+    }
+
+    await getStoredFriends(true); // 強制重新抓取，讓快取包含剛新增的這筆
+    await refreshCompanyIndex();
+
+    const msg = currentLang === 'zh' ? '好友已新增！' : 'Friend added successfully!';
+    alert(msg);
+
+    // 關閉模態框
+    closeAddFriendModal();
+
+    // 刷新搜尋結果
+    searchDirectory();
+  } catch (e) {
+    const msg = currentLang === 'zh' ? '新增好友失敗，請稍後再試。' : 'Failed to add friend. Please try again later.';
+    alert(msg);
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
 }
 
 // 下載範例檔案

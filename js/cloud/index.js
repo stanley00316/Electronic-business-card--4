@@ -56,6 +56,9 @@ import {
   getMyReferrals,
   createGuestCardAutoApproved,
   generateInviteLink,
+  getMyContacts,
+  addMyContact,
+  deleteMyContact,
   getCardByNfcId,
   getVCardUrl,
   setNfcCardId
@@ -172,6 +175,10 @@ window.UVACO_CLOUD = {
   getMyReferrals,
   createGuestCardAutoApproved,
   generateInviteLink,
+
+  getMyContacts,
+  addMyContact,
+  deleteMyContact,
 
   getCardByNfcId,
   getVCardUrl,
