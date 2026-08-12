@@ -342,29 +342,8 @@ function renderDirectoryResults(rows) {
       const name = escapeHtml(r.name || '');
       const company = escapeHtml(r.company || '');
       const title = escapeHtml(r.title || '');
-      const rawPhone = String(r.phone || '').trim();
-      const mail = String(r.email || '').trim();
-      const telHref = rawPhone ? 'tel:' + rawPhone.replace(/\s+/g, '') : '';
-      const mailHref = mail ? 'mailto:' + mail : '';
-
-      const phoneBtns = telHref
-        ? `<a class="btn btn-secondary lang-zh" href="${escapeHtml(telHref)}">\u96fb\u8a71</a>` +
-          `<a class="btn btn-secondary lang-en" href="${escapeHtml(telHref)}">Call</a>`
-        : '';
-      const mailBtns = mailHref
-        ? `<a class="btn btn-secondary lang-zh" href="${escapeHtml(mailHref)}">Email</a>` +
-          `<a class="btn btn-secondary lang-en" href="${escapeHtml(mailHref)}">Email</a>`
-        : '';
-      const contactId = escapeHtml(String(r.id || ''));
-      const deleteBtn = contactId
-        ? `<a class="btn btn-secondary lang-zh" href="javascript:void(0)" onclick="removeMyContact('${contactId}')" style="color:#f87171;">\u522a\u9664</a>` +
-          `<a class="btn btn-secondary lang-en" href="javascript:void(0)" onclick="removeMyContact('${contactId}')" style="color:#f87171;">Delete</a>`
-        : '';
-
-      const actionsWrap =
-        phoneBtns || mailBtns || deleteBtn
-          ? `<div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${phoneBtns}${mailBtns}${deleteBtn}</div>`
-          : `<div style="flex:0 0 auto;opacity:.75;font-size:12px;" class="lang-zh">\u7121\u96fb\u8a71\uff0fEmail</div><div style="flex:0 0 auto;opacity:.75;font-size:12px;display:none;" class="lang-en">No phone / email</div>`;
+      const contactId = encodeURIComponent(String(r.id || ''));
+      const previewUrl = `card.html?contact=${contactId}`;
 
       return `
       <div class="directory-card-item" data-local-friend="1" style="width:100%;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,22,24,0.65);margin:10px 0;box-sizing:border-box;">
@@ -373,10 +352,15 @@ function renderDirectoryResults(rows) {
           <div style="opacity:.9;color:#cbd5e1;font-size:13px;line-height:1.3;margin-top:2px;word-break:break-word;">
             ${company ? company : ''}${(company && title) ? '\uff5c' : ''}${title ? title : ''}
           </div>
-          <div style="opacity:.65;color:#94a3b8;font-size:11px;margin-top:4px;" class="lang-zh">\u624b\u52d5\u5132\u5b58\u806f\u7d61\u4eba\uff08\u7121\u7dda\u4e0a\u540d\u7247\uff09</div>
-          <div style="opacity:.65;color:#94a3b8;font-size:11px;margin-top:4px;display:none;" class="lang-en">Saved contact (no online card)</div>
+          <div style="opacity:.65;color:#94a3b8;font-size:11px;margin-top:4px;" class="lang-zh">\u624b\u52d5\u5132\u5b58\u806f\u7d61\u4eba\uff08\u50c5\u81ea\u5df1\u770b\u5f97\u5230\uff09</div>
+          <div style="opacity:.65;color:#94a3b8;font-size:11px;margin-top:4px;display:none;" class="lang-en">Saved contact (private, visible to you only)</div>
         </div>
-        ${actionsWrap}
+        <div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+          <a class="btn btn-secondary lang-zh" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\ud83d\udc40 \u9810\u89bd</a>
+          <a class="btn btn-secondary lang-en" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\ud83d\udc40 Preview</a>
+          <a class="btn btn-secondary lang-zh" href="javascript:void(0)" onclick="removeMyContact('${contactId}')" style="color:#f87171;">\u522a\u9664</a>
+          <a class="btn btn-secondary lang-en" href="javascript:void(0)" onclick="removeMyContact('${contactId}')" style="color:#f87171;">Delete</a>
+        </div>
       </div>
     `;
     }

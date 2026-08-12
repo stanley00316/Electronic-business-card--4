@@ -59,7 +59,7 @@
 <!-- Supabase JS（CDN） -->
   <script src="supabase.min.js"></script>
   <!-- QR Code 生成器 -->
-<script src="cloud.js?v=20260804e"></script>
+<script src="cloud.js?v=20260812b"></script>
   <script src="common.js?v=20260804d"></script>
   <style>
     .qr-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:999; }
@@ -514,6 +514,9 @@
     <!-- 會由 profile_json.contactsHtml 動態填入；若不存在則 fallback 使用 phone/email -->
   </div>
 
+  <!-- 提示文字與分享區塊：聯絡人私人預覽模式（card.html?contact=...）會整組隱藏，
+       因為那只是手動輸入的第三方資料，沒有真正可分享的公開名片、也沒有名片主人能收「留下資料」的訊息。 -->
+  <div id="publicCardExtrasSection">
   <!-- 提示文字 -->
     <div class="hint lang-zh">
       如需申請實體 <strong>NFC 名片</strong>，請洽 <a href="https://line.me/R/ti/p/%40632nedvu" target="_blank" style="color: #06c755; text-decoration: underline;">LINE 官方帳號</a>與我們聯繫。
@@ -521,7 +524,7 @@
     <div class="hint lang-en">
       To apply for a physical <strong>NFC card</strong>, please contact us via <a href="https://line.me/R/ti/p/%40632nedvu" target="_blank" style="color: #06c755; text-decoration: underline;">LINE Official Account</a>.
     </div>
-    
+
     <!-- 分享名片功能 -->
     <div style="margin-top: 20px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center;">
       <button class="btn btn-primary" onclick="shareMyCard()" style="background-color: var(--uvaco-green); color: white; display: inline-flex; align-items: center; gap: 8px; width: auto; min-width: 160px;">
@@ -557,6 +560,8 @@
         </button>
       </div>
     </div>
+
+  </div>
 
 </div>
 
@@ -1298,6 +1303,78 @@ function openMap(addressType, event) {
 }
 }
 
+// 「+新增好友」手動存的聯絡人私人預覽：不是公開名片，必須先登入，且只能看自己新增的資料
+// （RLS 已限制），不會被其他人看到、也沒有真正可分享的公開連結。
+async function renderContactPreview(contactId) {
+  const next = 'card.html' + (window.location.search || '');
+  const auth = await UVACO_CLOUD.requireAuth(next);
+  if (!auth.ok) return; // requireAuth 已經導去登入頁
+
+  let contact = null;
+  try {
+    const res = await UVACO_CLOUD.getMyContactById(contactId);
+    contact = res && res.contact ? res.contact : null;
+  } catch (e) {
+    console.error(e);
+  }
+
+  if (!contact) {
+    alert('找不到這位聯絡人的資料，可能已被刪除。');
+    return;
+  }
+
+  const cj = (contact.contact_json && typeof contact.contact_json === 'object') ? contact.contact_json : {};
+  const name = safeText(cj.name);
+  const title = safeText(cj.position);
+  const company = safeText(cj.company);
+  const phone = safeText(cj.phone);
+  const email = safeText(cj.email);
+
+  // 組成跟公開名片一樣形狀的資料，直接沿用同一套渲染邏輯（renderBilingualName / applyContacts 等），
+  // 沒有的欄位（大頭照、標語、公司驗證資訊…）就自然不會顯示，不需要另外特別處理。
+  const card = { name, title, company, phone, email, theme: 1 };
+  const pj = { nameZh: name, titleZh: title, companyZh: company };
+
+  renderBilingualName('viewerNameZh', name);
+  renderBilingualName('viewerNameEn', name);
+
+  const titleZhEl = document.getElementById('viewerTitleZh');
+  if (title) { titleZhEl.textContent = title; titleZhEl.style.display = ''; }
+  else { titleZhEl.textContent = ''; titleZhEl.style.display = 'none'; }
+  const titleEnEl = document.getElementById('viewerTitleEn');
+  if (title) { titleEnEl.textContent = title; titleEnEl.style.display = ''; }
+  else { titleEnEl.textContent = ''; titleEnEl.style.display = 'none'; }
+
+  document.getElementById('viewerCompanyStrongZh').textContent = company || '-';
+  document.getElementById('viewerCompanyStrongEn').textContent = company || '-';
+
+  await applyAssets(pj);
+  applyCompanyInfo(pj);
+  applyContacts(pj, card);
+  renderTrustPanel(card, pj);
+
+  // 私人預覽：沒有真正可分享的公開名片，也沒有名片主人能收「留下資料」的訊息，整組隱藏。
+  const extras = document.getElementById('publicCardExtrasSection');
+  if (extras) extras.style.display = 'none';
+
+  __uvacoPublicCardContext = {
+    userId: null,
+    nfcCardId: null,
+    card,
+    pj,
+    nameZh: name,
+    nameEn: name,
+    titleZh: title,
+    titleEn: title,
+    companyZh: company,
+    companyEn: company,
+    cardUrl: window.location.href.split('#')[0]
+  };
+
+  applyOwnerThemeToWholePage(1);
+  suppressLineBrowserBanner();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   initLineBrowserBanner();
 
@@ -1305,12 +1382,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const params = new URLSearchParams(window.location.search || '');
     let userId = params.get('id');
     const nfcCardId = params.get('nfc');
-    
+    const contactId = params.get('contact');
+
     if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
       alert('尚未設定 Supabase（請先設定 cloud.js）');
       return;
     }
-    
+
+    // 「+新增好友」手動存的聯絡人私人預覽：只有自己登入後看得到，不是公開名片，
+    // 走完全獨立的流程，不跟下面公開名片（id/nfc）的邏輯混在一起。
+    if (contactId && !userId && !nfcCardId) {
+      await renderContactPreview(contactId);
+      return;
+    }
+
     // 如果是 NFC 卡片連結，先查詢對應的用戶 ID
     if (nfcCardId && !userId) {
       window.__uvacoCardOpenSource = 'nfc';

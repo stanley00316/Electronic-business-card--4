@@ -59,6 +59,7 @@ import {
   getMyContacts,
   addMyContact,
   deleteMyContact,
+  getMyContactById,
   getCardByNfcId,
   getVCardUrl,
   setNfcCardId
@@ -179,6 +180,7 @@ window.UVACO_CLOUD = {
   getMyContacts,
   addMyContact,
   deleteMyContact,
+  getMyContactById,
 
   getCardByNfcId,
   getVCardUrl,

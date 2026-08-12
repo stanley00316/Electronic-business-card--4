@@ -380,6 +380,30 @@ export async function deleteMyContact(contactId) {
   }
 }
 
+// 取得單一筆手動好友（給 card.html 的私人預覽用；RLS 已限制只能讀自己新增的資料）
+export async function getMyContactById(contactId) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok || !contactId) return { contact: null };
+
+  try {
+    const { data, error } = await ctx.client
+      .from('directory_contacts')
+      .select('id, contact_json, created_at')
+      .eq('id', contactId)
+      .eq('owner_user_id', ctx.userId)
+      .maybeSingle();
+
+    if (error) {
+      console.log('[DirectoryContacts] 取得好友資料失敗:', error.message);
+      return { contact: null, error };
+    }
+
+    return { contact: data || null };
+  } catch (e) {
+    return { contact: null, error: e };
+  }
+}
+
 // 訪客免登入建立名片：由後端系統自動審核通過並建立正式公開名片。
 export async function createGuestCardAutoApproved(payload) {
   if (!hasConfig()) {
