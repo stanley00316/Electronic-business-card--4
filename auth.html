@@ -267,28 +267,21 @@
       
       <!-- 簡潔說明 -->
       <div class="auth-desc">
-        <span class="lang-zh">手機會優先開啟 LINE App；若無法開啟會改用其他方式登入，電腦則會使用 QR Code 登入。</span>
-        <span class="lang-en">Mobile opens the LINE app first. If it cannot open, or on desktop, use QR code login.</span>
+        <span class="lang-zh">手機會由 LINE 官方登入頁提供「用 LINE App 開啟」選項，電腦則會使用 QR Code 登入。</span>
+        <span class="lang-en">On mobile, LINE's own login page offers "Open with LINE app"; on desktop, use QR code login.</span>
       </div>
 
-      <!-- LINE 登入按鈕 -->
+      <!-- LINE 登入按鈕：一律導到 LINE 官方登入頁（跟電腦走同一條路），不要自己切去 LINE App
+           再切回來——手機上的 LINE App 是獨立的瀏覽器環境，跟這個分頁是不同的儲存空間，
+           登入完成後我們自己判斷「有沒有切回來」並不可靠，容易讓使用者要重複點擊登入。
+           交給 LINE 官方登入頁處理，它保證登入完成後會正確導回這個分頁。 -->
       <button type="button" class="auth-btn" onclick="startLine()" style="background: #00C300;">
         <span style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
-          <span class="lang-zh">用 LINE App 開啟</span>
-          <span class="lang-en">Open with LINE app</span>
+          <span class="lang-zh">用 LINE 登入</span>
+          <span class="lang-en">Continue with LINE</span>
         </span>
       </button>
-
-      <!-- 逃生門：切去 LINE App 這一步若真的卡住，讓使用者自己隨時能點著改走其他登入方式，
-           不用乾等可能失效的自動判斷計時器。注意：手機不會強制走 QR Code
-           （單一支手機沒辦法掃自己螢幕的QR），只有電腦才會顯示 QR Code。 -->
-      <div id="qrFallbackLink" style="display:none; text-align:center; margin-top:10px;">
-        <a href="javascript:void(0)" onclick="forceQrFallback()" style="color:#9ca3af; font-size:13px; text-decoration:underline;">
-          <span class="lang-zh">卡住了嗎？點此改用其他方式登入</span>
-          <span class="lang-en">Stuck? Tap here to try another way to log in</span>
-        </a>
-      </div>
 
       <!-- Google 登入按鈕：預設隱藏，等 GOOGLE_CLIENT_ID 設定完成後（js/pages/auth/main.js 的
            checkGoogleLoginAvailable() 會偵測），才會自動顯示出來，避免使用者看到按不動的按鈕。 -->
@@ -364,7 +357,7 @@
             <span class="lang-en">Deployment Guide</span>
           </button>
 
-          <!-- 詳細登入診斷：不只檢查後端連線，還會即時記錄「用LINE App開啟」按下去之後
+          <!-- 詳細登入診斷：不只檢查後端連線，還會即時記錄「用 LINE 登入」按下去之後
                每一步實際發生了什麼，方便回報卡住的實際位置給開發人員 -->
           <button type="button" class="auth-btn secondary" onclick="enableAuthDebugMode()">
             <span class="lang-zh">開啟詳細登入診斷</span>
@@ -402,7 +395,7 @@
 
   <script src="cloud.js?v=20260804e"></script>
   <script src="common.js?v=20260804d"></script>
-  <script type="module" src="js/pages/auth/main.js?v=20260720a"></script>
+  <script type="module" src="js/pages/auth/main.js?v=20260812a"></script>
   <script>
     // Service Worker 註冊
     if ('serviceWorker' in navigator) {

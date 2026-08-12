@@ -21,7 +21,7 @@
     function enableAuthDebugMode() {
       try { localStorage.setItem('UVACO_FORCE_AUTH_DEBUG', '1'); } catch (e) {}
       renderAuthDebugPanel();
-      alert('已開啟詳細登入診斷模式。\n請重新點「用 LINE App 開啟」測試一次，畫面下方會即時顯示登入過程的詳細紀錄。\n測完後可以點「複製登入診斷紀錄」把內容傳給我。');
+      alert('已開啟詳細登入診斷模式。\n請重新點「用 LINE 登入」測試一次，畫面下方會即時顯示登入過程的詳細紀錄。\n測完後可以點「複製登入診斷紀錄」把內容傳給我。');
     }
 
     function disableAuthDebugMode() {
@@ -227,46 +227,6 @@
       }
     }
 
-    var lineAppFallbackTimer = null;
-
-    function clearLineAppFallbackTimer() {
-      if (lineAppFallbackTimer) {
-        window.clearTimeout(lineAppFallbackTimer);
-        lineAppFallbackTimer = null;
-      }
-    }
-
-    // 逃生門連結：切去 LINE App 這步若卡住（例如系統詢問視窗沒跳出來、
-    // 或使用者沒理會），讓使用者自己隨時能點著改走其他登入方式，不用乾等
-    // 可能因為 document.visibilityState 判斷失準而沒有正確觸發的自動計時器。
-    function showQrFallbackLink() {
-      var el = document.getElementById('qrFallbackLink');
-      if (el) el.style.display = 'block';
-    }
-
-    function hideQrFallbackLink() {
-      var el = document.getElementById('qrFallbackLink');
-      if (el) el.style.display = 'none';
-    }
-
-    function forceQrFallback() {
-      clearLineAppFallbackTimer();
-      hideQrFallbackLink();
-      setStatus('ok', '改用其他方式登入...');
-      UVACO_CLOUD.startLineLogin(getNext());
-    }
-
-    function isMobileDeviceForLineApp() {
-      try {
-        var ua = navigator.userAgent || '';
-        var isPhoneOrTablet = /Android|iPhone|iPad|iPod/i.test(ua);
-        var isTouchMac = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
-        return isPhoneOrTablet || isTouchMac;
-      } catch (e) {
-        return false;
-      }
-    }
-
     // 手機主畫面圖示（加入主畫面後）開啟的 PWA 模式，跟一般瀏覽器分頁是「不同的儲存空間」。
     // 若在這裡切去 LINE App 再切回來，系統有時會把畫面切回一般瀏覽器而不是切回這個 PWA，
     // 導致登入成功寫入的資料進了「另一邊」，下次從主畫面圖示打開時還是看不到，又要重新登入。
@@ -280,11 +240,6 @@
         return false;
       }
     }
-
-    window.addEventListener('pagehide', clearLineAppFallbackTimer);
-    document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'hidden') clearLineAppFallbackTimer();
-    });
 
     // 取得推薦人 ID
     function getReferrerId() {
@@ -436,7 +391,7 @@
         }
         if (liffTimedOut) {
           // 逾時：明確告知使用者改用手動按鈕，而不是讓畫面停在「正在自動登入...」看起來像當機
-          setStatus('err', '自動登入等待逾時，請點下方「用 LINE App 開啟」再試一次。');
+          setStatus('err', '自動登入等待逾時，請點下方「用 LINE 登入」再試一次。');
         } else {
           // LIFF 失敗時清除狀態提示，繼續一般登入流程
           document.getElementById('statusBox').className = 'auth-status';
@@ -510,25 +465,26 @@
       }
 
       // 若從手機主畫面入口來但尚未登入，不再自動啟動 LINE。
-      // 使用者需點「用 LINE App 開啟」，避免 LINE App / PWA 之間反覆跳轉造成畫面閃爍。
+      // 使用者需點「用 LINE 登入」，避免 LINE App / PWA 之間反覆跳轉造成畫面閃爍。
       var next = getNext();
       if (next === 'my-card.html') {
         setStatus('ok', isStandaloneApp()
           ? '請點下方按鈕登入一次。完成後，下次從手機主畫面圖示可直接開啟名片。'
-          : '請點「用 LINE App 開啟」登入一次。完成後，下次從手機主畫面可直接開啟名片。');
+          : '請點「用 LINE 登入」登入一次。完成後，下次從手機主畫面可直接開啟名片。');
         return;
       }
     }
 
+    // 注意：這裡不要自己土法煉鋼「先切去 LINE App，沒反應再改用其他方式」。
+    // 手機上的 LINE App 是一個獨立的瀏覽器環境，跟原本這個分頁是「兩份不同的儲存空間」；
+    // 登入完成後憑證只會寫進 LINE App 那一份，切回原本分頁時還是看不到登入結果，
+    // 使用者只好一直重複點擊「登入」才能真正進入系統。
+    // 直接交給 LINE 官方登入頁（跟電腦走同一條路），手機上它自己就會提供「用 LINE App 開啟」的
+    // 官方選項，並且保證登入完成後正確導回「原本這個分頁」，不會有上述問題。
     function startLine() {
       try {
         try { localStorage.setItem('UVACO_DEBUG_AUTH_START_TS', String(Date.now())); } catch (e) {}
         var next = getNext();
-        var canTryLineApp = !isStandaloneApp()
-          && isMobileDeviceForLineApp()
-          && UVACO_CLOUD.hasLiffConfig
-          && UVACO_CLOUD.hasLiffConfig()
-          && UVACO_CLOUD.startLineAppLogin;
         // #region agent log
         logAuthDebug(
           'H4',
@@ -536,29 +492,10 @@
           'line login button pressed',
           {
             next,
-            mode: canTryLineApp ? 'line_app_first' : 'qr_fallback',
             pageAliveMs: Number((performance.now() - authDebugPageStartedAt).toFixed(1))
           }
         );
         // #endregion
-        if (canTryLineApp) {
-          setStatus('ok', '正在開啟 LINE App... 若沒有自動開啟，將改用其他方式登入。');
-          // 逃生門立刻顯示：不管待會自動判斷有沒有正確觸發，使用者隨時能自己點著改路走
-          showQrFallbackLink();
-          clearLineAppFallbackTimer();
-          lineAppFallbackTimer = window.setTimeout(function () {
-            lineAppFallbackTimer = null;
-            if (document.visibilityState && document.visibilityState !== 'visible') return;
-            setStatus('ok', 'LINE App 未自動開啟，改用其他方式登入...');
-            hideQrFallbackLink();
-            UVACO_CLOUD.startLineLogin(next);
-          }, 2200);
-
-          if (UVACO_CLOUD.startLineAppLogin(next)) return;
-          clearLineAppFallbackTimer();
-          hideQrFallbackLink();
-        }
-
         UVACO_CLOUD.startLineLogin(next);
       } catch (e) {
         setStatus('err', 'LINE 登入尚未設定完成。');
@@ -635,7 +572,6 @@
 window.switchLang = switchLang;
 window.startLine = startLine;
 window.startGoogle = startGoogle;
-window.forceQrFallback = forceQrFallback;
 window.diagAll = diagAll;
 window.explainAuth = explainAuth;
 window.doDevLogin = doDevLogin;
