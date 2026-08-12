@@ -203,28 +203,6 @@ async function migrateLegacyLocalFriends() {
   }
 }
 
-// 手動刪除一筆好友
-async function removeMyContact(contactId) {
-  if (!contactId) return;
-  const currentLang = getCurrentLang();
-  const msg = currentLang === 'zh' ? '確定要刪除這位好友嗎？' : 'Delete this contact?';
-  if (!confirm(msg)) return;
-  if (!window.UVACO_CLOUD || typeof UVACO_CLOUD.deleteMyContact !== 'function') return;
-
-  try {
-    const result = await UVACO_CLOUD.deleteMyContact(contactId);
-    if (!result || !result.success) {
-      alert(currentLang === 'zh' ? '刪除失敗，請稍後再試。' : 'Failed to delete. Please try again.');
-      return;
-    }
-    await getStoredFriends(true);
-    if (typeof refreshCompanyIndex === 'function') await refreshCompanyIndex();
-    searchDirectory();
-  } catch (e) {
-    alert(currentLang === 'zh' ? '刪除失敗，請稍後再試。' : 'Failed to delete. Please try again.');
-  }
-}
-
 // 判斷本機聯絡人是否符合搜尋關鍵字（比對姓名、公司、職務、電話、Email 與分類等欄位）
 function localFriendMatchesQuery(f, q) {
   const qn = String(q || '').trim().toLowerCase();
@@ -345,6 +323,8 @@ function renderDirectoryResults(rows) {
       const contactId = encodeURIComponent(String(r.id || ''));
       const previewUrl = `card.html?contact=${contactId}`;
 
+      // \u8ddf\u771f\u5be6\u6703\u54e1\u7684\u540d\u7247\u5217\u8868\u9805\u4e00\u6a21\u4e00\u6a23\uff08\u53ea\u6709\u59d3\u540d\u3001\u516c\u53f8\uff5c\u8077\u7a31\u3001\u4e00\u9846\u300c\u9810\u89bd\u300d\u6309\u9215\uff09\u3002
+      // \u300c\u522a\u9664\u300d\u79fb\u5230\u9810\u89bd\u9801\u9762\u88e1\u9762\u8655\u7406\uff0c\u4e0d\u5728\u5217\u8868\u4e0a\u51fa\u73fe\u3002
       return `
       <div class="directory-card-item" data-local-friend="1" style="width:100%;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,22,24,0.65);margin:10px 0;box-sizing:border-box;">
         <div style="min-width:0;flex:1;text-align:center;">
@@ -352,14 +332,10 @@ function renderDirectoryResults(rows) {
           <div style="opacity:.9;color:#cbd5e1;font-size:13px;line-height:1.3;margin-top:2px;word-break:break-word;">
             ${company ? company : ''}${(company && title) ? '\uff5c' : ''}${title ? title : ''}
           </div>
-          <div style="opacity:.65;color:#94a3b8;font-size:11px;margin-top:4px;" class="lang-zh">\u624b\u52d5\u5132\u5b58\u806f\u7d61\u4eba\uff08\u50c5\u81ea\u5df1\u770b\u5f97\u5230\uff09</div>
-          <div style="opacity:.65;color:#94a3b8;font-size:11px;margin-top:4px;display:none;" class="lang-en">Saved contact (private, visible to you only)</div>
         </div>
-        <div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+        <div style="flex:0 0 auto;display:flex;gap:8px;">
           <a class="btn btn-secondary lang-zh" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\ud83d\udc40 \u9810\u89bd</a>
           <a class="btn btn-secondary lang-en" href="${previewUrl}" target="_blank" rel="noopener noreferrer">\ud83d\udc40 Preview</a>
-          <a class="btn btn-secondary lang-zh" href="javascript:void(0)" onclick="removeMyContact('${contactId}')" style="color:#f87171;">\u522a\u9664</a>
-          <a class="btn btn-secondary lang-en" href="javascript:void(0)" onclick="removeMyContact('${contactId}')" style="color:#f87171;">Delete</a>
         </div>
       </div>
     `;

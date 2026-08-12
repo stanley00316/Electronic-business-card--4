@@ -563,6 +563,14 @@
 
   </div>
 
+  <!-- 聯絡人私人預覽專用：刪除這筆手動新增的聯絡人。平常隱藏，只有 card.html?contact=... 才會顯示。 -->
+  <div id="contactPreviewActions" style="display:none; margin-top: 20px; text-align: center;">
+    <button class="btn btn-secondary" onclick="deleteContactPreview()" style="display: inline-flex; align-items: center; gap: 8px; width: auto; color:#f87171;">
+      <span class="lang-zh">🗑 刪除聯絡人</span>
+      <span class="lang-en">🗑 Delete Contact</span>
+    </button>
+  </div>
+
 </div>
 
 <div class="lead-modal" id="leadModal" onclick="closeLeadModal(event)">
@@ -1305,6 +1313,26 @@ function openMap(addressType, event) {
 
 // 「+新增好友」手動存的聯絡人私人預覽：不是公開名片，必須先登入，且只能看自己新增的資料
 // （RLS 已限制），不會被其他人看到、也沒有真正可分享的公開連結。
+let __uvacoContactPreviewId = '';
+
+async function deleteContactPreview() {
+  if (!__uvacoContactPreviewId) return;
+  const lang = localStorage.getItem('lang') || 'zh';
+  const msg = lang === 'zh' ? '確定要刪除這位聯絡人嗎？' : 'Delete this contact?';
+  if (!confirm(msg)) return;
+
+  try {
+    const result = await UVACO_CLOUD.deleteMyContact(__uvacoContactPreviewId);
+    if (!result || !result.success) {
+      alert(lang === 'zh' ? '刪除失敗，請稍後再試。' : 'Failed to delete. Please try again.');
+      return;
+    }
+    window.location.href = 'directory.html';
+  } catch (e) {
+    alert(lang === 'zh' ? '刪除失敗，請稍後再試。' : 'Failed to delete. Please try again.');
+  }
+}
+
 async function renderContactPreview(contactId) {
   const next = 'card.html' + (window.location.search || '');
   const auth = await UVACO_CLOUD.requireAuth(next);
@@ -1322,6 +1350,10 @@ async function renderContactPreview(contactId) {
     alert('找不到這位聯絡人的資料，可能已被刪除。');
     return;
   }
+
+  __uvacoContactPreviewId = contact.id;
+  const contactActions = document.getElementById('contactPreviewActions');
+  if (contactActions) contactActions.style.display = 'block';
 
   const cj = (contact.contact_json && typeof contact.contact_json === 'object') ? contact.contact_json : {};
   const name = safeText(cj.name);
