@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const BUILD_ID = "2026-08-04-guest-card-intake-2";
+const BUILD_ID = "2026-08-12-guest-card-intake-dedup-fix";
 const DEFAULT_PUBLIC_SITE_URL = "https://stanley00316.github.io/Electronic-business-card--4/";
 
 function normalizeSecret(value: string | undefined | null) {
@@ -126,6 +126,35 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+// 查重：用電話或 Email 比對現有 cards，避免同一個人因為重複點連結／被重複邀請而產生兩張互不相通的名片。
+// 只有電話或 Email 其中一項有值才查（LINE 連結沒有獨立欄位可查，略過）。
+async function findExistingCardByContact(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  phone: string,
+  email: string,
+) {
+  const filters: string[] = [];
+  if (phone) filters.push(`phone.eq.${encodeURIComponent(phone)}`);
+  if (email) filters.push(`email.eq.${encodeURIComponent(email)}`);
+  if (!filters.length) return null;
+
+  // 注意：PostgREST 單一條件必須用「欄位=eq.值」，只有放進 or=(...) 群組時才用「欄位.eq.值」。
+  // 過去只填電話或只填 Email 時直接把 `phone.eq.xxx` 當成查詢字串參數送出，
+  // 會被 PostgREST 當成未知參數整個忽略，等同查詢沒有任何篩選條件，
+  // 導致每個訪客都被誤判為「重複」而拿到同一張舊名片、無法建立自己的名片。
+  const query = `or=(${filters.join(",")})`;
+  const resp = await supabaseRest(
+    supabaseUrl,
+    serviceRoleKey,
+    `/rest/v1/cards?select=user_id,name&${query}&limit=1`,
+    { method: "GET" },
+  );
+  if (!resp.ok) return null;
+  const rows = await resp.json().catch(() => []);
+  return Array.isArray(rows) && rows[0] ? (rows[0] as { user_id: string; name?: string }) : null;
+}
+
 async function supabaseRest(
   supabaseUrl: string,
   serviceRoleKey: string,
@@ -218,6 +247,34 @@ serve(async (req) => {
 
   if (!name) return bad("NAME_REQUIRED");
   if (!phone && !email && !lineUrl) return bad("CONTACT_REQUIRED");
+
+  // 查重：電話或 Email 已存在於現有名片，就不建新的，直接回傳既有名片連結。
+  const existingCard = await findExistingCardByContact(SUPABASE_URL, SERVICE_ROLE_KEY, phone, email);
+  if (existingCard && existingCard.user_id) {
+    if (invite) {
+      await supabaseRest(SUPABASE_URL, SERVICE_ROLE_KEY, "/rest/v1/card_invites?token=eq." + encodeURIComponent(inviteToken), {
+        method: "PATCH",
+        headers: { prefer: "return=minimal" },
+        body: JSON.stringify({
+          used_at: new Date().toISOString(),
+        }),
+      });
+    }
+
+    const existingUserId = String(existingCard.user_id);
+    const existingPublicUrl = `${siteUrl}card.html?id=${encodeURIComponent(existingUserId)}`;
+    const existingShareUrl = `${existingPublicUrl}&openExternalBrowser=1`;
+
+    return json({
+      success: true,
+      build: BUILD_ID,
+      duplicate: true,
+      user_id: existingUserId,
+      public_url: existingPublicUrl,
+      share_url: existingShareUrl,
+      referral_recorded: false,
+    });
+  }
 
   const userId = crypto.randomUUID();
   const contactsHtml = buildContactsHtml(phone, email, lineUrl);
