@@ -615,6 +615,93 @@ export async function adminSetLogoVectorPath(targetUserId, vectorPath) {
   return { success: true, logoVectorPath: pj.logoVectorPath || '' };
 }
 
+// 把「+新增好友」手動存的私人聯絡人（directory_contacts）轉成正式會員名片：
+// 建立一張真正的 cards 資料列（有自己的 card.html?id=... 網址、可綁 NFC、會出現在
+// 「NFC 名片量產管理」列表），轉換完成後刪掉原本的私人聯絡人資料（避免重複列出兩筆）。
+// 只能轉換「自己」新增的聯絡人（directory_contacts 的 RLS 本來就只讓你讀到自己的資料）。
+export async function promoteContactToCard(contactId) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) return { success: false, error: 'NO_SESSION' };
+  const client = ctx.client;
+
+  const adminStatus = await isAdmin();
+  if (!adminStatus || !adminStatus.isAdmin) return { success: false, error: 'NOT_ADMIN' };
+
+  const id = String(contactId || '').trim();
+  if (!id) return { success: false, error: 'MISSING_CONTACT_ID' };
+
+  const { data: contact, error: cErr } = await client
+    .from('directory_contacts')
+    .select('id, contact_json')
+    .eq('id', id)
+    .eq('owner_user_id', ctx.userId)
+    .maybeSingle();
+  if (cErr) return { success: false, error: cErr };
+  if (!contact) return { success: false, error: 'CONTACT_NOT_FOUND' };
+
+  const cj = (contact.contact_json && typeof contact.contact_json === 'object') ? contact.contact_json : {};
+  const name = cleanText(cj.name, 80);
+  const phone = cleanText(cj.phone, 60);
+  const email = cleanText(cj.email, 160);
+  const company = cleanText(cj.company, 100);
+  const title = cleanText(cj.position, 80);
+
+  if (!name) return { success: false, error: 'NAME_REQUIRED' };
+
+  // 查重：電話或 Email 已經是會員了，就不重複建立，直接連回既有名片並清掉這筆私人聯絡人。
+  if (phone || email) {
+    const filters = [];
+    if (phone) filters.push(`phone.eq.${phone}`);
+    if (email) filters.push(`email.eq.${email}`);
+    const { data: existing } = await client
+      .from('cards')
+      .select('user_id')
+      .or(filters.join(','))
+      .limit(1)
+      .maybeSingle();
+    if (existing && existing.user_id) {
+      await client.from('directory_contacts').delete().eq('id', id).eq('owner_user_id', ctx.userId);
+      return { success: true, duplicate: true, user_id: existing.user_id };
+    }
+  }
+
+  if (adminStatus.managedCompany) {
+    const targetCompany = company.toLowerCase();
+    const myCompany = String(adminStatus.managedCompany).toLowerCase();
+    if (!targetCompany || !targetCompany.includes(myCompany)) {
+      return { success: false, error: 'PERMISSION_DENIED_COMPANY_MISMATCH' };
+    }
+  }
+
+  const newUserId = crypto.randomUUID();
+  const { error: insErr } = await client.from('cards').insert({
+    user_id: newUserId,
+    name,
+    phone,
+    email,
+    company,
+    title,
+    theme: 1,
+    profile_json: {
+      nameZh: name,
+      titleZh: title,
+      companyZh: company,
+      contactLayout: 'list',
+      guestSource: 'admin-promoted-contact',
+      promotedFromContactId: id,
+      promotedAt: new Date().toISOString()
+    },
+    is_visible: true,
+    nfc_status: 'unbound',
+    admin_disabled: false
+  });
+  if (insErr) return { success: false, error: insErr };
+
+  await client.from('directory_contacts').delete().eq('id', id).eq('owner_user_id', ctx.userId);
+
+  return { success: true, user_id: newUserId };
+}
+
 /* ── 員工邀請連結 ──────────────────────────────────────────── */
 
 // 建立邀請（超管 + 企業管理員皆可用，企業管理員的公司自動帶入）

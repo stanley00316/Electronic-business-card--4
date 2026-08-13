@@ -134,7 +134,7 @@
   </style>
   <script src="supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="cloud.js?v=20260813a"></script>
+  <script src="cloud.js?v=20260813b"></script>
 </head>
 <body>
 
@@ -168,6 +168,15 @@
 </div>
 
 <div id="adminHint" style="margin:10px 0 18px;color:#aaa;font-size:13px"></div>
+
+<!-- 手動聯絡人待轉換：「+新增好友」存的私人聯絡人（不是正式會員），
+     可以在這裡轉成真正的會員名片，之後才會出現在下方的名片管理列表、能綁 NFC、能列入量產。
+     只列出「自己」新增過的聯絡人（跟通訊錄頁一樣，受 RLS 限制），沒有資料就整塊隱藏。 -->
+<div id="pendingContactsPanel" style="display:none;margin:0 0 20px;padding:14px 16px;border-radius:12px;border:1px solid rgba(168,85,247,0.35);background:rgba(168,85,247,0.08);">
+  <div style="font-weight:700;color:#e5e7eb;margin-bottom:4px;">🧑‍🤝‍🧑 手動聯絡人（待轉為正式名片）</div>
+  <div style="font-size:12px;color:#9ca3af;margin-bottom:10px;">從「平台通訊錄 → ＋新增好友」存的私人聯絡人，目前只有你自己看得到。按「轉為正式名片」後才會變成真正的會員名片，出現在下方列表、可以綁 NFC、可以列入量產名單。</div>
+  <div id="pendingContactsList"></div>
+</div>
 
 <!-- 📋 名片管理分頁 -->
 <div id="cardsPanel">
@@ -539,9 +548,73 @@ async function init() {
   }
 
   await reloadData();
+  loadPendingContacts();
   if (adminStatus.canManageAdmins) {
     await loadAdmins();
     await loadPricingPlans();
+  }
+}
+
+// 載入「自己」新增過的手動聯絡人（+新增好友），顯示在名片管理上方，等著被轉成正式名片。
+// 沒有 getMyContacts 這支 API（cloud.js 版本較舊時）就直接跳過，不影響其他功能。
+async function loadPendingContacts() {
+  const panel = document.getElementById('pendingContactsPanel');
+  const list = document.getElementById('pendingContactsList');
+  if (!panel || !list || typeof UVACO_CLOUD.getMyContacts !== 'function') return;
+
+  try {
+    const { contacts } = await UVACO_CLOUD.getMyContacts();
+    const rows = Array.isArray(contacts) ? contacts : [];
+    if (rows.length === 0) {
+      panel.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+
+    list.innerHTML = rows.map((row) => {
+      const cj = (row.contact_json && typeof row.contact_json === 'object') ? row.contact_json : {};
+      const name = String(cj.name || '未命名')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      const company = String(cj.company || '-')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const position = String(cj.position || '-')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,0.25);margin-top:8px;">
+          <div>
+            <div style="font-weight:700;color:#e5e7eb;">${name}</div>
+            <div style="font-size:12px;color:#9ca3af;">${company}　${position}</div>
+          </div>
+          <button class="btn btn-green" style="padding:6px 12px;font-size:12px;" onclick="promoteContact('${row.id}')">轉為正式名片</button>
+        </div>
+      `;
+    }).join('');
+    panel.style.display = 'block';
+  } catch (e) {
+    console.error('載入手動聯絡人失敗:', e);
+  }
+}
+
+// 按下「轉為正式名片」：把這筆手動聯絡人變成真正的會員名片
+async function promoteContact(contactId) {
+  const ok = await adminConfirm('確定要把這位聯絡人轉成正式名片嗎？轉換後會出現在下方名片管理列表，任何人都能透過連結看到這張名片。');
+  if (!ok) return;
+
+  try {
+    const result = await UVACO_CLOUD.promoteContactToCard(contactId);
+    if (!result || !result.success) {
+      const errMsg = result && result.error ? (result.error.message || result.error) : '未知錯誤';
+      await adminAlert('轉換失敗：' + errMsg);
+      return;
+    }
+    await adminAlert(result.duplicate
+      ? '這位聯絡人的電話／Email 已經是會員了，已直接連結到既有名片，不會重複建立。'
+      : '轉換成功！已經是正式名片了，可以到下方列表設定貼紙材質、綁定 NFC。');
+    await loadPendingContacts();
+    await reloadData();
+  } catch (e) {
+    console.error('轉換失敗:', e);
+    await adminAlert('轉換失敗，請稍後再試。');
   }
 }
 
