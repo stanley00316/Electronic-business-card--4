@@ -4106,6 +4106,14 @@ body.theme-light .add-friend-file-label:hover {
   margin-bottom: 12px;
 }
 
+/* file-icon.svg 本身是純白色，這裡背景在淺色主題下會變白色，加上圓形底色避免看不清楚 */
+.add-friend-file-icon img {
+  background: var(--uvaco-green);
+  border-radius: 50%;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
 .add-friend-file-text {
   font-size: 14px;
   color: #f3f4f6; /* 更亮的文件文字 */
@@ -5298,28 +5306,21 @@ body.card-theme-9 .bottom-nav {
   flex-shrink: 0; /* 防止圖標被壓縮 */
 }
 
-/* 單色功能圖標（phone/mobile/email/file/website）在不同主題背景下容易不清楚：
-   - 這些 SVG 以 <img> 載入，不會繼承 currentColor
-   - 統一加上陰影提升對比度（不影響彩色社群 Logo） */
+/* 單色功能圖標（phone/mobile/email/file/website/twitter）在淺色主題背景下會消失：
+   - 這些 SVG 圖案本身是純白色，用 <img> 載入又不會繼承 currentColor，沒辦法跟著主題變色
+   - 舊方案只加陰影，在白底上效果太弱、還是看不清楚
+   - 改成固定的品牌綠圓形底色，不管卡片主題背景是深是淺，永遠維持清楚可見、也更醒目 */
 .btn-icon-phone,
 .btn-icon-mobile,
 .btn-icon-email,
 .btn-icon-file,
-.btn-icon-website {
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35)) drop-shadow(0 0 1px rgba(0,0,0,0.25));
-}
-
-body.theme-light .btn-icon-phone,
-body.theme-light .btn-icon-mobile,
-body.theme-light .btn-icon-email,
-body.theme-light .btn-icon-file,
-body.theme-light .btn-icon-website,
-body.theme-2 .btn-icon-phone,
-body.theme-2 .btn-icon-mobile,
-body.theme-2 .btn-icon-email,
-body.theme-2 .btn-icon-file,
-body.theme-2 .btn-icon-website {
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)) drop-shadow(0 0 1px rgba(0,0,0,0.18));
+.btn-icon-website,
+.btn-icon-twitter {
+  background: var(--uvaco-green);
+  border-radius: 50%;
+  padding: 4px;
+  box-sizing: border-box;
+  filter: none;
 }
 
 /* 確保按鈕內文字能夠適應 */
@@ -5335,6 +5336,16 @@ body.theme-2 .btn-icon-website {
   height: 24px;
   display: block;
   margin: 0 auto;
+}
+
+/* 「選擇聯絡方式類型」彈窗裡的單色圖標（電話/Email/網站等，本身是純白色 SVG）
+   在淺色主題（body.theme-light）彈窗背景會變白色時會看不清楚，
+   加上固定的品牌綠圓形底色解決，跟卡片正面按鈕的圖標處理方式一致。 */
+.contact-type-icon-mono {
+  background: var(--uvaco-green);
+  border-radius: 50%;
+  padding: 5px;
+  box-sizing: border-box;
 }
 
 .contact-type-icon {
