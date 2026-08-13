@@ -569,52 +569,6 @@ export async function adminUploadAsset(targetUserId, kind, blob, opts) {
   return await uploadRawAsset(ctx, path, blob, { bucket, contentType });
 }
 
-// 設定／清除某張名片的「列印用向量 LOGO」路徑（profile_json.logoVectorPath）。
-// 只動這一個欄位，不動 profile_json 其他內容，也不動 name/phone/email 等欄位，
-// 避免批次操作時不小心覆蓋掉員工自己填的其他資料。
-export async function adminSetLogoVectorPath(targetUserId, vectorPath) {
-  const ctx = await getAuthContext();
-  if (!ctx.ok) throw new Error('NO_SESSION');
-  const client = ctx.client;
-
-  const adminStatus = await isAdmin();
-  if (!adminStatus || !adminStatus.isAdmin) throw new Error('NOT_ADMIN');
-
-  const uid = String(targetUserId || '').trim();
-  if (!uid) throw new Error('MISSING_TARGET_USER_ID');
-
-  const { data: targetCard, error: qErr } = await client
-    .from('cards')
-    .select('user_id,company,profile_json')
-    .eq('user_id', uid)
-    .maybeSingle();
-  if (qErr) throw qErr;
-  if (!targetCard) throw new Error('CARD_NOT_FOUND');
-
-  if (adminStatus.managedCompany) {
-    const targetCompany = String(targetCard.company || '').toLowerCase();
-    const myCompany = String(adminStatus.managedCompany).toLowerCase();
-    if (targetCompany && !targetCompany.includes(myCompany)) {
-      throw new Error('PERMISSION_DENIED_COMPANY_MISMATCH');
-    }
-  }
-
-  const pj = parseProfileJson(targetCard.profile_json);
-  if (vectorPath) {
-    pj.logoVectorPath = String(vectorPath);
-  } else {
-    delete pj.logoVectorPath;
-  }
-
-  const { error } = await client
-    .from('cards')
-    .update({ profile_json: pj })
-    .eq('user_id', uid);
-  if (error) throw error;
-
-  return { success: true, logoVectorPath: pj.logoVectorPath || '' };
-}
-
 // 把「+新增好友」手動存的私人聯絡人（directory_contacts）轉成正式會員名片：
 // 建立一張真正的 cards 資料列（有自己的 card.html?id=... 網址、可綁 NFC、會出現在
 // 「NFC 名片量產管理」列表），轉換完成後刪掉原本的私人聯絡人資料（避免重複列出兩筆）。

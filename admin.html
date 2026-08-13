@@ -134,7 +134,7 @@
   </style>
   <script src="supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="cloud.js?v=20260813b"></script>
+  <script src="cloud.js?v=20260813c"></script>
 </head>
 <body>
 
@@ -191,12 +191,11 @@
         <th>貼紙材質/顏色</th>
         <th>更新時間</th>
         <th>NFC 網址</th>
-        <th>列印用向量 LOGO</th>
         <th>操作</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td colspan="9" style="text-align:center">載入中...</td></tr>
+      <tr><td colspan="8" style="text-align:center">載入中...</td></tr>
     </tbody>
   </table>
   </div>
@@ -283,9 +282,6 @@
   </div>
 </div>
 
-<!-- 「列印用向量 LOGO」上傳：隱藏的檔案選擇器，由 triggerVectorLogoUpload() 觸發，只接受 SVG -->
-<input type="file" id="vectorLogoFileInput" accept=".svg,image/svg+xml" style="display:none" onchange="handleVectorLogoFileSelected(event)">
-
 <div id="qrModal" class="qr-modal" onclick="this.style.display='none'">
   <div class="qr-box" onclick="event.stopPropagation()">
     <h3 id="qrName"></h3>
@@ -366,13 +362,23 @@
 <!-- 輸出貼紙PDF 前：輸入本次整批背面要用的公司英文名稱 -->
 <div id="pdfExportModal" class="qr-modal" onclick="this.style.display='none'">
   <div class="qr-box" onclick="event.stopPropagation()" style="max-width:420px;">
-    <h3>輸出貼紙 PDF</h3>
+    <h3>輸出貼紙檔案</h3>
     <p style="color:#9ca3af;font-size:13px;margin-bottom:16px;">背面會套用每人自己上傳的 Logo；公司英文名稱資料庫沒有單獨欄位，請在這裡輸入一次，套用到本次整批背面（可留空）。</p>
     <input type="text" id="pdfCompanyNameEnInput" placeholder="例如：YAO DING TECHNOLOGY" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1b1b1b;color:#fff;font-size:14px;box-sizing:border-box;">
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;text-align:left;">
+      <label style="display:flex;align-items:center;gap:8px;color:#e5e7eb;font-size:13px;">
+        <input type="checkbox" id="pdfExportWantPdf" checked style="width:16px;height:16px;">
+        貼紙 PDF 印刷稿
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;color:#e5e7eb;font-size:13px;">
+        <input type="checkbox" id="pdfExportWantSvg" checked style="width:16px;height:16px;">
+        向量 SVG（正/反面各一檔，打包 ZIP）
+      </label>
+    </div>
     <p id="pdfExportStickerWarning" style="color:#facc15;font-size:12px;margin-top:12px;min-height:16px;"></p>
     <p id="pdfExportStatus" style="color:#9ca3af;font-size:12px;margin-top:14px;min-height:16px;"></p>
     <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
-      <button class="btn btn-green" id="pdfExportConfirmBtn" onclick="confirmPdfExport()">確認並產生 PDF</button>
+      <button class="btn btn-green" id="pdfExportConfirmBtn" onclick="confirmPdfExport()">確認並產生檔案</button>
       <button class="btn btn-outline" onclick="document.getElementById('pdfExportModal').style.display='none'">取消</button>
     </div>
   </div>
@@ -651,7 +657,7 @@ function renderTable(data) {
   tbody.innerHTML = '';
   
   if (data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">目前沒有資料</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center">目前沒有資料</td></tr>';
     return;
   }
 
@@ -690,10 +696,6 @@ function renderTable(data) {
       </td>
       <td data-label="更新時間">${new Date(row.updated_at).toLocaleDateString()}</td>
       <td data-label="NFC 網址" class="nfc-url-cell"><a href="${url}" target="_blank" rel="noopener noreferrer">${urlLabel}</a></td>
-      <td data-label="列印用向量 LOGO">
-        <span style="color:${row.profile_json && row.profile_json.logoVectorPath ? '#22c55e' : '#6b7280'};">${row.profile_json && row.profile_json.logoVectorPath ? '✅ 已上傳' : '未上傳'}</span>
-        <button class="btn btn-outline" style="padding:4px 8px;font-size:11px;margin-left:8px;" onclick="triggerVectorLogoUpload('${row.user_id}')">上傳 SVG</button>
-      </td>
       <td class="actions-cell">
         <div class="actions-wrap">
           <button class="btn btn-green" onclick="copyLink('${url}')">複製連結</button>
@@ -815,62 +817,6 @@ let stickerModalSelectedMaterial = null;
 let stickerModalSelectedColor = null;
 
 // 開啟設定彈窗：帶入 userId 是「單筆設定」，不帶（傳 null）則是對目前勾選的名片「批次設定」
-// 「列印用向量 LOGO」上傳：獨立於一般大頭貼/Logo 上傳流程，原始 SVG 內容直接存檔，
-// 不經過 canvas 壓縮（那個流程一定會把圖轉成點陣圖，向量檔就沒意義了）。
-let vectorLogoUploadTargetUserId = '';
-
-function triggerVectorLogoUpload(userId) {
-  vectorLogoUploadTargetUserId = userId;
-  const input = document.getElementById('vectorLogoFileInput');
-  input.value = ''; // 清空，允許連續選同一個檔案也能觸發 change 事件
-  input.click();
-}
-
-async function handleVectorLogoFileSelected(event) {
-  const file = event.target.files && event.target.files[0];
-  event.target.value = '';
-  if (!file) return;
-  const userId = vectorLogoUploadTargetUserId;
-  if (!userId) return;
-
-  // 基本檢查：副檔名跟內容都要像 SVG，避免使用者不小心選錯檔案格式
-  if (!/\.svg$/i.test(file.name) && file.type !== 'image/svg+xml') {
-    await adminAlert('請選擇 SVG 向量檔（.svg）。AI／EPS／PDF 目前無法直接讀取，請先在 Illustrator 另存成 SVG 格式再上傳。');
-    return;
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    await adminAlert('檔案太大（超過 5MB），請確認選對了檔案，或用 Illustrator 精簡路徑後再匯出一次。');
-    return;
-  }
-
-  let svgText;
-  try {
-    svgText = await file.text();
-  } catch (e) {
-    await adminAlert('檔案讀取失敗，請重新選擇檔案。');
-    return;
-  }
-  if (!/<svg[\s>]/i.test(svgText)) {
-    await adminAlert('這個檔案看起來不是有效的 SVG 內容，請確認檔案本身沒有損壞或選錯檔案。');
-    return;
-  }
-
-  try {
-    const blob = new Blob([svgText], { type: 'image/svg+xml' });
-    const up = await UVACO_CLOUD.adminUploadAsset(userId, 'logo-vector', blob, {
-      bucket: 'card-assets',
-      ext: 'svg',
-      contentType: 'image/svg+xml'
-    });
-    await UVACO_CLOUD.adminSetLogoVectorPath(userId, up.path);
-    await adminAlert('向量 LOGO 上傳成功！之後輸出貼紙 PDF 會自動改用這個向量版本。');
-    await reloadData();
-  } catch (e) {
-    console.error('向量 LOGO 上傳失敗:', e);
-    await adminAlert('上傳失敗：' + (e && e.message ? e.message : String(e)));
-  }
-}
-
 async function openStickerModal(userId) {
   if (userId) {
     const row = allData.find((r) => String(r.user_id) === String(userId));
@@ -1530,7 +1476,6 @@ async function confirmReactivateSubscription() {
 // ===== 輸出貼紙 PDF 功能 =====
 let jsPdfLibPromise = null;
 let chineseFontBase64Promise = null;
-let svg2pdfLibPromise = null;
 
 // 動態載入 jsPDF 函式庫：只有第一次按下輸出才載入，不拖慢平常開後台的速度
 function ensureJsPdfLibLoaded() {
@@ -1544,22 +1489,6 @@ function ensureJsPdfLibLoaded() {
     document.head.appendChild(script);
   });
   return jsPdfLibPromise;
-}
-
-// 動態載入 svg2pdf.js：把「列印用向量 LOGO」的 SVG 向量路徑直接畫進 PDF（不是貼點陣圖截圖），
-// 這樣印刷廠或 Illustrator 開啟後還是完整向量、可以無限放大不模糊。必須先載入 jsPDF 才能載這個。
-// 版本鎖定 2.7.0：這是官方說明文件中第一個明確支援 jsPDF 4.x 的版本。
-function ensureSvg2PdfLibLoaded() {
-  if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.svg) return Promise.resolve();
-  if (svg2pdfLibPromise) return svg2pdfLibPromise;
-  svg2pdfLibPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/svg2pdf.js@2.7.0/dist/svg2pdf.umd.min.js';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('svg2pdf.js 函式庫載入失敗，請檢查網路連線'));
-    document.head.appendChild(script);
-  });
-  return svg2pdfLibPromise;
 }
 
 // 把 ArrayBuffer 轉成 base64（分段處理，避免大檔案讓瀏覽器卡住或超出呼叫堆疊限制）
@@ -1625,11 +1554,17 @@ async function openPdfExportModal() {
   document.getElementById('pdfExportModal').style.display = 'flex';
 }
 
-// 確認送出：開始產生 PDF
+// 確認送出：依勾選的格式產生 PDF 印刷稿與/或向量 SVG（打包 ZIP）
 async function confirmPdfExport() {
   const ids = getSelectedCardIds();
   if (ids.length === 0) {
     await adminAlert('請先勾選至少一筆名片。');
+    return;
+  }
+  const wantPdf = document.getElementById('pdfExportWantPdf').checked;
+  const wantSvg = document.getElementById('pdfExportWantSvg').checked;
+  if (!wantPdf && !wantSvg) {
+    await adminAlert('請至少勾選一種要產生的檔案格式。');
     return;
   }
   const companyNameEn = document.getElementById('pdfCompanyNameEnInput').value.trim();
@@ -1638,19 +1573,27 @@ async function confirmPdfExport() {
   const confirmBtn = document.getElementById('pdfExportConfirmBtn');
   const statusEl = document.getElementById('pdfExportStatus');
   confirmBtn.disabled = true;
-  confirmBtn.textContent = '產生中...';
 
   try {
-    await generateStickerPdf(selectedRows, companyNameEn, (doneCount, total) => {
-      statusEl.textContent = `已產生 ${doneCount} / ${total} 張...`;
-    });
+    if (wantPdf) {
+      confirmBtn.textContent = '產生 PDF 中...';
+      await generateStickerPdf(selectedRows, companyNameEn, (doneCount, total) => {
+        statusEl.textContent = `PDF 印刷稿：已產生 ${doneCount} / ${total} 張...`;
+      });
+    }
+    if (wantSvg) {
+      confirmBtn.textContent = '產生向量 SVG 中...';
+      await generateStickerSvgZip(selectedRows, (doneCount, total) => {
+        statusEl.textContent = `向量 SVG：已產生 ${doneCount} / ${total} 張...`;
+      });
+    }
     document.getElementById('pdfExportModal').style.display = 'none';
   } catch (e) {
-    console.error('輸出貼紙 PDF 失敗:', e);
+    console.error('輸出貼紙檔案失敗:', e);
     await adminAlert('輸出失敗：' + (e.message || e));
   } finally {
     confirmBtn.disabled = false;
-    confirmBtn.textContent = '確認並產生 PDF';
+    confirmBtn.textContent = '確認並產生檔案';
     statusEl.textContent = '';
   }
 }
@@ -1715,22 +1658,6 @@ function getImageNaturalSize(dataUrl) {
   });
 }
 
-// 取得 SVG 的原始寬高比例（優先讀 viewBox，沒有才退回 width/height 屬性），
-// 找不到就當作正方形（1:1），避免向量 Logo 縮放置中時比例算錯而變形。
-function getSvgNaturalSize(svgEl) {
-  const viewBox = svgEl.getAttribute('viewBox');
-  if (viewBox) {
-    const parts = viewBox.trim().split(/[\s,]+/).map(Number);
-    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
-      return { w: parts[2], h: parts[3] };
-    }
-  }
-  const w = parseFloat(svgEl.getAttribute('width'));
-  const h = parseFloat(svgEl.getAttribute('height'));
-  if (w > 0 && h > 0) return { w, h };
-  return { w: 1, h: 1 };
-}
-
 // 計算等比縮放後、置中於指定框內的座標（contain 模式，避免變形）
 function fitContain(imgW, imgH, boxX, boxY, boxW, boxH) {
   const scale = Math.min(boxW / imgW, boxH / imgH);
@@ -1745,9 +1672,6 @@ async function generateStickerPdf(rows, companyNameEn, onProgress) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [85, 54] });
   await registerChineseFont(doc);
-
-  // 統計每張名片 Logo 最終用的是向量還是點陣圖，最後印在統計頁給印刷廠商參考。
-  const logoFormatCounts = { vector: 0, raster: 0, none: 0 };
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -1774,44 +1698,16 @@ async function generateStickerPdf(rows, companyNameEn, onProgress) {
     if (row.email) doc.text('Email：' + row.email, 8, 38);
 
     if (qrModel) {
-      drawVectorQr(doc, qrModel, 60, 16, 22, 22);
+      drawVectorQr(doc, qrModel, 60, 16, 22);
     }
 
     // ---- 背面：個人 Logo（若有）＋公司中英文名稱 ----
     doc.addPage([85, 54], 'landscape');
     doc.setFont('NotoSansTC');
 
-    const logoVectorPath = row.profile_json && row.profile_json.logoVectorPath;
     const logoPath = row.profile_json && row.profile_json.logoPath;
-    let logoDrawnAsVector = false;
-    let logoDrawnAsRaster = false;
 
-    // 優先用「列印用向量 LOGO」（SVG），直接把向量路徑畫進 PDF，不是貼點陣圖截圖，
-    // 印刷廠或用 Illustrator 開啟都還是完整向量、可以無限放大不模糊。
-    if (logoVectorPath) {
-      try {
-        const signed = await UVACO_CLOUD.getSignedAssetUrl(logoVectorPath, { bucket: 'card-assets', expiresIn: 3600 });
-        if (signed && signed.url) {
-          const svgRes = await fetch(signed.url);
-          if (!svgRes.ok) throw new Error('向量 Logo 下載失敗（HTTP ' + svgRes.status + '）');
-          const svgText = await svgRes.text();
-          const svgEl = new DOMParser().parseFromString(svgText, 'image/svg+xml').documentElement;
-          if (svgEl.tagName.toLowerCase() !== 'svg') throw new Error('檔案內容不是有效的 SVG');
-
-          await ensureSvg2PdfLibLoaded();
-          const size = getSvgNaturalSize(svgEl);
-          const box = fitContain(size.w, size.h, 12.5, 8, 60, 30);
-          await doc.svg(svgEl, { x: box.x, y: box.y, width: box.w, height: box.h });
-          logoDrawnAsVector = true;
-        }
-      } catch (e) {
-        // 向量版讀取/繪製失敗就退回點陣圖版，不中斷整批匯出
-        console.error('向量 Logo 繪製失敗，改用點陣圖版本:', row.user_id, e);
-      }
-    }
-
-    // 沒有向量 LOGO，或向量版剛好失敗，才退回原本的點陣圖版本
-    if (!logoDrawnAsVector && logoPath) {
+    if (logoPath) {
       try {
         const signed = await UVACO_CLOUD.getSignedAssetUrl(logoPath, { bucket: 'card-assets', expiresIn: 3600 });
         if (signed && signed.url) {
@@ -1819,17 +1715,12 @@ async function generateStickerPdf(rows, companyNameEn, onProgress) {
           const size = await getImageNaturalSize(logoDataUrl);
           const box = fitContain(size.w, size.h, 12.5, 8, 60, 30);
           doc.addImage(logoDataUrl, guessImageFormat(logoDataUrl), box.x, box.y, box.w, box.h);
-          logoDrawnAsRaster = true;
         }
       } catch (e) {
         // 單一名片的 Logo 讀取失敗不中斷整批匯出，該人背面留白即可
         console.error('Logo 讀取失敗，該人背面留白:', row.user_id, e);
       }
     }
-
-    if (logoDrawnAsVector) logoFormatCounts.vector++;
-    else if (logoDrawnAsRaster) logoFormatCounts.raster++;
-    else logoFormatCounts.none++;
 
     doc.setFontSize(12);
     doc.text(String(row.company || ''), 42.5, 44, { align: 'center' });
@@ -1846,7 +1737,7 @@ async function generateStickerPdf(rows, companyNameEn, onProgress) {
   }
 
   // 全部名片頁都產生完後，最後多加一頁材質/顏色統計總表，直接附在同一份 PDF 給印刷廠商核對用量
-  addStickerStatsPage(doc, rows, logoFormatCounts);
+  addStickerStatsPage(doc, rows);
 
   const today = new Date();
   const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
@@ -1854,7 +1745,7 @@ async function generateStickerPdf(rows, companyNameEn, onProgress) {
 }
 
 // 在同一份 PDF 最後加一頁 A4 統計總表：依「材質+顏色」分組計算張數，讓印刷廠商不用另外要清單
-function addStickerStatsPage(doc, rows, logoFormatCounts) {
+function addStickerStatsPage(doc, rows) {
   doc.addPage('a4', 'portrait');
   doc.setFont('NotoSansTC');
 
@@ -1867,12 +1758,8 @@ function addStickerStatsPage(doc, rows, logoFormatCounts) {
 
   // 給印刷廠商看的格式說明：告知本檔案是向量PDF，QR Code也是向量繪製，可直接印刷或用AI/CorelDRAW開啟編輯
   doc.setFontSize(9);
-  const counts = logoFormatCounts || { vector: 0, raster: 0, none: 0 };
-  const logoNote = counts.raster > 0
-    ? `其中 Logo：${counts.vector} 張為向量、${counts.raster} 張為點陣圖（點陣圖那幾張需要向量檔的話，請到後台幫該名員工補上傳「列印用向量 LOGO」再重新輸出）、${counts.none} 張未設定 Logo。`
-    : `其中 Logo：${counts.vector} 張為向量、${counts.none} 張未設定 Logo，全部使用者皆有 Logo 者已提供向量版。`;
   const formatNote = doc.splitTextToSize(
-    '格式說明：本檔案為 PDF 向量格式（文字與 QR Code 皆為向量繪製，非點陣圖），可直接交付印刷，或以 Illustrator／CorelDRAW 開啟匯入編輯。' + logoNote,
+    '格式說明：本檔案為 PDF 向量格式（文字與 QR Code 皆為向量繪製，非點陣圖），可直接交付印刷，或以 Illustrator／CorelDRAW 開啟匯入編輯。Logo 圖層沿用電子名片既有素材，本質為點陣圖內嵌。',
     150
   );
   doc.text(formatNote, 20, 37);
@@ -1904,6 +1791,230 @@ function addStickerStatsPage(doc, rows, logoFormatCounts) {
     doc.text(String(countMap.get(key)) + ' 張', 130, y);
     y += 9;
   });
+}
+
+// ===== 輸出向量 SVG 功能（正面/反面各一檔，打包成 ZIP）=====
+// 目標：讓印刷廠能用「向量檔」規格印製。正面 Logo 直接沿用員工編輯名片時
+// 已經上傳好的 Logo（跟 card.html 卡片頂端顯示的是同一張圖），不需要另外上傳。
+let opentypeLibPromise = null;
+let jsZipLibPromise = null;
+let parsedChineseFontPromise = null; // 完整字型只解析一次，之後每張卡都從這裡挑字做子集化
+
+// 動態載入 opentype.js：用來把 11.9MB 的完整中文字型檔，依每張卡實際用到的字
+// 「子集化」成只有幾 KB 的小字型，才能塞進單一 SVG 檔內嵌，不用連整包字型檔案。
+function ensureOpentypeLibLoaded() {
+  if (window.opentype) return Promise.resolve();
+  if (opentypeLibPromise) return opentypeLibPromise;
+  opentypeLibPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('opentype.js 函式庫載入失敗，請檢查網路連線'));
+    document.head.appendChild(script);
+  });
+  return opentypeLibPromise;
+}
+
+// 動態載入 JSZip：批次匯出時每張卡有正/反面兩個 SVG 檔，不可能一個個跳出下載視窗，打包成一個 ZIP 較實用。
+function ensureJsZipLibLoaded() {
+  if (window.JSZip) return Promise.resolve();
+  if (jsZipLibPromise) return jsZipLibPromise;
+  jsZipLibPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('JSZip 函式庫載入失敗，請檢查網路連線'));
+    document.head.appendChild(script);
+  });
+  return jsZipLibPromise;
+}
+
+// 下載並解析完整中文字型檔（只做一次），之後每張卡都從這個已解析好的字型物件挑字做子集化
+function ensureParsedChineseFont() {
+  if (parsedChineseFontPromise) return parsedChineseFontPromise;
+  parsedChineseFontPromise = ensureOpentypeLibLoaded().then(() => new Promise((resolve, reject) => {
+    opentype.load('fonts/NotoSansTC-Regular.ttf', (err, font) => {
+      if (err) reject(new Error('中文字型檔解析失敗：' + err));
+      else resolve(font);
+    });
+  }));
+  return parsedChineseFontPromise;
+}
+
+// 把文字內容實際用到的字挑出來，做成一個只含這些字的小字型（base64），供 SVG @font-face 內嵌用
+async function buildFontSubsetBase64(text) {
+  const font = await ensureParsedChineseFont();
+  const notdefGlyph = font.glyphs.get(0);
+  const glyphs = [notdefGlyph];
+  const seenIndexes = new Set([notdefGlyph.index]);
+  Array.from(new Set(String(text).split(''))).forEach((ch) => {
+    if (!ch || /\s/.test(ch)) return;
+    const glyph = font.charToGlyph(ch);
+    if (glyph && !seenIndexes.has(glyph.index)) {
+      seenIndexes.add(glyph.index);
+      glyphs.push(glyph);
+    }
+  });
+  const subsetFont = new opentype.Font({
+    familyName: 'NotoSansTCSubset',
+    styleName: 'Regular',
+    unitsPerEm: font.unitsPerEm,
+    ascender: font.ascender,
+    descender: font.descender,
+    glyphs: glyphs
+  });
+  return arrayBufferToBase64(subsetFont.toArrayBuffer());
+}
+
+// 文字內容放進 SVG <text> 前先跳脫特殊字元，避免破壞 SVG 的 XML 格式
+function escapeSvgText(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;'
+  }[c]));
+}
+
+// 把 QR Code 矩陣畫成單一向量 <path>（合併同一列連續的黑格，檔案比一格一個 <rect> 小很多），
+// 並加上 4 格寬的留白區（quiet zone）——這是 QR 掃描規格的一部分，沒留白掃描器可能讀不到。
+function buildQrSvgFragment(qrModel, x, y, size) {
+  const quiet = 4;
+  const totalModules = qrModel.moduleCount + quiet * 2;
+  const cell = size / totalModules;
+  let d = '';
+  for (let row = 0; row < qrModel.moduleCount; row++) {
+    let col = 0;
+    while (col < qrModel.moduleCount) {
+      if (qrModel.isDark(row, col)) {
+        const runStart = col;
+        while (col < qrModel.moduleCount && qrModel.isDark(row, col)) col++;
+        const runLen = col - runStart;
+        const px = x + (runStart + quiet) * cell;
+        const py = y + (row + quiet) * cell;
+        const pw = runLen * cell;
+        d += `M${px} ${py}h${pw}v${cell}h${-pw}z`;
+      } else {
+        col++;
+      }
+    }
+  }
+  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="#ffffff"/><path d="${d}" fill="#000000"/>`;
+}
+
+// 正面 SVG：白卡底＋名片上既有的 Logo（沒有就留白，不中斷整批匯出）
+async function buildFrontSvg(row) {
+  const W = 85.6, H = 54;
+  let logoMarkup = '';
+  const logoPath = row.profile_json && row.profile_json.logoPath;
+  if (logoPath) {
+    try {
+      const signed = await UVACO_CLOUD.getSignedAssetUrl(logoPath, { bucket: 'card-assets', expiresIn: 3600 });
+      if (signed && signed.url) {
+        const dataUrl = await imageUrlToDataUrl(signed.url);
+        const size = await getImageNaturalSize(dataUrl);
+        const box = fitContain(size.w, size.h, 12.8, 12, 60, 30);
+        logoMarkup = `<image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUrl}" xlink:href="${dataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
+      }
+    } catch (e) {
+      // 單一名片的 Logo 讀取失敗不中斷整批匯出，該卡正面留白即可
+      console.error('正面 SVG Logo 讀取失敗，該卡正面留白:', row.user_id, e);
+    }
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
+  <rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>
+  ${logoMarkup}
+</svg>`;
+}
+
+// 反面 SVG：姓名／職稱（向量文字＋內嵌字型子集）＋向量 QR Code
+async function buildBackSvg(row, cardUrl) {
+  const W = 85.6, H = 54;
+  const name = String(row.name || '未命名');
+  const title = String(row.title || '');
+
+  let qrModel = null;
+  try {
+    qrModel = getQrModules(cardUrl);
+  } catch (e) {
+    console.error('反面 SVG QR Code 產生失敗:', row.user_id, e);
+  }
+
+  let fontSubsetBase64 = '';
+  try {
+    fontSubsetBase64 = await buildFontSubsetBase64(name + title);
+  } catch (e) {
+    console.error('反面 SVG 字型子集化失敗，文字可能無法正常顯示:', row.user_id, e);
+  }
+
+  const fontFace = fontSubsetBase64
+    ? `<style>@font-face{font-family:'NotoSansTCSubset';src:url(data:font/ttf;base64,${fontSubsetBase64}) format('truetype');}text{font-family:'NotoSansTCSubset';}</style>`
+    : '';
+  const qrFragment = qrModel ? buildQrSvgFragment(qrModel, 58, 14, 24) : '';
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
+  <defs>${fontFace}</defs>
+  <rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>
+  <text x="8" y="20" font-size="7" fill="#111111">${escapeSvgText(name)}</text>
+  <text x="8" y="27" font-size="4" fill="#555555">${escapeSvgText(title)}</text>
+  ${qrFragment}
+</svg>`;
+}
+
+// 主流程：批次產生每張卡的正/反面 SVG，連同一份清單.csv 打包成一個 ZIP 下載
+async function generateStickerSvgZip(rows, onProgress) {
+  await ensureJsZipLibLoaded();
+  const zip = new JSZip();
+  const csvRows = [['序號', '姓名', '公司', '職稱', '貼紙材質/顏色', 'NFC ID', '名片網址']];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const cardUrl = `${window.location.origin}${window.location.pathname.replace('admin.html', '')}card.html?id=${row.user_id}`;
+    const safeName = String(row.name || '未命名').replace(/[\\/:*?"<>|]/g, '_');
+    const seq = String(i + 1).padStart(3, '0');
+
+    try {
+      const frontSvg = await buildFrontSvg(row);
+      zip.file(`${seq}_${safeName}_正面.svg`, frontSvg);
+    } catch (e) {
+      console.error('正面 SVG 產生失敗，跳過該檔:', row.user_id, e);
+    }
+
+    try {
+      const backSvg = await buildBackSvg(row, cardUrl);
+      zip.file(`${seq}_${safeName}_反面.svg`, backSvg);
+    } catch (e) {
+      console.error('反面 SVG 產生失敗，跳過該檔:', row.user_id, e);
+    }
+
+    csvRows.push([
+      seq,
+      row.name || '',
+      row.company || '',
+      row.title || '',
+      stickerLabel(row.sticker_material, row.sticker_color),
+      row.nfc_card_id || '',
+      cardUrl
+    ]);
+
+    if (onProgress) onProgress(i + 1, rows.length);
+  }
+
+  const csvContent = csvRows
+    .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+  zip.file('清單.csv', '﻿' + csvContent); // 開頭加 BOM，避免 Excel 開啟中文亂碼
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `貼紙向量檔_${dateStr}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 init();
