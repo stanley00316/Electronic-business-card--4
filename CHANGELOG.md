@@ -1,5 +1,31 @@
 # 變更紀錄
 
+## 2026-08-14（調整：PVC 單面貼紙版型第三輪定案——QR 左下＋NFC 右下對角分佈，PDF 與向量 SVG 同步套用）
+
+### 調整（admin.html → NFC 名片量產管理 → 輸出貼紙PDF／向量SVG → PVC 單面版型）
+
+- **問題緣起**：使用者以「品牌設計總監」角度提供正式設計提案要求，針對前一輪的 PVC 單面版型再次調整：QR Code 要放左下角、NFC 文字＋感應圖示改回右下角（兩者對角分佈、盡量拉開距離，避免使用者搞混該掃碼還是感應），QR 下方加一行「掃碼聯絡 / Scan」提示文字，並且要求這次的版型調整要「PDF 與向量 SVG 匯出同步」——因為 PVC 材質本質上只有一面能印刷，向量 SVG 匯出對 PVC 材質也一併改成只產生一個合併檔案，不再分正/反面兩檔。
+- **修改內容**：
+  1. `drawVectorQr()`（PDF 用）補上 4 格 quiet zone（掃描規格要求的安全留白），修正先前 PDF 版 QR 沒有留白、SVG 版卻有留白的不一致。
+  2. `drawStickerSingleSide()` 版面改成：LOGO 置中最上方 → 公司名稱／姓名置中排列 → 左下角 QR Code＋「掃碼聯絡 / Scan」文字 → 右下角「NFC」文字＋感應波紋圖示（對角分佈）。
+  3. 新增 `fitPdfFontSize()`：公司名稱與姓名字級會依實際文字寬度自動縮小，避免長姓名或長公司全稱超出卡片邊界（先前版本用固定字級，長姓名有機率跑出卡片外，這次用 `doc.getTextWidth()` 實測寬度動態調整，並用長姓名情境驗證過）。
+  4. 新增 `buildSingleSideSvg()`（PVC 專用合併版 SVG，版面跟新版 PDF 完全一致）與對應的 `buildContactlessIconSvgFragment()`（SVG 版感應波紋圖示）、`fitSvgFontSize()`（SVG 版自動縮字，用 opentype.js 量測實際字寬）；`generateStickerSvgZip()` 改成依 `getStickerSides()` 判斷單/雙面分流——PVC 只產生一個檔案（`編號_姓名.svg`），金屬水晶貼維持正/反面兩檔案（`編號_姓名_正面.svg`／`編號_姓名_反面.svg`）不變。
+  5. **修正一個開發過程中發現的單位換算錯誤**：SVG 的 `font-size` 是以 mm 為單位（因為 viewBox 直接對應實體 mm），但 jsPDF 的 `setFontSize()` 單位固定是 pt，兩者不能直接套用同一組數字，第一版 SVG 直接沿用 PDF 的數字（例如 15）會讓文字整整放大近 3 倍、版面完全跑掉；已改成統一用 pt×0.3528 換算成 mm 再套用，並實際產生 SVG 檔用瀏覽器開啟驗證版面正確。
+- **影響範圍**：只調整 PVC（單面）材質的 PDF／SVG 輸出版面與 SVG 檔案結構；不影響金屬水晶貼（雙面）材質的 PDF 與 SVG（`drawStickerDoubleFront`／`drawStickerDoubleBack`／`buildFrontSvg`／`buildBackSvg` 均維持原樣）、不影響任何資料庫欄位。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.22`，確保管理員重新整理 `admin.html` 後能拿到新版邏輯。
+
+## 2026-08-14（調整：輸出貼紙PDF「單面（PVC）」版型改為比照實體貼紙樣品，並補上QR Code）
+
+### 調整（admin.html → NFC 名片量產管理 → 輸出貼紙PDF → PVC 單面版型）
+
+- **問題緣起**：上一版做出來的 PVC 單面版型（LOGO 左上小圖＋公司名稱置左＋姓名職稱置左＋純文字「NFC」＋QR Code）不是使用者要的樣子。使用者提供實體 UVACO 公司 PVC 貼紙照片當作正確範例，來回調整兩輪後定案：LOGO 置中在最上方、公司中英文名稱與姓名置中排列在下方（姓名字體加大）、右上角是「NFC」文字搭配真正的無線感應波紋圖示（不是純文字）、右下角是 QR Code。
+- **修改內容**：
+  1. `drawStickerSingleSide` 版面改成「置中直式排列」：LOGO 置中在卡片最上方、下方依序置中顯示公司名稱（中／英文）、姓名（字體加大到 16pt，比原本更醒目）。
+  2. 新增 `drawContactlessIcon`／`drawArcPolyline` 兩個輔助函式，用向量弧線畫出一個由內而外 3 道弧線的「感應波紋」圖示，取代原本只有「NFC」三個字、沒有符號的問題，圖示放在右上角、緊接在「NFC」文字後面。
+  3. 右下角新增 QR Code（原本只有正面版型有 QR，單面版型漏放）；LOGO 與 QR 的寬度、姓名與 QR 的垂直間距都特別抓了安全邊界，避免公司名稱較長或姓名字體加大後跟右上角 NFC 標記／右下角 QR Code 疊在一起（已用實際 PDF 輸出結果驗證過長名稱不會重疊）。
+- **影響範圍**：只調整 PVC 單面版型的版面配置；不影響金屬(水晶貼)雙面版型（`drawStickerDoubleFront`／`drawStickerDoubleBack` 維持不變）、不影響向量 SVG 匯出、不影響任何資料庫欄位。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.21`，確保管理員重新整理 `admin.html` 後能拿到新版版型。
+
 ## 2026-08-14（新增：輸出貼紙PDF 依材質自動判斷「單面／雙面」版型）
 
 ### 新增（admin.html → NFC 名片量產管理 → 輸出貼紙PDF）

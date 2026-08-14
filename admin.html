@@ -1592,7 +1592,7 @@ async function confirmPdfExport() {
     }
     if (wantSvg) {
       confirmBtn.textContent = '產生向量 SVG 中...';
-      await generateStickerSvgZip(selectedRows, (doneCount, total) => {
+      await generateStickerSvgZip(selectedRows, companyNameEn, (doneCount, total) => {
         statusEl.textContent = `向量 SVG：已產生 ${doneCount} / ${total} 張...`;
       });
     }
@@ -1622,15 +1622,19 @@ function getQrModules(url) {
 }
 
 // 把 QR Code 矩陣畫成純向量色塊（PDF 內是真正的向量繪圖指令，不是圖片內嵌）
+// 四周內縮 4 格模組當作 quiet zone（掃描規格要求的安全留白，比照 SVG 版 buildQrSvgFragment 的做法），
+// 傳入的 x/y/size 仍是整個色塊（含留白）的外框，不影響既有呼叫端的版面配置
 function drawVectorQr(doc, qrModel, x, y, size) {
-  const cell = size / qrModel.moduleCount;
+  const quiet = 4;
+  const totalModules = qrModel.moduleCount + quiet * 2;
+  const cell = size / totalModules;
   doc.setFillColor(255, 255, 255);
   doc.rect(x, y, size, size, 'F');
   doc.setFillColor(0, 0, 0);
   for (let row = 0; row < qrModel.moduleCount; row++) {
     for (let col = 0; col < qrModel.moduleCount; col++) {
       if (qrModel.isDark(row, col)) {
-        doc.rect(x + col * cell, y + row * cell, cell, cell, 'F');
+        doc.rect(x + (col + quiet) * cell, y + (row + quiet) * cell, cell, cell, 'F');
       }
     }
   }
@@ -1731,40 +1735,85 @@ async function drawStickerDoubleBack(doc, row, companyNameEn) {
   doc.text('NFC', 75, 8);
 }
 
-// 單面貼紙（PVC）：LOGO／公司名稱／NFC／姓名／職稱／QR Code 全部合併印在同一面
+// 用短直線段近似畫出一段圓弧（角度採數學慣例：0°為正右方、逆時針為正），組合多段可畫出「NFC 感應」的波紋圖示
+function drawArcPolyline(doc, cx, cy, r, startDeg, endDeg, steps) {
+  let prevX = null;
+  let prevY = null;
+  for (let i = 0; i <= steps; i++) {
+    const deg = startDeg + ((endDeg - startDeg) * i) / steps;
+    const rad = (deg * Math.PI) / 180;
+    const x = cx + r * Math.cos(rad);
+    const y = cy - r * Math.sin(rad);
+    if (prevX !== null) doc.line(prevX, prevY, x, y);
+    prevX = x;
+    prevY = y;
+  }
+}
+
+// 畫出實體卡片上常見的「NFC 感應波紋」圖示（由內而外 3 道弧線，往右側展開），取代原本純文字沒有符號的問題
+function drawContactlessIcon(doc, cx, cy, baseRadius, radiusStep) {
+  doc.setDrawColor(20, 20, 20);
+  doc.setLineWidth(0.35);
+  for (let i = 0; i < 3; i++) {
+    drawArcPolyline(doc, cx, cy, baseRadius + i * radiusStep, -55, 55, 10);
+  }
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(0, 0, 0);
+}
+
+// 依可用寬度自動縮小字級，避免長姓名／長公司名稱超出卡片邊界（每次縮小 0.5pt，縮到 minSize 就停止保底）
+function fitPdfFontSize(doc, text, maxWidth, startSize, minSize) {
+  let size = startSize;
+  doc.setFontSize(size);
+  while (size > minSize && doc.getTextWidth(text) > maxWidth) {
+    size -= 0.5;
+    doc.setFontSize(size);
+  }
+  return size;
+}
+
+// 單面貼紙（PVC）：LOGO 置中最上方，公司名稱／姓名依序置中排列（比照實體貼紙樣品，字體加大），
+// 左下角是 QR Code＋「掃碼聯絡 / Scan」說明文字，右下角是「NFC」文字＋感應波紋圖示
+// （QR 與 NFC 對角分佈、保持最大間距，避免使用者混淆該掃碼還是感應；版型依設計提案定案）
 // （PVC 貼紙材質實際只有一面能印刷，跟金屬水晶貼可以正反兩面各貼一張不同）
 async function drawStickerSingleSide(doc, row, qrModel, companyNameEn) {
+  const centerX = 42.5;
+
   const logoDataUrl = await loadRowLogoDataUrl(row);
   if (logoDataUrl) {
     try {
       const size = await getImageNaturalSize(logoDataUrl);
-      const box = fitContain(size.w, size.h, 6, 5, 22, 13);
+      const box = fitContain(size.w, size.h, 22.5, 3, 40, 13);
       doc.addImage(logoDataUrl, guessImageFormat(logoDataUrl), box.x, box.y, box.w, box.h);
     } catch (e) {
       console.error('Logo 繪製失敗，該人單面留白:', row.user_id, e);
     }
   }
 
-  doc.setFontSize(7);
-  doc.text(String(row.company || ''), 30, 12);
+  const companyText = String(row.company || '');
+  fitPdfFontSize(doc, companyText, 70, 8, 5);
+  doc.text(companyText, centerX, 20, { align: 'center' });
 
   if (companyNameEn) {
-    doc.setFontSize(5);
-    doc.text(companyNameEn, 30, 17);
+    fitPdfFontSize(doc, companyNameEn, 70, 5.5, 4);
+    doc.text(companyNameEn, centerX, 24.5, { align: 'center' });
   }
 
-  doc.setFontSize(7);
-  doc.text('NFC', 79, 8, { align: 'right' });
+  const nameText = String(row.name || '未命名');
+  fitPdfFontSize(doc, nameText, 74, 15, 8);
+  doc.text(nameText, centerX, 32, { align: 'center' });
 
-  doc.setFontSize(15);
-  doc.text(String(row.name || '未命名'), 6, 33);
-
-  doc.setFontSize(9);
-  doc.text(String(row.title || ''), 6, 40);
-
+  // 左下角：QR Code（drawVectorQr 內建 4 格 quiet zone）＋掃碼說明文字
   if (qrModel) {
-    drawVectorQr(doc, qrModel, 58, 22, 23);
+    drawVectorQr(doc, qrModel, 5, 36, 14);
   }
+  doc.setFontSize(4.5);
+  doc.text('掃碼聯絡 / Scan', 12, 52.5, { align: 'center' });
+
+  // 右下角：NFC 文字＋感應波紋圖示
+  doc.setFontSize(6.5);
+  doc.text('NFC', 72, 40, { align: 'center' });
+  drawContactlessIcon(doc, 72, 46, 1.6, 1.4);
 }
 
 // 主流程：依每張名片的貼紙材質自動判斷單面／雙面版型（PVC＝單面合併版一頁，金屬水晶貼＝正面＋背面各一頁），
@@ -1992,6 +2041,110 @@ async function buildFrontSvg(row) {
 </svg>`;
 }
 
+// 把「NFC 感應波紋」畫成 SVG 向量弧線（多段短直線近似圓弧，跟 PDF 版 drawContactlessIcon 用同一套角度公式，確保視覺一致）
+function buildContactlessIconSvgFragment(cx, cy, baseRadius, radiusStep) {
+  let paths = '';
+  for (let i = 0; i < 3; i++) {
+    const r = baseRadius + i * radiusStep;
+    let d = '';
+    const steps = 10;
+    for (let s = 0; s <= steps; s++) {
+      const deg = -55 + (110 * s) / steps;
+      const rad = (deg * Math.PI) / 180;
+      const x = cx + r * Math.cos(rad);
+      const y = cy - r * Math.sin(rad);
+      d += (s === 0 ? 'M' : 'L') + x.toFixed(2) + ' ' + y.toFixed(2) + ' ';
+    }
+    paths += `<path d="${d.trim()}" fill="none" stroke="#141414" stroke-width="0.35"/>`;
+  }
+  return paths;
+}
+
+// 依可用寬度自動縮小字級，避免長姓名／長公司名稱超出卡片邊界（SVG 版，用 opentype.js 量測實際字寬）
+async function fitSvgFontSize(text, maxWidth, startSize, minSize) {
+  let size = startSize;
+  try {
+    const font = await ensureParsedChineseFont();
+    while (size > minSize && font.getAdvanceWidth(text, size) > maxWidth) {
+      size -= 0.5;
+    }
+  } catch (e) {
+    // 字型量測失敗就用最小字級保底，避免整批中斷
+    size = minSize;
+  }
+  return size;
+}
+
+// 單面貼紙（PVC）合併版 SVG：跟新版「輸出貼紙PDF」單面版型完全一致
+// （LOGO 置中最上方／公司名稱／姓名置中／左下角 QR+「掃碼聯絡 / Scan」文字／右下角 NFC 文字+感應波紋圖示）
+// PVC 材質實際只有一面能印刷，所以只產生「一個」SVG 檔，不再像金屬材質那樣分正/反面兩檔
+async function buildSingleSideSvg(row, cardUrl, companyNameEn) {
+  const W = 85.6, H = 54;
+  const centerX = 42.8;
+  const company = String(row.company || '');
+  const name = String(row.name || '未命名');
+
+  let logoMarkup = '';
+  const logoPath = row.profile_json && row.profile_json.logoPath;
+  if (logoPath) {
+    try {
+      const signed = await UVACO_CLOUD.getSignedAssetUrl(logoPath, { bucket: 'card-assets', expiresIn: 3600 });
+      if (signed && signed.url) {
+        const dataUrl = await imageUrlToDataUrl(signed.url);
+        const size = await getImageNaturalSize(dataUrl);
+        const box = fitContain(size.w, size.h, 22.8, 3, 40, 13);
+        logoMarkup = `<image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUrl}" xlink:href="${dataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
+      }
+    } catch (e) {
+      // 單一名片的 Logo 讀取失敗不中斷整批匯出，該卡 Logo 留白即可
+      console.error('單面 SVG Logo 讀取失敗，該卡 Logo 留白:', row.user_id, e);
+    }
+  }
+
+  let qrModel = null;
+  try {
+    qrModel = getQrModules(cardUrl);
+  } catch (e) {
+    console.error('單面 SVG QR Code 產生失敗:', row.user_id, e);
+  }
+  const qrFragment = qrModel ? buildQrSvgFragment(qrModel, 5, 36, 14) : '';
+  const iconFragment = buildContactlessIconSvgFragment(72, 46, 1.6, 1.4);
+
+  let fontSubsetBase64 = '';
+  try {
+    fontSubsetBase64 = await buildFontSubsetBase64(company + (companyNameEn || '') + name);
+  } catch (e) {
+    console.error('單面 SVG 字型子集化失敗，文字可能無法正常顯示:', row.user_id, e);
+  }
+  const fontFace = fontSubsetBase64
+    ? `<style>@font-face{font-family:'NotoSansTCSubset';src:url(data:font/ttf;base64,${fontSubsetBase64}) format('truetype');}text{font-family:'NotoSansTCSubset';}</style>`
+    : '';
+
+  // SVG 的 font-size 是「使用者座標單位」＝ mm（因為 viewBox 直接對應實體 mm），
+  // 跟 jsPDF 的 setFontSize（單位固定是 pt，跟座標單位無關）不是同一種尺度，
+  // 所以這裡統一把原本 PDF 版用的 pt 數值換算成 mm（1pt＝0.3528mm），畫出來的相對比例才會一致
+  const PT_TO_MM = 0.3528;
+  const companySize = await fitSvgFontSize(company, 70, 8 * PT_TO_MM, 5 * PT_TO_MM);
+  const nameSize = await fitSvgFontSize(name, 74, 15 * PT_TO_MM, 8 * PT_TO_MM);
+  const companyEnMarkup = companyNameEn
+    ? `<text x="${centerX}" y="24.5" font-size="${await fitSvgFontSize(companyNameEn, 70, 5.5 * PT_TO_MM, 4 * PT_TO_MM)}" fill="#555555" text-anchor="middle">${escapeSvgText(companyNameEn)}</text>`
+    : '';
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
+  <defs>${fontFace}</defs>
+  <rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>
+  ${logoMarkup}
+  <text x="${centerX}" y="20" font-size="${companySize}" fill="#141414" text-anchor="middle">${escapeSvgText(company)}</text>
+  ${companyEnMarkup}
+  <text x="${centerX}" y="32" font-size="${nameSize}" fill="#141414" text-anchor="middle">${escapeSvgText(name)}</text>
+  ${qrFragment}
+  <text x="12" y="52.5" font-size="${(4.5 * PT_TO_MM).toFixed(2)}" fill="#141414" text-anchor="middle">掃碼聯絡 / Scan</text>
+  <text x="72" y="40" font-size="${(6.5 * PT_TO_MM).toFixed(2)}" fill="#141414" text-anchor="middle">NFC</text>
+  ${iconFragment}
+</svg>`;
+}
+
 // 反面 SVG：姓名／職稱（向量文字＋內嵌字型子集）＋向量 QR Code
 async function buildBackSvg(row, cardUrl) {
   const W = 85.6, H = 54;
@@ -2027,8 +2180,9 @@ async function buildBackSvg(row, cardUrl) {
 </svg>`;
 }
 
-// 主流程：批次產生每張卡的正/反面 SVG，連同一份清單.csv 打包成一個 ZIP 下載
-async function generateStickerSvgZip(rows, onProgress) {
+// 主流程：批次產生每張卡的 SVG，連同一份清單.csv 打包成一個 ZIP 下載
+// PVC（單面）材質只產生一個合併檔案；金屬水晶貼（雙面）材質維持正/反面各一檔（跟 PDF 的單/雙面判斷邏輯一致）
+async function generateStickerSvgZip(rows, companyNameEn, onProgress) {
   await ensureJsZipLibLoaded();
   const zip = new JSZip();
   const csvRows = [['序號', '姓名', '公司', '職稱', '貼紙材質/顏色', 'NFC ID', '名片網址']];
@@ -2038,19 +2192,29 @@ async function generateStickerSvgZip(rows, onProgress) {
     const cardUrl = `${window.location.origin}${window.location.pathname.replace('admin.html', '')}card.html?id=${row.user_id}`;
     const safeName = String(row.name || '未命名').replace(/[\\/:*?"<>|]/g, '_');
     const seq = String(i + 1).padStart(3, '0');
+    const sides = getStickerSides(row.sticker_material, row.sticker_color);
 
-    try {
-      const frontSvg = await buildFrontSvg(row);
-      zip.file(`${seq}_${safeName}_正面.svg`, frontSvg);
-    } catch (e) {
-      console.error('正面 SVG 產生失敗，跳過該檔:', row.user_id, e);
-    }
+    if (sides === 'single') {
+      try {
+        const svg = await buildSingleSideSvg(row, cardUrl, companyNameEn);
+        zip.file(`${seq}_${safeName}.svg`, svg);
+      } catch (e) {
+        console.error('單面 SVG 產生失敗，跳過該檔:', row.user_id, e);
+      }
+    } else {
+      try {
+        const frontSvg = await buildFrontSvg(row);
+        zip.file(`${seq}_${safeName}_正面.svg`, frontSvg);
+      } catch (e) {
+        console.error('正面 SVG 產生失敗，跳過該檔:', row.user_id, e);
+      }
 
-    try {
-      const backSvg = await buildBackSvg(row, cardUrl);
-      zip.file(`${seq}_${safeName}_反面.svg`, backSvg);
-    } catch (e) {
-      console.error('反面 SVG 產生失敗，跳過該檔:', row.user_id, e);
+      try {
+        const backSvg = await buildBackSvg(row, cardUrl);
+        zip.file(`${seq}_${safeName}_反面.svg`, backSvg);
+      } catch (e) {
+        console.error('反面 SVG 產生失敗，跳過該檔:', row.user_id, e);
+      }
     }
 
     csvRows.push([
