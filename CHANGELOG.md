@@ -1,5 +1,25 @@
 # 變更紀錄
 
+## 2026-08-20（修正：LINE 登入導回後又出現一次登入畫面，使用者誤以為失敗而重複點擊）
+
+### 修正（auth.html／js/pages/auth/main.js）
+
+- **問題緣起**：使用者回報「第一次點擊 LINE，會觸發 LINE、跳兩次畫面（自動登入），最後又出現 LINE 登入畫面」，導致使用者再按一次「用 LINE 登入」，整個登入流程要跑兩輪。
+- **根本原因**（兩個問題疊在一起）：
+  1. **回導頁還是把登入按鈕畫出來**：從 LINE 官方登入頁導回時，網址會帶著 `code`／`state`，登入其實正在進行中；但 `auth.html` 是靜態 HTML，預設會把整張登入卡片（含綠色「用 LINE 登入」按鈕）原封不動再畫一次，使用者看到熟悉的登入畫面就以為失敗。
+  2. **回導頁還先空等 LIFF 最多 8 秒**：`bootstrap()` 的順序是「先跑 LIFF 自動登入 → 再處理 LINE callback」，但在一般瀏覽器裡 `liff.isInClient()` 必定是 false，這 8 秒（`withTimeout(..., 8000)`）純粹是空等；而且 `liff.init()` 自己也會去解析網址上的 `code`／`state`，跟我們自己的 callback 互搶同一組參數。使用者就是在這段空窗期又按了一次登入。
+  3. **第二次點擊還會反過來害死第一次**：`startLineLogin()` 每次都會產生新的 `state` 覆蓋掉 `localStorage.UVACO_LINE_STATE`，所以重複點擊之後，原本那一輪導回的 callback 會被判成 `LINE_BAD_STATE` 而失敗。
+- **修改內容**：
+  1. `auth.html` 在 `<head>` 最前面（早於 LIFF SDK 與所有畫面內容）新增一段極簡 script：偵測到網址帶 `code`＋`state` 就在 `<html>` 加上 `auth-processing`，讓瀏覽器在畫出第一個像素之前就決定要蓋上等待畫面。
+  2. `auth.html` 新增 `#authProcessingOverlay` 等待畫面與對應樣式：`auth-processing` 狀態下，`body` 底下除了遮罩與開發者診斷面板之外全部 `visibility: hidden`（`visibility: hidden` 的元素連鍵盤 Tab 都無法聚焦，等於完全點不到），上面蓋一層「登入已在進行中，不需要再按一次」的提示。
+  3. `js/pages/auth/main.js` 新增 `isOAuthCallbackUrl()`／`isOwnLineCallbackUrl()`／`enterProcessingMode()`／`exitProcessingMode()`；`isOwnLineCallbackUrl()` 會排除 LIFF 自己的導回（網址帶 `liff=1`）與 Google callback（`state` 以 `google_` 開頭），避免誤攔別人的 callback。
+  4. **確認是自家 LINE callback 時，整段跳過 LIFF 自動登入**，直接進 `finishLineLoginFromUrl()`，省掉最多 8 秒的空等，也不再跟 `liff.init()` 搶 `code`／`state`。
+  5. 按下「用 LINE 登入」／「使用 Google 登入」的當下就立刻蓋上等待畫面並設 `__uvacoLoginRedirecting` 旗標，手機網路慢、還沒真的離開這一頁時連按多次也只會送出一次授權請求。
+  6. **失敗時一定把畫面還給使用者**：`setStatus()` 只要是錯誤訊息就自動收起遮罩；`bootstrap()` 走到「這一輪沒登入成功、也不會再自動跳轉」的結尾時也會收起遮罩，避免卡在一個永遠轉不完的圈圈。
+- **影響範圍**：只動 `auth.html` 與 `js/pages/auth/main.js`（頁面層，非打包檔），**不需要重新執行 `npm run build:static`**；`LINE_CHANNEL_ID`／`LIFF_ID` 都沒有更動，LINE App 內開啟時的 LIFF 免點自動登入維持原樣，登入方式與帳號對應（`line_identities`）完全不變。
+- **驗證方式**：用 Playwright（Chromium）在本機起靜態站實測 13 項，全數通過——導回瞬間遮罩已蓋上且按鈕命中測試落在遮罩上（點不到按鈕）、成功換發後 1.1 秒內導向 `directory.html`（證明沒有卡在 LIFF 的 8 秒）、後端回 500 時遮罩收起且按鈕恢復可點並顯示錯誤訊息、一般進站不受影響、連點三次只送出一次 LINE 授權、`liff=1` 的導回仍交給 LIFF 處理不被搶走。
+- **快取更新**：`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.23`，`auth.html` 引用的 `js/pages/auth/main.js?v=` 升版為 `20260820a`，確保使用者重新整理後拿得到新版（`auth.html` 與 `js/pages/**` 在 Service Worker 是 Cache First 策略）。
+
 ## 2026-08-14（調整：PVC 單面貼紙版型第三輪定案——QR 左下＋NFC 右下對角分佈，PDF 與向量 SVG 同步套用）
 
 ### 調整（admin.html → NFC 名片量產管理 → 輸出貼紙PDF／向量SVG → PVC 單面版型）

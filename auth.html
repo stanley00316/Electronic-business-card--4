@@ -3,6 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 「登入處理中」早期標記（必須放在所有其他 script / 畫面內容之前）
+       從 LINE 官方登入頁導回來時，網址會帶 code / state，代表登入其實「已經在進行中」。
+       但這一頁是靜態 HTML，預設會把整張登入卡片（含綠色「用 LINE 登入」按鈕）原封不動
+       再畫一次；使用者看到熟悉的登入畫面會以為失敗，就再按一次登入，等於重跑一整輪 LINE，
+       而且第二次按下去會產生新的 state 覆蓋掉舊的，反而讓這次導回的 callback 驗證失敗。
+       所以在瀏覽器還沒畫出任何東西之前，就先在 <html> 標記 auth-processing，
+       直接蓋上等待畫面，讓使用者看不到、也點不到登入按鈕。 -->
+  <script>
+    (function () {
+      try {
+        var p = new URLSearchParams(window.location.search || '');
+        var code = String(p.get('code') || '').trim();
+        var state = String(p.get('state') || '').trim();
+        if (code && state) {
+          document.documentElement.classList.add('auth-processing');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <!-- 預連線加速載入 -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://nqxibryjhgftyxttopuo.supabase.co" crossorigin>
@@ -229,11 +248,63 @@
     body.theme-light .auth-input { background: #fff; border-color: rgba(15,23,42,0.12); color: #111827; }
     
     a { color: var(--uvaco-green); }
+
+    /* ===== 登入處理中遮罩 =====
+       只要 <html> 帶著 auth-processing，就把整頁蓋住：
+       - 底下的登入卡片改成 visibility:hidden（連鍵盤 Tab 都無法聚焦，等於完全點不到）
+       - 上面蓋一層等待畫面，明確告訴使用者「登入進行中，不用再按一次」
+       #authDebugPanel 例外，開發者診斷面板要能繼續看到。 */
+    html.auth-processing body > *:not(#authProcessingOverlay):not(#authDebugPanel) {
+      visibility: hidden !important;
+    }
+    #authProcessingOverlay { display: none; }
+    html.auth-processing #authProcessingOverlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 24px;
+      text-align: center;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+    body.theme-light #authProcessingOverlay { background: #f8fafc; color: #1f2937; }
+    .ap-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(34,197,94,0.3);
+      border-top-color: #22c55e;
+      border-radius: 50%;
+      animation: apSpin 1s linear infinite;
+    }
+    @keyframes apSpin { to { transform: rotate(360deg); } }
+    .ap-title { font-size: 16px; font-weight: 800; color: var(--uvaco-green); }
+    .ap-desc { font-size: 13px; line-height: 1.7; color: #9ca3af; max-width: 320px; }
+    body.theme-light .ap-desc { color: #6b7280; }
   </style>
   <!-- Supabase JS（CDN） -->
   <script src="supabase.min.js"></script>
 </head>
 <body class="theme-dark lang-zh">
+  <!-- 登入處理中的等待畫面：預設隱藏，只有 <html class="auth-processing"> 時才顯示。
+       出現時機：(1) 按下登入按鈕、正要導去 LINE；(2) 從 LINE 導回、正在換發登入憑證。
+       目的就是讓「用 LINE 登入」按鈕在這兩段期間完全不會出現在畫面上。 -->
+  <div id="authProcessingOverlay" role="status" aria-live="polite">
+    <div class="ap-spinner"></div>
+    <div class="ap-title">
+      <span class="lang-zh" id="apTitleZh">正在完成 LINE 登入…</span>
+      <span class="lang-en" id="apTitleEn">Finishing LINE sign-in…</span>
+    </div>
+    <div class="ap-desc">
+      <span class="lang-zh" id="apDescZh">請稍候，登入已在進行中，不需要再按一次登入。</span>
+      <span class="lang-en" id="apDescEn">Please wait — sign-in is already in progress. No need to tap again.</span>
+    </div>
+  </div>
+
   <!-- 背景泡泡 -->
   <div class="bg-blob blob1"></div>
   <div class="bg-blob blob2"></div>
@@ -399,7 +470,7 @@
 
   <script src="cloud.js?v=20260804e"></script>
   <script src="common.js?v=20260804d"></script>
-  <script type="module" src="js/pages/auth/main.js?v=20260812a"></script>
+  <script type="module" src="js/pages/auth/main.js?v=20260820a"></script>
   <script>
     // Service Worker 註冊
     if ('serviceWorker' in navigator) {
