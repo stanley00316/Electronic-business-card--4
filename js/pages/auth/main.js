@@ -190,7 +190,70 @@
       }
     }
 
+    /* =========================================================================
+     * 登入處理中畫面（避免使用者重複點擊「用 LINE 登入」）
+     *
+     * 規則很簡單：使用者按過一次登入之後，一直到「真的登入完成」或「真的失敗」之前，
+     * 都不該再看到（也不該點得到）登入按鈕。
+     * 只要 <html> 上有 auth-processing 這個 class，auth.html 的樣式就會把整張登入卡片
+     * 藏起來、蓋上等待畫面（實作在 auth.html 的 <style> 與 #authProcessingOverlay）。
+     * ========================================================================= */
+
+    // 網址帶著 code + state＝這是某個 OAuth 服務導回來的 callback，登入已經在進行中。
+    function isOAuthCallbackUrl() {
+      try {
+        var p = new URLSearchParams(window.location.search || '');
+        return !!(String(p.get('code') || '').trim() && String(p.get('state') || '').trim());
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // 進一步判斷「這是我們自己送出的 LINE 官方登入頁 callback」。
+    // 要跟 LIFF 自己的導回（網址會帶 liff=1）與 Google 的 callback（state 以 google_ 開頭）分開，
+    // 否則會把別人的 callback 誤攔下來處理。
+    function isOwnLineCallbackUrl() {
+      try {
+        var p = new URLSearchParams(window.location.search || '');
+        var code = String(p.get('code') || '').trim();
+        var state = String(p.get('state') || '').trim();
+        if (!code || !state) return false;
+        if (state.indexOf('google_') === 0) return false;
+        if (String(p.get('liff') || '') === '1') return false;
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function setProcessingText(titleZh, titleEn, descZh, descEn) {
+      var map = {
+        apTitleZh: titleZh,
+        apTitleEn: titleEn,
+        apDescZh: descZh,
+        apDescEn: descEn
+      };
+      Object.keys(map).forEach(function (id) {
+        if (!map[id]) return;
+        var el = document.getElementById(id);
+        if (el) el.textContent = map[id];
+      });
+    }
+
+    function enterProcessingMode(titleZh, titleEn, descZh, descEn) {
+      setProcessingText(titleZh, titleEn, descZh, descEn);
+      try { document.documentElement.classList.add('auth-processing'); } catch (e) {}
+    }
+
+    // 只有在「確定不會再往下走」時才呼叫：把登入卡片放回來讓使用者重試。
+    function exitProcessingMode() {
+      try { document.documentElement.classList.remove('auth-processing'); } catch (e) {}
+    }
+
     function setStatus(type, msg) {
+      // 顯示錯誤訊息代表這一輪登入已經結束了，一定要先把畫面還給使用者，
+      // 否則訊息會被等待遮罩蓋住，使用者只會看到一個永遠轉不完的圈圈。
+      if (type !== 'ok') exitProcessingMode();
       var box = document.getElementById('statusBox');
       box.className = 'auth-status show ' + (type === 'ok' ? 'ok' : 'err');
       box.textContent = msg;
@@ -286,9 +349,21 @@
     }
 
     function startGoogle() {
+      if (__uvacoLoginRedirecting) return;
       try {
-        UVACO_CLOUD.startGoogleLogin(getNext());
+        __uvacoLoginRedirecting = true;
+        enterProcessingMode(
+          '正在前往 Google 登入…',
+          'Opening Google sign-in…',
+          '請稍候，不需要重複點擊登入按鈕。',
+          'Please wait — no need to tap the sign-in button again.'
+        );
+        if (UVACO_CLOUD.startGoogleLogin(getNext()) === false) {
+          __uvacoLoginRedirecting = false;
+          exitProcessingMode();
+        }
       } catch (e) {
+        __uvacoLoginRedirecting = false;
         setStatus('err', 'Google 登入尚未設定完成。');
       }
     }
@@ -297,6 +372,16 @@
       const startedFromLineAt = readStartLineDebug();
       const hasCode = /[?&]code=/.test(window.location.search || '');
       const hasState = /[?&]state=/.test(window.location.search || '');
+      const isOwnLineCallback = isOwnLineCallbackUrl();
+      if (isOAuthCallbackUrl()) {
+        // auth.html 的早期 script 已經先蓋上遮罩了，這裡只是補上正確文案。
+        enterProcessingMode(
+          '正在完成登入…',
+          'Finishing sign-in…',
+          '請稍候，登入已在進行中，不需要再按一次登入。',
+          'Please wait — sign-in is already in progress. No need to tap again.'
+        );
+      }
       if (!hasCode) clearAuthDebugPanelEvents();
       renderAuthDebugPanel();
       // #region agent log
@@ -353,8 +438,14 @@
         }
       }
 
-      // LIFF 自動登入：從 LINE App 內開啟時免輸入帳號密碼
-      if (UVACO_CLOUD.hasLiffConfig && UVACO_CLOUD.hasLiffConfig()) {
+      // LIFF 自動登入：從 LINE App 內開啟時免輸入帳號密碼。
+      //
+      // 重要：如果這次是「我們自己的 LINE 官方登入頁 callback」（網址帶 code/state、沒有 liff=1），
+      // 就要整段跳過。原因有二：
+      // 1) 一般瀏覽器裡 liff.isInClient() 必定是 false，這段最久會空等 8 秒（withTimeout）才放棄，
+      //    使用者就是在這 8 秒裡看著登入畫面、以為失敗而再按一次登入，造成重複跳轉。
+      // 2) liff.init() 自己也會去解析網址上的 code/state，跟我們自己的 callback 互搶同一組參數。
+      if (!isOwnLineCallback && UVACO_CLOUD.hasLiffConfig && UVACO_CLOUD.hasLiffConfig()) {
         var liffTimedOut = false;
         try {
           setStatus('ok', '正在自動登入...');
@@ -467,6 +558,9 @@
       // 若從手機主畫面入口來但尚未登入，不再自動啟動 LINE。
       // 使用者需點「用 LINE 登入」，避免 LINE App / PWA 之間反覆跳轉造成畫面閃爍。
       var next = getNext();
+      // 走到這裡代表這一輪沒有登入成功、也不會再自動跳轉了，
+      // 一定要把等待遮罩收掉，讓使用者看得到（也按得到）登入按鈕。
+      exitProcessingMode();
       if (next === 'my-card.html') {
         setStatus('ok', isStandaloneApp()
           ? '請點下方按鈕登入一次。完成後，下次從手機主畫面圖示可直接開啟名片。'
@@ -481,10 +575,25 @@
     // 使用者只好一直重複點擊「登入」才能真正進入系統。
     // 直接交給 LINE 官方登入頁（跟電腦走同一條路），手機上它自己就會提供「用 LINE App 開啟」的
     // 官方選項，並且保證登入完成後正確導回「原本這個分頁」，不會有上述問題。
+
+    // 「已經按過登入、正在導往 LINE / Google」的旗標。
+    // 手機網路慢的時候，從按下按鈕到瀏覽器真的離開這一頁可能要好幾秒，
+    // 這段期間按鈕還在畫面上，使用者很容易連按好幾次，等於同時開好幾輪登入
+    // （而且每一輪都會覆蓋掉 UVACO_LINE_STATE，最後反而全部驗證失敗）。
+    var __uvacoLoginRedirecting = false;
+
     function startLine() {
+      if (__uvacoLoginRedirecting) return;
       try {
         try { localStorage.setItem('UVACO_DEBUG_AUTH_START_TS', String(Date.now())); } catch (e) {}
         var next = getNext();
+        __uvacoLoginRedirecting = true;
+        enterProcessingMode(
+          '正在前往 LINE 登入…',
+          'Opening LINE sign-in…',
+          '請稍候，不需要重複點擊登入按鈕。',
+          'Please wait — no need to tap the sign-in button again.'
+        );
         // #region agent log
         logAuthDebug(
           'H4',
@@ -496,8 +605,14 @@
           }
         );
         // #endregion
-        UVACO_CLOUD.startLineLogin(next);
+        // startLineLogin() 回傳 false 代表設定有問題、根本沒有導頁（它自己會跳 alert 說明），
+        // 這時要把旗標與遮罩還原，否則畫面會卡在等待中、使用者也無法重試。
+        if (UVACO_CLOUD.startLineLogin(next) === false) {
+          __uvacoLoginRedirecting = false;
+          exitProcessingMode();
+        }
       } catch (e) {
+        __uvacoLoginRedirecting = false;
         setStatus('err', 'LINE 登入尚未設定完成。');
       }
     }
