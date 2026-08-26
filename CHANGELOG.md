@@ -1,5 +1,23 @@
 # 變更紀錄
 
+## 2026-08-26（整理：合併散落的 SQL 修復檔，`supabase-setup.sql` 成為單一可信來源）
+
+### 調整：根目錄零散修復 SQL 檔整併進 `supabase-setup.sql`
+
+- **問題緣起**：健檢最後一個中風險項目——根目錄有 12 份零散的一次性修復 SQL 檔（`fix-*.sql`、`update_admin_schema.sql`、`deactivate-subscription.sql`、`subscription-setup.sql`），跟正規的 `supabase/migrations/` 並存，同一張表、同一個規則名稱在不同檔案有不同版本，光看 repo 完全看不出正式環境現在實際生效的是哪一版。
+- **查證方式**：沒有用檔案時間或內容猜測，而是新增幾份唯讀盤點 migration（`20260826200000` 到 `20260826240000`），直接查詢正式環境的 `pg_policies`、`information_schema`、函式原始碼，逐一核對每條規則、每個函式正式環境現在真正生效的版本，再據此更新 `supabase-setup.sql`。
+- **查證中意外發現兩個過去沒人留意到的落差**：
+  1. `calculate_referral_bonus()` 推薦獎勵函式，正式環境實際公式是「每 3 人給 180 天」，跟任何一份 SQL 檔案裡寫的「每 1 人給 30 天」都不一樣——這個改動當初沒有留在任何 SQL 檔案裡，只能反查正式環境才找得到，已經照正式環境版本寫回。（這也代表稍早修推薦系統濫用漏洞時，估算某帳號「已多拿 330 天」的說法，正確公式下實際數字會不同，估算方向沒錯但精確天數需以這個公式重算。）
+  2. `admin_users`（企業分權管理員用的表）從頭到尾沒有任何 SQL 檔案建立過，只能反查正式環境的完整欄位、約束、規則，這次一併補進 `supabase-setup.sql`，以後才有完整的建置腳本可用。
+  3. Storage bucket 建立語法裡有一行舊註解跟 SQL 語句黏在同一行，導致 `insert into storage.buckets` 這句被整句吃進註解裡、從未真的執行過（bucket 目前是靠正式環境早期手動建立才存在）；已修正換行，順手補上。
+- **修改內容**：
+  1. `supabase-setup.sql` 現在是**完整的單一建置腳本**，涵蓋所有資料表、RLS 規則與輔助函式，每個語句都設計成可重複執行，已對照正式環境完整跑過一次驗證無誤。
+  2. `update_admin_schema.sql`、`deactivate-subscription.sql`、`fix-subscription-rls.sql`、`fix-referrals-rls.sql`、`subscription-setup.sql` 這 5 份已被完全取代內容的檔案，用 `git mv` 搬進新建的 `sql-archive/` 資料夾（保留完整 Git 歷史），資料夾內附 `README.md` 說明僅供回顧歷史、不要重新執行——尤其 `fix-referrals-rls.sql` 裡還留著今天稍早才修掉的推薦系統漏洞舊版本，重新執行會把補好的洞重新打開。
+  3. `admin-upload-storage-rls.sql`、`google-login-setup.sql`、`oauth-providers-setup.sql`、`enterprise-phase1.sql`、`subscription-auto-triggers.sql`、`card_view_summaries_admin_rpc.sql` 沒有發現版本衝突或被取代的證據，維持原位不動。
+  4. `admin.html` 裡一則錯誤訊息原本教使用者重新執行已封存的 `update_admin_schema.sql`，已改成指向現在的 `supabase-setup.sql`。
+  5. `README.md` 補充說明，以後資料庫調整一律新增 `supabase/migrations/` 檔案並用 `supabase db push` 套用，不要再對正式環境臨時貼 SQL、事後才生根目錄檔案。
+- **影響範圍**：純文件/歸檔整理與一個從未執行過的 Storage 語句修正，沒有對正式環境的權限規則做任何新的變更（規則本身跟盤點前完全一致），不影響任何現有功能。
+
 ## 2026-08-26（資安修復二：guest-join 免登入端口防洗版、管理員名單外洩、真實 Email 從 Git 移除）
 
 ### 修復（`supabase/functions/guest-card-intake`）：免登入公開端口可被無限刷推薦、灌假名片

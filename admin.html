@@ -937,7 +937,7 @@ async function deleteCard(userId) {
     if (/stack\s+depth\s+limit\s+exceeded/i.test(msg)) {
       await adminAlert(
         '刪除失敗：資料庫權限規則（RLS policy）可能有「自我查表」造成遞迴，導致 stack depth limit exceeded。\n\n' +
-        '請到 Supabase SQL Editor 重新執行專案的 update_admin_schema.sql（最新版已修正此問題），再重試刪除。\n\n' +
+        '請到 Supabase SQL Editor 重新執行專案的 supabase-setup.sql（已包含修正此問題的最新版本），再重試刪除。\n\n' +
         (extra ? ('\n\n' + extra) : '')
       );
       return;

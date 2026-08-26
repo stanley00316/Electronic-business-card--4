@@ -41,6 +41,93 @@ as $$
   );
 $$;
 
+-- ===== 企業分權管理員（company admin）=====
+-- 用途：企業版可以指派「只管自己公司」的管理員（managed_company 為 null 代表不限公司，等同 super admin 權限範圍）。
+-- 跟上面的 admin_allowlist（超級管理員）是兩套獨立機制：is_admin() 查這張表，
+-- is_super_admin_allowlist() 查 admin_allowlist，兩者判斷的「管理員」身份不同、互不取代。
+create table if not exists public.admin_users (
+  user_id text primary key,
+  name text,
+  role text default 'org_admin',
+  target_company text,
+  managed_company text,
+  created_at timestamptz default now()
+);
+
+alter table public.admin_users enable row level security;
+alter table public.admin_users no force row level security;
+
+-- 沿用 update_admin_schema.sql 當初解決 policy 遞迴（stack depth exceeded）的設計：
+-- super admin 判斷一律走 admin_allowlist（SECURITY DEFINER），不要在 admin_users 的 policy 裡查 admin_users 本身。
+create or replace function public.is_super_admin_allowlist()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists(
+    select 1
+    from public.admin_allowlist a
+    where a.enabled = true
+      and lower(a.email) = public.current_email()
+  );
+$$;
+
+-- 一般管理員判斷：admin_allowlist（超級管理員）或 admin_users（company admin）任一有記錄就算。
+-- 必須是 security definer + 固定 search_path，才能在自己的 policy 裡查這兩張表而不觸發遞迴/RLS 卡死。
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists(
+    select 1
+    from public.admin_allowlist a
+    where a.enabled = true
+      and lower(a.email) = public.current_email()
+  ) or exists(
+    select 1
+    from public.admin_users au
+    where au.user_id::text = auth.uid()::text
+  );
+$$;
+
+drop policy if exists "admin_users_select_own" on public.admin_users;
+create policy "admin_users_select_own" on public.admin_users
+for select to authenticated
+using (user_id::text = auth.uid()::text);
+
+drop policy if exists "admin_users_select_all_super" on public.admin_users;
+create policy "admin_users_select_all_super" on public.admin_users
+for select to authenticated
+using (public.is_super_admin_allowlist());
+
+drop policy if exists "admin_users_insert_super" on public.admin_users;
+create policy "admin_users_insert_super" on public.admin_users
+for insert to authenticated
+with check (public.is_super_admin_allowlist());
+
+drop policy if exists "admin_users_update_super" on public.admin_users;
+create policy "admin_users_update_super" on public.admin_users
+for update to authenticated
+using (public.is_super_admin_allowlist())
+with check (public.is_super_admin_allowlist());
+
+drop policy if exists "admin_users_delete_super" on public.admin_users;
+create policy "admin_users_delete_super" on public.admin_users
+for delete to authenticated
+using (public.is_super_admin_allowlist());
+
+-- 管理員本人（company 或 super）可以新增/修改/刪除 admin_users 資料（例如自我維護聯絡資訊）
+drop policy if exists "admin_users_write" on public.admin_users;
+create policy "admin_users_write" on public.admin_users
+for all to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
 -- 名片主檔：每個 user 一筆（onConflict user_id）
 create table if not exists public.cards (
   id uuid primary key default gen_random_uuid(),
@@ -97,51 +184,87 @@ create table if not exists public.consents (
   created_at timestamptz not null default now()
 );
 
+-- 名片是否公開可見（訂閱過期/管理員停用時會設為 false）
+alter table public.cards add column if not exists is_visible boolean default true;
+
 -- ===== RLS =====
 alter table public.cards enable row level security;
 alter table public.directory_contacts enable row level security;
 alter table public.consents enable row level security;
 alter table public.admin_allowlist enable row level security;
 
--- 使用者自己的資料
+-- 公開讀取：is_visible 名片任何人都能看（分享才有意義）；未公開的只有本人/管理員看得到。
+-- 2026-08-26 盤點更新：這條規則取代了原本的 cards_own_select／cards_directory_select／cards_admin_select
+-- 三條（production 上這三條其實已經不存在，全部被這一條取代，這裡同步成正式環境現況）。
 drop policy if exists "cards_own_select" on public.cards;
-create policy "cards_own_select" on public.cards
-for select to authenticated
-using (user_id = auth.uid());
-
--- 平台通訊錄：登入後可搜尋/查看全平台名片（你要求的「全平台公開搜尋」）
--- 注意：前端仍應只顯示必要欄位；若你之後要「好友制」或「可見欄位更嚴格」，建議改用 view/RPC 控制輸出欄位。
 drop policy if exists "cards_directory_select" on public.cards;
-create policy "cards_directory_select" on public.cards
-for select to authenticated
-using (true);
+drop policy if exists "cards_admin_select" on public.cards;
+drop policy if exists "cards_public_select" on public.cards;
+create policy "cards_public_select" on public.cards
+for select
+using (
+  is_visible = true
+  or user_id::text = auth.uid()::text
+  or public.is_admin()
+);
 
 drop policy if exists "cards_own_upsert" on public.cards;
-create policy "cards_own_upsert" on public.cards
+drop policy if exists "cards_own_insert" on public.cards;
+create policy "cards_own_insert" on public.cards
 for insert to authenticated
-with check (user_id = auth.uid());
+with check (user_id::text = auth.uid()::text);
 
 drop policy if exists "cards_own_update" on public.cards;
 create policy "cards_own_update" on public.cards
 for update to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+using (user_id::text = auth.uid()::text)
+with check (user_id::text = auth.uid()::text);
 
 drop policy if exists "cards_own_delete" on public.cards;
 create policy "cards_own_delete" on public.cards
 for delete to authenticated
-using (user_id = auth.uid());
+using (user_id::text = auth.uid()::text);
 
--- 管理者：全量查詢/刪除（匯出與合規刪除）
-drop policy if exists "cards_admin_select" on public.cards;
-create policy "cards_admin_select" on public.cards
-for select to authenticated
-using (public.is_admin());
+-- 管理者：company admin 限制只能操作自己公司（managed_company 為 null 代表不限公司）
+drop policy if exists "cards_admin_insert" on public.cards;
+create policy "cards_admin_insert" on public.cards
+for insert to authenticated
+with check (
+  exists (
+    select 1 from public.admin_users au
+    where au.user_id::text = auth.uid()::text
+      and (au.managed_company is null or public.cards.company ilike ('%' || au.managed_company || '%'))
+  )
+);
+
+drop policy if exists "cards_admin_update" on public.cards;
+create policy "cards_admin_update" on public.cards
+for update to authenticated
+using (
+  exists (
+    select 1 from public.admin_users au
+    where au.user_id::text = auth.uid()::text
+      and (au.managed_company is null or public.cards.company ilike ('%' || au.managed_company || '%'))
+  )
+)
+with check (
+  exists (
+    select 1 from public.admin_users au
+    where au.user_id::text = auth.uid()::text
+      and (au.managed_company is null or public.cards.company ilike ('%' || au.managed_company || '%'))
+  )
+);
 
 drop policy if exists "cards_admin_delete" on public.cards;
 create policy "cards_admin_delete" on public.cards
 for delete to authenticated
-using (public.is_admin());
+using (
+  exists (
+    select 1 from public.admin_users au
+    where au.user_id::text = auth.uid()::text
+      and (au.managed_company is null or public.cards.company ilike ('%' || au.managed_company || '%'))
+  )
+);
 
 -- directory_contacts：使用者自己的
 drop policy if exists "contacts_own_select" on public.directory_contacts;
@@ -191,7 +314,10 @@ using (public.is_admin());
 -- Bucket：card-assets
 -- - 寫入：只能寫到自己的路徑（{auth.uid()}/...）
 -- - 讀取：全平台公開搜尋模式下，登入者可讀取所有人的圖片（authenticated）
--- 注意：Storage 的 RLS 在 storage.objects 上；此段可重複執行（idempotent）insert into storage.buckets (id, name, public)
+-- 注意：Storage 的 RLS 在 storage.objects 上；此段可重複執行（idempotent）
+-- 2026-08-26 修正：這行原本跟上面的註解黏在同一行，導致整句被吃進註解裡、從未真的執行過
+-- （bucket 目前是靠正式環境早期手動建立才存在，這裡補上讓腳本本身也能正確建立）。
+insert into storage.buckets (id, name, public)
 values ('card-assets', 'card-assets', false)
 on conflict (id) do nothing;
 
@@ -327,3 +453,346 @@ drop policy if exists "referrals_admin_select" on public.referrals;
 create policy "referrals_admin_select" on public.referrals
 for select to authenticated
 using (public.is_admin());
+
+-- ===== 訂閱系統：付費、試用、推薦獎勵 =====
+-- 2026-08-26 盤點：這段原本只存在於根目錄的 subscription-setup.sql，且部分規則跟正式環境
+-- 實際生效的版本不一致，這裡已經對照正式環境查證過，是目前真正生效的版本（不是憑檔案時間猜的）。
+
+create table if not exists public.subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique,
+  status text not null default 'trial', -- trial／active／expired／cancelled
+  created_at timestamptz not null default now(),
+  trial_start_at timestamptz default now(),
+  trial_end_at timestamptz,
+  subscription_start_at timestamptz,
+  subscription_end_at timestamptz,
+  referral_bonus_days integer default 0,
+  last_referral_check integer default 0,
+  payment_provider text,
+  payment_id text,
+  amount integer,
+  currency text default 'TWD',
+  extended_by uuid,
+  extend_reason text,
+  extended_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_subscriptions_user_id on public.subscriptions(user_id);
+create index if not exists idx_subscriptions_status on public.subscriptions(status);
+create index if not exists idx_subscriptions_trial_end on public.subscriptions(trial_end_at);
+create index if not exists idx_subscriptions_subscription_end on public.subscriptions(subscription_end_at);
+
+drop trigger if exists trg_subscriptions_updated_at on public.subscriptions;
+create trigger trg_subscriptions_updated_at
+before update on public.subscriptions
+for each row execute procedure public.set_updated_at();
+
+create table if not exists public.payment_history (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  subscription_id uuid references public.subscriptions(id),
+  payment_provider text not null,
+  payment_id text,
+  amount integer not null,
+  currency text default 'TWD',
+  status text not null default 'pending', -- pending／completed／failed／refunded
+  period_start timestamptz,
+  period_end timestamptz,
+  payment_details jsonb default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+
+create index if not exists idx_payment_history_user_id on public.payment_history(user_id);
+create index if not exists idx_payment_history_subscription_id on public.payment_history(subscription_id);
+create index if not exists idx_payment_history_status on public.payment_history(status);
+
+create table if not exists public.pricing_plans (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  name_en text,
+  description text,
+  description_en text,
+  price integer not null,
+  currency text default 'TWD',
+  duration_days integer not null,
+  is_active boolean default true,
+  sort_order integer default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_pricing_plans_updated_at on public.pricing_plans;
+create trigger trg_pricing_plans_updated_at
+before update on public.pricing_plans
+for each row execute procedure public.set_updated_at();
+
+insert into public.pricing_plans (name, name_en, description, description_en, price, duration_days, sort_order)
+values
+  ('月費方案', 'Monthly Plan', '每月訂閱，隨時取消', 'Monthly subscription, cancel anytime', 9900, 30, 1),
+  ('季費方案', 'Quarterly Plan', '每季訂閱，享 9 折優惠', 'Quarterly subscription, 10% off', 26700, 90, 2),
+  ('年費方案', 'Yearly Plan', '年度訂閱，享 8 折優惠', 'Yearly subscription, 20% off', 95000, 365, 3)
+on conflict do nothing;
+
+-- ===== 訂閱系統 RLS =====
+alter table public.subscriptions enable row level security;
+
+drop policy if exists "subscriptions_own_select" on public.subscriptions;
+create policy "subscriptions_own_select" on public.subscriptions
+for select to authenticated
+using (user_id::text = auth.uid()::text);
+
+drop policy if exists "subscriptions_own_insert" on public.subscriptions;
+create policy "subscriptions_own_insert" on public.subscriptions
+for insert to authenticated
+with check (user_id::text = auth.uid()::text);
+
+drop policy if exists "subscriptions_own_update" on public.subscriptions;
+create policy "subscriptions_own_update" on public.subscriptions
+for update to authenticated
+using (user_id::text = auth.uid()::text)
+with check (user_id::text = auth.uid()::text);
+
+drop policy if exists "subscriptions_admin_select" on public.subscriptions;
+create policy "subscriptions_admin_select" on public.subscriptions
+for select to authenticated
+using (public.is_admin());
+
+drop policy if exists "subscriptions_admin_update" on public.subscriptions;
+create policy "subscriptions_admin_update" on public.subscriptions
+for update to authenticated
+using (public.is_admin());
+
+drop policy if exists "subscriptions_admin_insert" on public.subscriptions;
+create policy "subscriptions_admin_insert" on public.subscriptions
+for insert to authenticated
+with check (public.is_admin());
+
+alter table public.payment_history enable row level security;
+
+-- 注意：這條刻意不用 ::text 轉型（跟 subscriptions_own_select 不同），
+-- 2026-08-26 對照正式環境查證過，目前實際生效的就是這個沒轉型的版本。
+drop policy if exists "payment_history_own_select" on public.payment_history;
+create policy "payment_history_own_select" on public.payment_history
+for select to authenticated
+using (user_id = auth.uid());
+
+drop policy if exists "payment_history_admin_select" on public.payment_history;
+create policy "payment_history_admin_select" on public.payment_history
+for select to authenticated
+using (public.is_admin());
+
+drop policy if exists "payment_history_admin_insert" on public.payment_history;
+create policy "payment_history_admin_insert" on public.payment_history
+for insert to authenticated
+with check (public.is_admin());
+
+alter table public.pricing_plans enable row level security;
+
+drop policy if exists "pricing_plans_authenticated_select" on public.pricing_plans;
+create policy "pricing_plans_authenticated_select" on public.pricing_plans
+for select to authenticated
+using (is_active = true);
+
+drop policy if exists "pricing_plans_admin_select" on public.pricing_plans;
+create policy "pricing_plans_admin_select" on public.pricing_plans
+for select to authenticated
+using (public.is_admin());
+
+drop policy if exists "pricing_plans_admin_insert" on public.pricing_plans;
+create policy "pricing_plans_admin_insert" on public.pricing_plans
+for insert to authenticated
+with check (public.is_admin());
+
+drop policy if exists "pricing_plans_admin_update" on public.pricing_plans;
+create policy "pricing_plans_admin_update" on public.pricing_plans
+for update to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "pricing_plans_admin_delete" on public.pricing_plans;
+create policy "pricing_plans_admin_delete" on public.pricing_plans
+for delete to authenticated
+using (public.is_admin());
+
+-- ===== 訂閱系統輔助函式 =====
+
+create or replace function public.get_subscription_end_date(p_user_id uuid)
+returns timestamptz
+language plpgsql
+stable
+as $$
+declare
+  v_sub record;
+  v_end_date timestamptz;
+begin
+  select * into v_sub from public.subscriptions where user_id = p_user_id;
+  if not found then
+    return null;
+  end if;
+  if v_sub.subscription_end_at is not null then
+    v_end_date := v_sub.subscription_end_at;
+  elsif v_sub.trial_end_at is not null then
+    v_end_date := v_sub.trial_end_at;
+  else
+    v_end_date := v_sub.trial_start_at + interval '30 days';
+  end if;
+  v_end_date := v_end_date + (v_sub.referral_bonus_days || ' days')::interval;
+  return v_end_date;
+end;
+$$;
+
+create or replace function public.is_subscription_active(p_user_id uuid)
+returns boolean
+language plpgsql
+stable
+as $$
+declare
+  v_end_date timestamptz;
+begin
+  v_end_date := public.get_subscription_end_date(p_user_id);
+  if v_end_date is null then
+    return false;
+  end if;
+  return v_end_date > now();
+end;
+$$;
+
+-- 2026-08-26 對照正式環境查證：實際生效的公式是「每 3 人給 180 天」，
+-- 不是根目錄 subscription-setup.sql 寫的「每人 30 天」——後者已經是舊版，這裡以正式環境為準。
+create or replace function public.calculate_referral_bonus(p_referral_count integer)
+returns integer
+language plpgsql
+immutable
+as $$
+begin
+  return (p_referral_count / 3) * 180;
+end;
+$$;
+
+create or replace function public.update_referral_bonus(p_user_id uuid)
+returns void
+language plpgsql
+as $$
+declare
+  v_referral_count integer;
+  v_bonus_days integer;
+begin
+  select count(*) into v_referral_count
+  from public.referrals
+  where referrer_user_id = p_user_id;
+
+  v_bonus_days := public.calculate_referral_bonus(v_referral_count);
+
+  update public.subscriptions
+  set referral_bonus_days = v_bonus_days,
+      last_referral_check = v_referral_count,
+      updated_at = now()
+  where user_id = p_user_id;
+end;
+$$;
+
+create or replace function public.create_user_subscription(p_user_id uuid, p_referrer_id uuid default null)
+returns uuid
+language plpgsql
+as $$
+declare
+  v_subscription_id uuid;
+  v_trial_end timestamptz;
+begin
+  v_trial_end := now() + interval '30 days';
+
+  insert into public.subscriptions (user_id, status, trial_start_at, trial_end_at)
+  values (p_user_id, 'trial', now(), v_trial_end)
+  on conflict (user_id) do nothing
+  returning id into v_subscription_id;
+
+  if p_referrer_id is not null and p_referrer_id != p_user_id then
+    insert into public.referrals (referrer_user_id, referred_user_id)
+    values (p_referrer_id, p_user_id)
+    on conflict (referred_user_id) do nothing;
+
+    perform public.update_referral_bonus(p_referrer_id);
+  end if;
+
+  return v_subscription_id;
+end;
+$$;
+
+create or replace function public.extend_subscription(
+  p_user_id uuid,
+  p_days integer,
+  p_reason text,
+  p_admin_id uuid
+)
+returns boolean
+language plpgsql
+as $$
+declare
+  v_current_end timestamptz;
+begin
+  v_current_end := public.get_subscription_end_date(p_user_id);
+
+  if v_current_end is null then
+    perform public.create_user_subscription(p_user_id);
+    v_current_end := now();
+  end if;
+
+  if v_current_end < now() then
+    v_current_end := now();
+  end if;
+
+  update public.subscriptions
+  set status = 'active',
+      subscription_start_at = coalesce(subscription_start_at, now()),
+      subscription_end_at = v_current_end + (p_days || ' days')::interval,
+      extended_by = p_admin_id,
+      extend_reason = p_reason,
+      extended_at = now(),
+      updated_at = now()
+  where user_id = p_user_id;
+
+  update public.cards
+  set is_visible = true
+  where user_id = p_user_id;
+
+  return true;
+end;
+$$;
+
+create or replace function public.check_expired_subscriptions()
+returns integer
+language plpgsql
+as $$
+declare
+  v_count integer := 0;
+begin
+  update public.subscriptions
+  set status = 'expired', updated_at = now()
+  where status in ('trial', 'active')
+    and public.get_subscription_end_date(user_id) < now();
+
+  get diagnostics v_count = row_count;
+
+  update public.cards c
+  set is_visible = false
+  from public.subscriptions s
+  where c.user_id = s.user_id
+    and s.status = 'expired'
+    and c.is_visible = true;
+
+  return v_count;
+end;
+$$;
+
+-- ===== 定時任務設定（Cron Job）=====
+-- 用途：每日自動檢查過期訂閱並隱藏名片。需要先在 Supabase Dashboard → Database → Extensions
+-- 啟用 pg_cron，再手動執行下面這段（避免每次重跑 setup 腳本時重複建立排程）：
+--
+-- select cron.schedule(
+--   'daily-check-expired-subscriptions',
+--   '0 0 * * *',
+--   $$select public.check_expired_subscriptions()$$
+-- );

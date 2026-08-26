@@ -149,13 +149,14 @@
 
 ## Supabase（雲端名片 / 全平台搜尋 / Storage / LINE 登入）
 
-### 目前正式專案狀態（2026-08-04）
+### 目前正式專案狀態（2026-08-26）
 
 - **正式專案**：`https://nqxibryjhgftyxttopuo.supabase.co`
-- **已套用 migration**：最新已到 `20260804163000_enterprise_paid_features_phase1.sql`
-- **已部署 Edge Function**：`guest-card-intake`（線上 build 標記：`2026-08-04-guest-card-intake-2`）
+- **已套用 migration**：最新已到 `20260826240000_audit_remaining_functions.sql`
+- **已部署 Edge Function**：`guest-card-intake`（線上 build 標記：`2026-08-26-guest-card-intake-rate-limit`，新增免登入端口的 IP／推薦人雙層速率限制）
 - **已啟用能力**：企業邀請免登入建立名片、客戶待跟進資料、NFC 感應來源統計。
 - **保留不變**：GitHub Pages repo 路徑仍是 `Electronic-business-card--4`，公開名片與 NFC 既有網址規則不變。
+- **資料庫調整請一律走 `supabase/migrations/`**：過去曾直接在 SQL Editor 貼上一次性修復腳本、事後才存成根目錄檔案，導致同一條規則在不同檔案有不同版本、看 repo 看不出正式環境現況。2026-08-26 已對照正式環境查證並整併進 `supabase-setup.sql`，舊檔案封存在 [`sql-archive/`](../sql-archive/README.md)（僅供回顧歷史，不要重新執行）。以後有資料庫調整，請新增 `supabase/migrations/` 底下的檔案並用 `supabase db push` 套用，不要再對正式環境臨時貼 SQL。
 
 ### 1) 基本設定
 
@@ -166,8 +167,9 @@
 ### 2) 初始化資料庫與 Storage
 
 - 到 Supabase Dashboard → SQL Editor 執行 `supabase-setup.sql`
-  - 會建立 `cards / directory_contacts / consents` 等表、RLS policy
+  - 這份檔案已經是**完整的單一建置腳本**（2026-08-26 起），會建立 `cards / directory_contacts / consents / admin_allowlist / admin_users / referrals / subscriptions / payment_history / pricing_plans` 等全部資料表、RLS policy 與輔助函式
   - 會建立（或確保存在）Storage bucket：`card-assets`（並套用 RLS policy）
+  - 每個語句都設計成可重複執行（`if not exists` / `drop ... if exists` 再重建），重跑一次不會壞掉既有資料
 
 ### 3) LINE 登入（不依賴 Supabase Provider；自訂 JWT 模式）
 
