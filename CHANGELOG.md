@@ -1,5 +1,28 @@
 # 變更紀錄
 
+## 2026-08-26（資安修復二：guest-join 免登入端口防洗版、管理員名單外洩、真實 Email 從 Git 移除）
+
+### 修復（`supabase/functions/guest-card-intake`）：免登入公開端口可被無限刷推薦、灌假名片
+
+- **問題緣起**：延續同一天稍早的推薦系統修復，深入追查發現真正好打的其實是這支免登入公開 Edge Function——它用 `service_role` 直接寫入 `cards`／`referrals`（繞過 RLS），`referrer_user_id` 又直接來自表單內容，完全沒有登入、沒有流量限制。因為每張公開名片網址本來就會把 `user_id` 攤在網址列給任何人看，任何人都能複製陌生人的 `user_id`、填假資料、重複呼叫這支公開 API，幫該陌生人（或自己）無限刷推薦獎勵天數，比稍早修的漏洞更好打、還不需要登入。
+- **修改內容**：
+  1. 新增資料表 `guest_intake_attempts`（`supabase/migrations/20260826190000_guest_intake_rate_limit.sql`），只給 service_role 存取，前端讀不到；IP 位址雜湊後才存。
+  2. `guest-card-intake` 新增兩層限流：同一 IP 10 分鐘內超過 5 次直接擋下（`429 RATE_LIMITED`）；沒有合法 `invite_token` 的公開推薦連結流程（`?ref=<user_id>`），同一推薦人 24 小時內最多記錄 10 次推薦，超過後仍可正常建立名片、只是不再加碼推薦數。企業批次邀請員工走的是有驗證過期限的 `invite_token`，不受這條限制影響。
+  3. 已在正式環境實測：連續送出同一 IP 的請求，第 6 次確認被 `429` 擋下，且測試過程完全沒有在正式 `cards` 表建立任何假資料。
+
+### 修復（資料庫權限規則）：管理員名單對所有登入用戶開放
+
+- **問題緣起**：`fix-subscription-rls.sql` 曾新增的寬鬆規則蓋掉了 `supabase-setup.sql` 原本就有、限縮給管理員的規則，導致任何登入用戶都能讀到完整管理員名單（含真實 Email）。
+- **修改內容**：新增 `supabase/migrations/20260826180000_restrict_admin_allowlist_select.sql`，改成一般使用者只能查到「自己那一列」，管理員才能查全部；`fix-subscription-rls.sql` 也同步修正，避免之後重跑又引入舊漏洞。前端 `js/cloud/admin-roles.js` 完全不用改，RLS 會自動依查詢者身分過濾回傳的資料列。
+
+### 修復：真實管理員 Email 從 repo 目前檔案與 Git 歷史紀錄一併移除
+
+- **問題緣起**：`supabase-setup.sql` 明碼寫死了真實管理員 Email，而且這個 repo 是 Public，等於任何人上 GitHub 都能直接看到，不只是「歷史紀錄裡才有」。
+- **修改內容**：
+  1. `supabase-setup.sql` 移除寫死的 Email，改成註解說明請自行到 SQL Editor 手動新增，不要提交進 Git。
+  2. 用 `git filter-repo` 改寫整個 Git 歷史（含所有分支），把曾經出現過這兩個 Email 的所有 commit 全部替換掉，並強制推送覆蓋遠端；執行前已在本機做完整 mirror 備份。已確認改寫歷史不影響 repo 名稱、檔案路徑或 `card.html?id=...` 網址規則，不影響網站本身或已發出去的實體 NFC 名片；其他協作者的本機 clone 之後需要重新 clone 才能繼續同步（已知情接受此影響）。
+- **限制說明**：GitHub 本身的快取、或任何人在改寫之前已經抓取/查看過的紀錄，技術上無法保證 100% 從網路上完全消失，這步驟做到的是「官方看得到的版本已清乾淨」。
+
 ## 2026-08-26（資安修復：推薦系統可被灌假資料濫用、公開名片頁儲存型 XSS）
 
 ### 修復（資料庫權限規則）：推薦好友機制可被無限刷高換取免費天數

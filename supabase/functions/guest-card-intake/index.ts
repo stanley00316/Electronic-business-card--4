@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const BUILD_ID = "2026-08-12-guest-card-intake-dedup-fix";
+const BUILD_ID = "2026-08-26-guest-card-intake-rate-limit";
 const DEFAULT_PUBLIC_SITE_URL = "https://stanley00316.github.io/Electronic-business-card--4/";
 
 function normalizeSecret(value: string | undefined | null) {
@@ -175,6 +175,69 @@ async function supabaseRest(
   );
 }
 
+// ===== 防洗版：速率限制 =====
+// 這支函式免登入即可呼叫，用 service_role 寫入資料（繞過 RLS），沒有這層限制的話，
+// 任何人都能腳本狂打灌一堆假名片，或複製別人公開名片網址上的 user_id 幫他無限刷推薦天數。
+
+const IP_RATE_LIMIT_WINDOW_MINUTES = 10;
+const IP_RATE_LIMIT_MAX = 5;
+const REFERRER_RATE_LIMIT_WINDOW_HOURS = 24;
+const REFERRER_RATE_LIMIT_MAX = 10;
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.headers.get("x-real-ip") || "unknown";
+}
+
+async function hashIp(ip: string): Promise<string> {
+  const data = new TextEncoder().encode(ip);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// 同一個 IP 短時間內送太多次，直接擋下（不分是不是走 invite_token，單純防灌量）。
+async function isIpRateLimited(supabaseUrl: string, serviceRoleKey: string, ipHash: string): Promise<boolean> {
+  const since = new Date(Date.now() - IP_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
+  const resp = await supabaseRest(
+    supabaseUrl,
+    serviceRoleKey,
+    `/rest/v1/guest_intake_attempts?select=id&ip_hash=eq.${encodeURIComponent(ipHash)}&created_at=gt.${encodeURIComponent(since)}&limit=${IP_RATE_LIMIT_MAX}`,
+    { method: "GET" },
+  );
+  if (!resp.ok) return false; // 查詢本身失敗時不要因此擋下正常使用者
+  const rows = await resp.json().catch(() => []);
+  return Array.isArray(rows) && rows.length >= IP_RATE_LIMIT_MAX;
+}
+
+// 只針對沒有合法 invite_token 的公開推薦連結流程（?ref=<user_id>）：
+// 同一個 referrer_user_id 短時間內被灌爆太多次，之後的提交仍可建立名片，只是不再記推薦。
+async function isReferrerRateLimited(supabaseUrl: string, serviceRoleKey: string, referrerUserId: string): Promise<boolean> {
+  const since = new Date(Date.now() - REFERRER_RATE_LIMIT_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
+  const resp = await supabaseRest(
+    supabaseUrl,
+    serviceRoleKey,
+    `/rest/v1/guest_intake_attempts?select=id&referrer_user_id=eq.${encodeURIComponent(referrerUserId)}&created_at=gt.${encodeURIComponent(since)}&limit=${REFERRER_RATE_LIMIT_MAX}`,
+    { method: "GET" },
+  );
+  if (!resp.ok) return false;
+  const rows = await resp.json().catch(() => []);
+  return Array.isArray(rows) && rows.length >= REFERRER_RATE_LIMIT_MAX;
+}
+
+async function recordIntakeAttempt(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  ipHash: string,
+  referrerUserId: string | null,
+) {
+  await supabaseRest(supabaseUrl, serviceRoleKey, "/rest/v1/guest_intake_attempts", {
+    method: "POST",
+    headers: { prefer: "return=minimal" },
+    body: JSON.stringify({ ip_hash: ipHash, referrer_user_id: referrerUserId }),
+  }).catch(() => {});
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true, build: BUILD_ID });
   if (req.method === "GET") {
@@ -197,6 +260,11 @@ serve(async (req) => {
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return bad("MISSING_SUPABASE_SECRETS", 500);
 
+  const ipHash = await hashIp(getClientIp(req));
+  if (await isIpRateLimited(SUPABASE_URL, SERVICE_ROLE_KEY, ipHash)) {
+    return bad("RATE_LIMITED", 429);
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -206,6 +274,10 @@ serve(async (req) => {
 
   // 蜜罐欄位：正常使用者不會填到，若有值就視為機器送件。
   if (cleanText(body.website, 120)) return bad("BOT_DETECTED", 422);
+
+  // 記錄這次提交（不論後續成功與否），供上面的 IP 速率限制與下面的推薦人限制查詢使用。
+  const rawReferrerUserId = cleanText(body.referrer_user_id, 80);
+  await recordIntakeAttempt(SUPABASE_URL, SERVICE_ROLE_KEY, ipHash, isUuid(rawReferrerUserId) ? rawReferrerUserId : null);
 
   let name = cleanText(body.name, 80);
   let title = cleanText(body.title, 80);
@@ -325,7 +397,11 @@ serve(async (req) => {
   let referralRecorded = false;
   const inviteCreatorId = invite ? cleanText(invite.created_by, 80) : "";
   const referralOwnerId = isUuid(referrerUserId) ? referrerUserId : inviteCreatorId;
-  if (isUuid(referralOwnerId) && referralOwnerId !== userId) {
+  // 只針對「沒有合法 invite_token」的公開推薦連結流程做推薦人限流：
+  // 企業批次邀請員工走的是有驗證過期限、建立者身分的 invite_token，不受這條限制影響。
+  const referralOwnerRateLimited =
+    !invite && isUuid(referralOwnerId) ? await isReferrerRateLimited(SUPABASE_URL, SERVICE_ROLE_KEY, referralOwnerId) : false;
+  if (isUuid(referralOwnerId) && referralOwnerId !== userId && !referralOwnerRateLimited) {
     const referralResp = await supabaseRest(SUPABASE_URL, SERVICE_ROLE_KEY, "/rest/v1/referrals", {
       method: "POST",
       headers: { prefer: "return=minimal" },

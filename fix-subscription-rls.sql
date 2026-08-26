@@ -168,11 +168,17 @@ END $$;
 
 ALTER TABLE public.admin_allowlist ENABLE ROW LEVEL SECURITY;
 
--- 所有登入用戶可以讀取 admin_allowlist（用於前端判斷）
--- 使用寬鬆政策，因為 is_admin() 是 SECURITY DEFINER
-CREATE POLICY "allowlist_authenticated_select" ON public.admin_allowlist
+-- 登入用戶只能查到「自己那一列」是否在名單裡（用於前端 isAdmin 判斷），
+-- 管理員可查全部；is_admin() 是 SECURITY DEFINER，直接用不會遞迴（已在其他表驗證過）。
+-- 2026-08-26 修正：原本這裡用 USING (true) 讓任何登入用戶都能讀到完整管理員名單
+-- （含真實 Email），已收緊為只能查自己或管理員查全部，詳見
+-- supabase/migrations/20260826180000_restrict_admin_allowlist_select.sql。
+CREATE POLICY "allowlist_own_or_admin_select" ON public.admin_allowlist
 FOR SELECT TO authenticated
-USING (true);
+USING (
+  email = public.current_email()
+  OR public.is_admin()
+);
 
 -- 完成提示
 DO $$

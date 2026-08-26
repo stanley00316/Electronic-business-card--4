@@ -8,13 +8,12 @@ create table if not exists public.admin_allowlist (
   created_at timestamptz not null default now()
 );
 
--- 你的管理者 email
--- 預設超級管理員（請根據實際需求修改）
-insert into public.admin_allowlist (email, enabled, note)
-values 
-  ('[REDACTED_ADMIN_EMAIL]', true, '超級管理員'),
-  ('[REDACTED_ADMIN_EMAIL]', true, '超級管理員')
-on conflict (email) do update set enabled = excluded.enabled;
+-- 建立超級管理員：請勿把真實 Email 寫死提交進 Git（這個檔案是公開 repo 的一部分）。
+-- 初始化資料庫後，請自行到 Supabase Dashboard → SQL Editor 手動執行一次（不要存進版本控制）：
+--
+--   insert into public.admin_allowlist (email, enabled, note)
+--   values ('你的管理員信箱', true, '超級管理員')
+--   on conflict (email) do update set enabled = excluded.enabled;
 
 -- helpers：取得 jwt email（Supabase Auth）
 create or replace function public.current_email()
