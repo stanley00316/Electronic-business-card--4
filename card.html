@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <!-- Sentry 錯誤監控 SDK -->
 <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
+<!-- DOMPurify：過濾使用者可控的富文字 HTML（標語／公司資訊／聯絡方式），避免儲存型 XSS -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
 <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -1008,7 +1010,18 @@ function filterSystemText(text) {
   return text;
 }
 
-// 過濾 HTML 中的系統佔位文字
+// 名片富文字欄位（標語／公司資訊／聯絡方式）實際會用到的標籤與屬性；
+// 其餘一律過濾掉，避免使用者繞過編輯畫面直接把危險 HTML 存進 profile_json
+// 後在這個公開頁面對其他訪客執行（儲存型 XSS）。
+const UVACO_RICH_TEXT_SANITIZE_CONFIG = {
+  ALLOWED_TAGS: ['div', 'span', 'p', 'br', 'a', 'img', 'b', 'i', 'u', 'strong', 'em'],
+  ALLOWED_ATTR: [
+    'class', 'style', 'href', 'target', 'rel', 'download', 'src', 'alt',
+    'data-contact-type', 'data-wechat-id', 'data-font-size', 'data-font-color'
+  ]
+};
+
+// 過濾使用者可控 HTML：先用 DOMPurify 擋掉危險標籤/屬性，再挑掉系統佔位文字
 function filterSystemHtml(html) {
   if (!html) return html;
   const systemPatterns = [
@@ -1019,9 +1032,18 @@ function filterSystemHtml(html) {
     '請輸入內容',
     'Enter content'
   ];
-  // 建立 DOM 來處理 HTML
+  // DOMPurify 沒載入成功時（CDN 異常等），寧可整段當純文字顯示，也不要冒險輸出未過濾的 HTML
+  let sanitized;
+  if (typeof DOMPurify !== 'undefined') {
+    sanitized = DOMPurify.sanitize(html, UVACO_RICH_TEXT_SANITIZE_CONFIG);
+  } else {
+    const plain = document.createElement('div');
+    plain.textContent = html;
+    sanitized = plain.textContent;
+  }
+  // 建立 DOM 來處理已過濾的安全 HTML
   const temp = document.createElement('div');
-  temp.innerHTML = html;
+  temp.innerHTML = sanitized;
   // 移除包含系統文字的元素
   temp.querySelectorAll('*').forEach(el => {
     const text = el.textContent || '';

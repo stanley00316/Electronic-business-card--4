@@ -298,8 +298,8 @@ create index if not exists idx_cards_nfc_card_id on public.cards(nfc_card_id);
 -- 用途：追蹤用戶推薦關係
 create table if not exists public.referrals (
   id uuid primary key default gen_random_uuid(),
-  referrer_user_id uuid not null,      -- 推薦人
-  referred_user_id uuid not null,      -- 被推薦人
+  referrer_user_id uuid not null references public.cards(user_id),  -- 推薦人，須為真實會員
+  referred_user_id uuid not null references public.cards(user_id), -- 被推薦人，須為真實會員
   created_at timestamptz not null default now(),
   unique(referred_user_id)             -- 每個用戶只能被推薦一次
 );
@@ -317,11 +317,11 @@ create policy "referrals_own_select" on public.referrals
 for select to authenticated
 using (referrer_user_id = auth.uid());
 
--- 任何登入用戶都可以建立推薦記錄（註冊時自動記錄）
+-- 登入用戶只能為「自己」建立被推薦紀錄（避免任意灌入他人 UUID 濫刷推薦數）
 drop policy if exists "referrals_insert" on public.referrals;
 create policy "referrals_insert" on public.referrals
 for insert to authenticated
-with check (true);
+with check (referred_user_id = auth.uid());
 
 -- 管理員可以查看所有推薦記錄
 drop policy if exists "referrals_admin_select" on public.referrals;

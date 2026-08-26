@@ -1,5 +1,26 @@
 # 變更紀錄
 
+## 2026-08-26（資安修復：推薦系統可被灌假資料濫用、公開名片頁儲存型 XSS）
+
+### 修復（資料庫權限規則）：推薦好友機制可被無限刷高換取免費天數
+
+- **問題緣起**：健檢發現 `referrals` 表的寫入權限規則是 `WITH CHECK (true)`，任何登入用戶都能插入「被推薦人」是任意 UUID（甚至不必是真實會員）的紀錄，可被腳本無限灌資料、無限換取訂閱獎勵天數。
+- **修改內容**：
+  1. `referrals_insert` 權限規則改成 `WITH CHECK (referred_user_id = auth.uid())`，插入的「被推薦人」必須是呼叫者自己，搭配既有的 `unique(referred_user_id)` 約束，一個人最多只能為自己留下一筆紀錄。
+  2. 新增外鍵，`referrer_user_id`／`referred_user_id` 都必須對應到 `public.cards.user_id`（真實會員），多一層防禦縱深。新增檔案 `supabase/migrations/20260826150000_fix_referrals_insert_abuse.sql`，需自行到 Supabase Dashboard → SQL Editor 執行。
+  3. `supabase-setup.sql` 同步更新，避免日後重新初始化資料庫又跑出舊的漏洞版本。
+- **不影響範圍**：正常「邀請好友、記錄推薦」的既有流程完全不變（`recordReferral()` 本來就是把 `referred_user_id` 設成使用者自己）；目前個人訂閱本來就未收費，此次修復是補正資料正確性與防範未來開放個人收費時被打穿，非緊急財務漏洞。
+
+### 修復（`card.html` / `edit.html`）：公開名片頁可被存入惡意 HTML（儲存型 XSS）
+
+- **問題緣起**：標語、公司資訊、聯絡方式這幾個富文字欄位，過濾 HTML 的動作原本只在瀏覽器編輯畫面這層做（`getCleanHtmlFragment`／`getCleanSloganHtml`），資料庫沒有二次檢查；公開名片頁 `card.html` 的 `filterSystemHtml()` 也只挑掉系統提示文字、對危險標籤沒有防禦力。技術使用者可繞過畫面，直接把惡意 HTML 存進自己名片的 `profile_json`，任何掃 QR Code／NFC 進來的訪客瀏覽器都會執行到。
+- **修改內容**：
+  1. 引入 DOMPurify（`card.html`、`edit.html` 皆以 CDN 載入，鎖版本 `3.1.6`），只允許名片實際會用到的標籤/屬性（`div/span/p/br/a/img/b/i/u/strong/em`，含 `style`、`href`、`src`、`data-font-size` 等對應欄位實際結構的屬性）。
+  2. `card.html` 的 `filterSystemHtml()` 改成先用 DOMPurify 過濾危險內容，再挑掉系統提示文字；DOMPurify 若因故未載入成功，改為整段當純文字顯示，不冒險輸出未過濾的 HTML。
+  3. `edit-chunk-4.js` 新增 `sanitizeRichTextHtmlForSave()`，`getCleanHtmlFragment`／`getCleanSloganHtml` 儲存前都會多跑一次，屬於寫入端的防禦縱深。
+  4. 已用瀏覽器實測驗證：`<img onerror>`、`<script>`、`javascript:` 連結、`<svg onload>` 等惡意內容都會被完全擋下且不執行；標語的字級/顏色/粗體樣式與聯絡按鈕（含圖示、`tel:`／`mailto:` 連結）等既有正常格式維持不變；系統提示文字過濾功能不受影響。
+- **快取更新**：`edit.html` 內 `edit-chunk-4.js` 版本參數升為 `?v=20260826a`；`service-worker.js` 的 `CACHE_VERSION` 升級為 `v1.37.24`。
+
 ## 2026-08-20（修正：LINE 登入導回後又出現一次登入畫面，使用者誤以為失敗而重複點擊）
 
 ### 修正（auth.html／js/pages/auth/main.js）

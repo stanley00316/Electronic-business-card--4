@@ -728,6 +728,27 @@ function deleteContactButton(contactBtn) {
 
 // 儲存名片（雲端：Supabase）
 
+// 名片富文字欄位實際會用到的標籤與屬性，跟 card.html 的 UVACO_RICH_TEXT_SANITIZE_CONFIG 一致。
+// 這裡是寫入端的防禦縱深：就算日後讀取端哪裡漏過濾，存進資料庫的內容本身也已經是乾淨的。
+const UVACO_RICH_TEXT_SANITIZE_CONFIG = {
+  ALLOWED_TAGS: ['div', 'span', 'p', 'br', 'a', 'img', 'b', 'i', 'u', 'strong', 'em'],
+  ALLOWED_ATTR: [
+    'class', 'style', 'href', 'target', 'rel', 'download', 'src', 'alt',
+    'data-contact-type', 'data-wechat-id', 'data-font-size', 'data-font-color'
+  ]
+};
+
+// 儲存前用 DOMPurify 過濾危險標籤/屬性；DOMPurify 沒載入成功時整段當純文字，不冒險存入未過濾 HTML
+function sanitizeRichTextHtmlForSave(html) {
+  if (!html) return html;
+  if (typeof DOMPurify !== 'undefined') {
+    return DOMPurify.sanitize(html, UVACO_RICH_TEXT_SANITIZE_CONFIG);
+  }
+  const plain = document.createElement('div');
+  plain.textContent = html;
+  return plain.textContent;
+}
+
 // 清理 HTML 片段（移除編輯元素和系統提示文字）
 function getCleanHtmlFragment(element) {
   if (!element) return '';
@@ -773,7 +794,7 @@ function getCleanHtmlFragment(element) {
     html = html.split(pattern).join('');
   });
 
-  return html;
+  return sanitizeRichTextHtmlForSave(html);
 }
 
 function getCleanSloganHtml(containerId) {
@@ -824,7 +845,7 @@ function getCleanSloganHtml(containerId) {
     html = html.split(pattern).join('');
   });
 
-  return html;
+  return sanitizeRichTextHtmlForSave(html);
 }
 
 // Helper functions for name parsing

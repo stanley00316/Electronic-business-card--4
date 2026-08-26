@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <!-- Sentry 錯誤監控 SDK -->
   <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
+  <!-- DOMPurify：儲存標語／公司資訊／聯絡方式前先過濾危險 HTML，避免儲存型 XSS -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
 <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -770,7 +772,7 @@
 <script src="js/pages/edit/edit-chunk-2.js?v=20260805a"></script>
 <script src="js/pages/edit/edit-slogans.js?v=20260805a"></script>
 <script src="js/pages/edit/edit-chunk-3.js?v=20260805c"></script>
-<script src="js/pages/edit/edit-chunk-4.js?v=20260804b"></script>
+<script src="js/pages/edit/edit-chunk-4.js?v=20260826a"></script>
 <script src="js/pages/edit/edit-chunk-5.js?v=20260720a"></script>
 
 <!-- 首次使用教學彈窗 -->
