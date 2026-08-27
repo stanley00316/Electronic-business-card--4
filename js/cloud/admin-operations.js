@@ -534,7 +534,7 @@ export async function batchUpdateEmployeeCards(userIds, updates = {}) {
 
 // 管理員代替其他使用者上傳大頭貼／Logo（給 edit.html 的 adminMode 用）
 // 權限範圍跟 adminUpdateCard 完全一致：超級管理員不限公司，企業管理員只能傳自己公司員工的圖片。
-// 這裡的前端檢查是第一層保護，真正的防線是 Supabase Storage 的 card_assets_*_admin RLS policy（見 admin-upload-storage-rls.sql）。
+// 這裡的前端檢查是第一層保護，真正的防線是 Supabase Storage 的 card_assets_*_admin RLS policy（見 supabase-setup.sql）。
 export async function adminUploadAsset(targetUserId, kind, blob, opts) {
   const ctx = await getAuthContext();
   if (!ctx.ok) throw new Error('NO_SESSION');

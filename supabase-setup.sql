@@ -896,3 +896,248 @@ $$;
 --   '0 1 * * *',
 --   $$select public.cleanup_guest_intake_attempts()$$
 -- );
+
+-- ===== 企業管理系統：員工停用、NFC 狀態、部門欄位 =====
+-- 用途：admin.html 的企業後台功能，跟訂閱到期的 is_visible 是獨立的兩件事——
+-- admin_disabled 是管理員手動停用某位員工（例如離職），is_visible 是訂閱到期自動隱藏。
+-- card.html／directory.html 前端會分別檢查這兩個欄位，顯示不同的提示文字。
+alter table public.cards add column if not exists admin_disabled boolean default false;
+alter table public.cards add column if not exists admin_disabled_by uuid;
+alter table public.cards add column if not exists admin_disabled_at timestamptz;
+alter table public.cards add column if not exists admin_disabled_reason text;
+alter table public.cards add column if not exists nfc_status text default 'unbound';
+alter table public.cards add column if not exists department text;
+
+alter table public.cards drop constraint if exists cards_nfc_status_check;
+alter table public.cards add constraint cards_nfc_status_check
+  check (nfc_status in ('unbound', 'bound', 'disabled', 'lost'));
+
+-- NFC 卡片綁定/解除時自動同步狀態，不需要前端另外呼叫 API 更新狀態欄位。
+create or replace function public.sync_nfc_status()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.nfc_card_id is not null and new.nfc_card_id != '' then
+    if coalesce(old.nfc_status, 'unbound') = 'unbound' then
+      new.nfc_status := 'bound';
+    end if;
+  elsif (old.nfc_card_id is not null and old.nfc_card_id != '')
+     and (new.nfc_card_id is null or new.nfc_card_id = '') then
+    new.nfc_status := 'unbound';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sync_nfc_status on public.cards;
+create trigger trg_sync_nfc_status
+  before update on public.cards
+  for each row execute function public.sync_nfc_status();
+
+-- ===== 訂閱系統自動化：新用戶自動建立試用、推薦獎勵自動更新 =====
+-- 用途：避免前端每個進入點都要記得手動呼叫 create_user_subscription／update_referral_bonus，
+-- 改成資料庫層用 trigger 自動處理，少一個「忘記呼叫」就出錯的環節。
+create or replace function public.trg_update_referrer_bonus()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  perform public.update_referral_bonus(new.referrer_user_id);
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_referrals_after_insert on public.referrals;
+create trigger trg_referrals_after_insert
+after insert on public.referrals
+for each row
+execute function public.trg_update_referrer_bonus();
+
+create or replace function public.trg_create_user_subscription()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  v_existing uuid;
+  v_trial_end timestamptz;
+begin
+  select id into v_existing
+  from public.subscriptions
+  where user_id = new.user_id;
+
+  if v_existing is null then
+    v_trial_end := now() + interval '30 days';
+
+    insert into public.subscriptions (
+      user_id, status, trial_start_at, trial_end_at
+    ) values (
+      new.user_id, 'trial', now(), v_trial_end
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_cards_create_subscription on public.cards;
+create trigger trg_cards_create_subscription
+after insert on public.cards
+for each row
+execute function public.trg_create_user_subscription();
+
+-- ===== OAuth 身份對照表（Google／Apple 登入）=====
+-- 背景：Supabase 官方沒有直接支援「自訂 JWT 登入」，做法比照既有的 LINE 登入——
+-- 用一張對照表記住「這個第三方帳號」對應到「我們系統裡的哪個 user_id」，之後
+-- Edge Function（google-auth／apple-auth）用這張表簽發跟 LINE 登入一樣格式的 JWT。
+-- 這兩張表只給 service role（Edge Function）維護；一般前端不需要直接讀取。
+-- 開啟 RLS 且不建立任何政策 = 一律拒絕 anon/authenticated 存取，service_role 依慣例永遠會略過 RLS，
+-- 所以 Edge Function 既有的存取行為完全不受影響，純粹多一層防護避免資料表被外部意外讀到。
+create table if not exists public.google_identities (
+  google_user_id text primary key,
+  user_id uuid not null unique,
+  email text,
+  display_name text,
+  picture text,
+  created_at timestamptz not null default now(),
+  last_login_at timestamptz
+);
+
+alter table public.google_identities enable row level security;
+
+create table if not exists public.apple_identities (
+  apple_user_id text primary key,
+  user_id uuid not null unique,
+  email text,
+  display_name text,
+  created_at timestamptz not null default now(),
+  last_login_at timestamptz
+);
+
+alter table public.apple_identities enable row level security;
+
+-- ===== Storage：管理員代替他人上傳大頭貼／Logo =====
+-- 用途：admin.html「編輯」功能（edit.html?adminMode=true）可以改姓名/電話/Email 等欄位，
+-- 換照片也需要對應例外，權限範圍跟 cards_admin_update 完全一致：
+--   - 超級管理員（managed_company 是空）：任何人的圖片都能傳
+--   - 企業管理員（有填公司）：只能傳「自己公司」員工的圖片
+drop policy if exists "card_assets_write_admin" on storage.objects;
+create policy "card_assets_write_admin" on storage.objects
+for insert to authenticated
+with check (
+  bucket_id = 'card-assets'
+  and exists (
+    select 1
+    from public.admin_users au
+    left join public.cards c on c.user_id::text = split_part(storage.objects.name, '/', 1)
+    where au.user_id::text = auth.uid()::text
+      and (
+        au.managed_company is null
+        or (c.company is not null and c.company ilike ('%' || au.managed_company || '%'))
+      )
+  )
+);
+
+drop policy if exists "card_assets_update_admin" on storage.objects;
+create policy "card_assets_update_admin" on storage.objects
+for update to authenticated
+using (
+  bucket_id = 'card-assets'
+  and exists (
+    select 1
+    from public.admin_users au
+    left join public.cards c on c.user_id::text = split_part(storage.objects.name, '/', 1)
+    where au.user_id::text = auth.uid()::text
+      and (
+        au.managed_company is null
+        or (c.company is not null and c.company ilike ('%' || au.managed_company || '%'))
+      )
+  )
+)
+with check (
+  bucket_id = 'card-assets'
+  and exists (
+    select 1
+    from public.admin_users au
+    left join public.cards c on c.user_id::text = split_part(storage.objects.name, '/', 1)
+    where au.user_id::text = auth.uid()::text
+      and (
+        au.managed_company is null
+        or (c.company is not null and c.company ilike ('%' || au.managed_company || '%'))
+      )
+  )
+);
+
+drop policy if exists "card_assets_delete_admin" on storage.objects;
+create policy "card_assets_delete_admin" on storage.objects
+for delete to authenticated
+using (
+  bucket_id = 'card-assets'
+  and exists (
+    select 1
+    from public.admin_users au
+    left join public.cards c on c.user_id::text = split_part(storage.objects.name, '/', 1)
+    where au.user_id::text = auth.uid()::text
+      and (
+        au.managed_company is null
+        or (c.company is not null and c.company ilike ('%' || au.managed_company || '%'))
+      )
+  )
+);
+
+-- ===== 後台：名片瀏覽統計批次查詢 RPC =====
+-- 用途：admin.html 後台一次查多筆名片的瀏覽次數／最後瀏覽時間／NFC 感應次數，
+-- 權限範圍跟 cards_admin_* 一致（super admin 看全部，企業管理員限自己公司）。
+drop function if exists public.get_card_view_summaries_for_admin(uuid[]);
+create or replace function public.get_card_view_summaries_for_admin(p_user_ids uuid[])
+returns table (
+  user_id uuid,
+  open_count bigint,
+  last_opened_at timestamptz,
+  nfc_scan_count bigint,
+  last_nfc_scanned_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  mc text;
+begin
+  if p_user_ids is null or cardinality(p_user_ids) = 0 then
+    return;
+  end if;
+
+  if not public.is_admin() then
+    raise exception 'PERMISSION_DENIED_NOT_ADMIN' using errcode = '42501';
+  end if;
+
+  select managed_company
+  into mc
+  from public.admin_users au
+  where au.user_id::text = auth.uid()::text
+  limit 1;
+
+  return query
+  select
+    v.card_user_id,
+    count(*)::bigint,
+    max(v.viewed_at),
+    count(*) filter (where v.source = 'nfc')::bigint,
+    max(v.viewed_at) filter (where v.source = 'nfc')
+  from public.card_views v
+  inner join public.cards c on c.user_id = v.card_user_id
+  where v.card_user_id = any(p_user_ids)
+    and (
+      mc is null
+      or c.company ilike ('%' || mc || '%')
+    )
+  group by v.card_user_id;
+end;
+$$;
+
+revoke all on function public.get_card_view_summaries_for_admin(uuid[]) from public;
+grant execute on function public.get_card_view_summaries_for_admin(uuid[]) to authenticated;

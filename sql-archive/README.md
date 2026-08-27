@@ -24,3 +24,16 @@
 
 - `calculate_referral_bonus()` 正式環境的公式其實是「每 3 人給 180 天」，跟這個資料夾裡任何檔案寫的「每 1 人給 30 天」都不一樣——這個改動沒有留在任何 SQL 檔案裡，只能從正式環境反查回來，已經照正式環境的版本寫回 `supabase-setup.sql`。
 - `admin_users` 這張表本身的建立語法，從頭到尾都沒有出現在任何 SQL 檔案裡（連這裡封存的檔案都只有 `ALTER TABLE` 補欄位，沒有 `CREATE TABLE`），已經反查正式環境的完整欄位、約束、規則，補進 `supabase-setup.sql`。
+
+## 2026-08-27 封存（第二批）
+
+| 檔案 | 原本用途 | 合併進 supabase-setup.sql 的哪個部分 |
+| --- | --- | --- |
+| `enterprise-phase1.sql` | 企業後台：員工停用欄位（`admin_disabled` 系列）、NFC 狀態欄位與自動同步 trigger、部門欄位 | 整段合併，內容跟正式環境完全一致 |
+| `subscription-auto-triggers.sql` | 新推薦記錄自動更新推薦人獎勵天數、新名片自動建立 30 天試用訂閱 | 兩個 trigger 都合併（第 3、4 段一次性補資料的 `DO` 區塊是當時的一次性動作，已執行過，不需要留在建置腳本裡） |
+| `google-login-setup.sql` | Google 登入身份對照表 `google_identities`（不含索引） | 已被 `oauth-providers-setup.sql` 的版本取代（內容相同，多兩個索引），視為重複檔案 |
+| `oauth-providers-setup.sql` | `google_identities`／`apple_identities`／`linked_accounts` 三張身份對照表 | 只合併 `google_identities`（正式環境已存在）與 `apple_identities`（**查證時發現這張表正式環境從未真的建立過，但 `apple-auth` Edge Function 確實會查詢它，等於蘋果登入目前完全不能用——已在 `supabase/migrations/20260827140000_create_apple_identities.sql` 補建**）；`linked_accounts` 全專案沒有任何程式碼在使用，屬於當初的臆測性設計，未合併 |
+| `admin-upload-storage-rls.sql` | 開放管理員代替員工上傳大頭貼／Logo 的 Storage 例外規則 | 整段合併；原本用 `coalesce(managed_company, target_company)`，因為兩欄位現在保證同步（見 `admin_users_scoped_write` 規則），已簡化成只看 `managed_company` |
+| `card_view_summaries_admin_rpc.sql` | 後台批次查詢名片瀏覽統計的 RPC 函式 | 整段合併；同樣把 `target_company` 改成 `managed_company`，寫法跟其他規則一致 |
+
+- **這次意外發現的落差**：`apple_identities` 資料表在正式環境完全不存在，但 `apple-auth` Edge Function 的程式碼會直接查詢它——因為 Apple 登入金鑰目前還沒在正式環境設定，這個缺口還沒被使用者實際踩到，但只要金鑰一上，Apple 登入會直接查詢一張不存在的表而完全失敗。已補建這張表（`20260827140000_create_apple_identities.sql`），之後設定金鑰就能正常運作。

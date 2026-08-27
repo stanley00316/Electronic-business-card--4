@@ -1,5 +1,26 @@
 # 變更紀錄
 
+## 2026-08-27（整理：剩餘 6 份根目錄 SQL 檔併入 supabase-setup.sql + 修正 cloud.js 忘記重新打包）
+
+### 修復：`cloud.js` 打包檔沒有跟上稍早的原始碼修正，網站實際還在跑舊版
+
+- **問題緣起**：複查發現稍早修 `admin_users` 權限規則時，同步改過的 `js/cloud/admin-operations.js`（新增管理員時 `target_company`／`managed_company` 一起寫入）雖然改對了原始碼，但沒有重新執行 `npm run build:static` 產出根目錄的 `cloud.js`——網站實際載入、瀏覽器實際執行的是根目錄那份打包檔，不是 `js/cloud/` 底下的原始碼。等於後端規則雖然已經修好，前端網站當下實際還在用舊版邏輯，新增管理員還是只會寫入 `target_company`，兩欄位又會開始不同步。
+- **修改內容**：已重新執行 `npm run build:static`，確認打包後的 `cloud.js` 裡新增管理員的語句已包含 `managed_company`；同步將 `admin.html`／`company-admin.html` 載入 `cloud.js` 的版本參數更新為 `?v=20260827a`，`service-worker.js` 的 `CACHE_VERSION` 遞增至 `v1.37.25`，確保使用者瀏覽器不會繼續吃到快取的舊版打包檔。
+- **提醒自己**：以後只要修改 `js/cloud/` 或 `js/common/` 底下的任何檔案，一定要記得執行 `npm run build:static` 並確認打包結果，不能只改原始碼就當作完成。
+
+### 整理：根目錄剩餘 6 份零散 SQL 檔併入 `supabase-setup.sql`
+
+- **問題緣起**：延續 08-26 那輪整併，根目錄還有 6 份沒處理的檔案（`enterprise-phase1.sql`、`subscription-auto-triggers.sql`、`google-login-setup.sql`、`oauth-providers-setup.sql`、`admin-upload-storage-rls.sql`、`card_view_summaries_admin_rpc.sql`），一樣沒有整合進正規的 `supabase/migrations/`。
+- **查證方式**：一樣不憑檔案內容猜測，直接查詢正式環境的 `information_schema`、`pg_trigger`、函式與 Storage policy 的實際定義，逐一核對後才合併。
+- **查證中意外發現的落差**：
+  1. `subscription-auto-triggers.sql` 裡 `trg_create_user_subscription()` 函式內有一行 `RAISE NOTICE`（新增試用訂閱時印出提示訊息），但正式環境實際生效的版本沒有這行——已照正式環境版本寫回。
+  2. **`apple_identities` 資料表在正式環境從未真的建立過**，但 `supabase/functions/apple-auth/index.ts` 的程式碼會直接查詢這張表——因為 Apple 登入金鑰目前還沒在正式環境設定，這個缺口還沒被實際踩到，但只要金鑰一上，Apple 登入會直接對一張不存在的表查詢而完全失敗。已補建這張表（`supabase/migrations/20260827140000_create_apple_identities.sql`）。`oauth-providers-setup.sql` 裡另一張 `linked_accounts` 表，查證後發現全專案沒有任何程式碼在使用，屬於當初的臆測性設計，這次沒有一併建立。
+- **修改內容**：
+  1. `supabase-setup.sql` 補上：企業後台的員工停用／NFC 狀態同步／部門欄位、訂閱與推薦獎勵自動化 trigger、Google／Apple 登入身份對照表、管理員代傳大頭貼的 Storage 例外規則、後台名片瀏覽統計 RPC。
+  2. 補建 `apple_identities` 表；`admin-upload-storage-rls.sql` 與 `card_view_summaries_admin_rpc.sql` 原本用 `coalesce(managed_company, target_company)`／`target_company` 判斷公司範圍，因為這兩個欄位現在保證同步（見上一輪 `admin_users_scoped_write` 修復），已簡化成統一只看 `managed_company`，跟其他規則寫法一致（`supabase/migrations/20260827150000_simplify_managed_company_usage.sql`）。
+  3. 上述 6 份檔案已用 `git mv` 搬進 `sql-archive/`（保留 Git 歷史），`sql-archive/README.md` 補上這批檔案的摘要與這次發現的落差說明；`js/cloud/admin-operations.js`、`js/pages/edit/edit-chunk-5.js` 裡指向舊檔名的註解已改成指向 `supabase-setup.sql`。
+- **影響範圍**：主要是文件/歸檔整理與補齊一個尚未被實際使用到的功能缺口（Apple 登入），對現有已上線功能沒有破壞性變更；`managed_company` 簡化屬於數學上等價的寫法調整（兩欄位本來就保證相等），不影響任何現有的權限判斷結果。
+
 ## 2026-08-27（新增：`guest_intake_attempts` 每日自動清理排程）
 
 ### 新增（資料庫維護）：流量限制紀錄表沒有清理機制，會無限期累積

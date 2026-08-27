@@ -280,7 +280,7 @@ async function saveCard() {
 
     // 圖片上傳：若有選新圖，先上傳到 Supabase Storage，再把 path 寫入 profile_json
     // 加入重試機制處理網路不穩定；管理員模式下改用 adminUploadAsset 代替目標使用者上傳
-    // （需通過 Storage 的管理員例外規則，見 admin-upload-storage-rls.sql；企業管理員仍只能傳自己公司員工的圖片）
+    // （需通過 Storage 的管理員例外規則，見 supabase-setup.sql；企業管理員仍只能傳自己公司員工的圖片）
     if (window.__uvacoPendingAssets && (window.__uvacoPendingAssets.logo || window.__uvacoPendingAssets.avatar)) {
       const uploadWithRetry = async (type, asset) => {
         const maxRetries = 3;
