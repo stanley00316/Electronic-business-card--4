@@ -121,12 +121,43 @@ create policy "admin_users_delete_super" on public.admin_users
 for delete to authenticated
 using (public.is_super_admin_allowlist());
 
--- 管理員本人（company 或 super）可以新增/修改/刪除 admin_users 資料（例如自我維護聯絡資訊）
+-- 2026-08-27 修正：這裡原本是 admin_users_write（FOR ALL USING/WITH CHECK 都只查 is_admin()），
+-- 任何管理員都能任意新增/修改/刪除 admin_users，企業管理員可以把自己的 managed_company 改成 null
+-- 自我升級成不限公司的管理員。改成下面這條：企業管理員只能新增/修改/刪除「跟自己同一家公司」的
+-- 管理員資料，且新資料的 managed_company／target_company 必須相等、都不能是 null。
+-- 超級管理員不受此限制，已由 admin_users_insert_super／update_super／delete_super 涵蓋。
+--
+-- 注意：查「呼叫者自己的 managed_company」必須包成 SECURITY DEFINER 函式（比照 is_admin()／
+-- is_super_admin_allowlist() 的做法），不能直接在 policy 裡查 admin_users 本身，
+-- 否則會觸發「政策內查自己表」的無限遞迴（實測驗證過，直接查會整個操作報錯）。
+create or replace function public.my_admin_managed_company()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select managed_company
+  from public.admin_users
+  where user_id = auth.uid()::text
+  limit 1;
+$$;
+
 drop policy if exists "admin_users_write" on public.admin_users;
-create policy "admin_users_write" on public.admin_users
+drop policy if exists "admin_users_scoped_write" on public.admin_users;
+create policy "admin_users_scoped_write" on public.admin_users
 for all to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (
+  public.my_admin_managed_company() is not null
+  and public.my_admin_managed_company() = admin_users.managed_company
+)
+with check (
+  managed_company is not null
+  and target_company is not null
+  and managed_company = target_company
+  and public.my_admin_managed_company() is not null
+  and public.my_admin_managed_company() = admin_users.managed_company
+);
 
 -- 名片主檔：每個 user 一筆（onConflict user_id）
 create table if not exists public.cards (

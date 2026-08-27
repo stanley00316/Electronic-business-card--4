@@ -201,6 +201,9 @@ export async function getAdminUsers() {
 // 新增/更新管理員 (Super Admin Only)
 // 注意：admin_users 常見只有 user_id/managed_company，且我們的 RLS 未必允許 UPDATE，
 // 因此這裡用「先刪除再插入」確保可用。
+// 2026-08-27 修正：target_company（這個介面原本只寫這欄）跟 managed_company
+// （cards_admin_*／storage 權限規則實際檢查的欄位）現在一定要一起寫、值要一致，
+// 否則新增出來的企業管理員，實際權限規則會判斷成「不限公司」的管理員。
 export async function upsertAdminUser(targetUserId, managedCompany) {
   const ctx = await getAuthContext();
   if (!ctx.ok) throw new Error('NO_SESSION');
@@ -226,7 +229,7 @@ export async function upsertAdminUser(targetUserId, managedCompany) {
 
   const { error } = await client
     .from('admin_users')
-    .insert({ user_id: uid, target_company: targetCompany });
+    .insert({ user_id: uid, target_company: targetCompany, managed_company: targetCompany });
 
   if (error) throw error;
   return true;
