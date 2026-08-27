@@ -59,6 +59,20 @@ serve(async (req: Request) => {
       )
     }
 
+    // 防重複處理：Stripe 逾時或手動重送同一筆事件時，同一個 event.id 只處理一次。
+    // 用 primary key 衝突判斷是否已經處理過；查詢本身失敗時保守起見照常處理，不因為查詢失敗而漏處理真正的新事件。
+    const { error: dedupeError } = await supabase
+      .from('processed_webhook_events')
+      .insert({ event_id: event.id, provider: 'stripe' })
+
+    if (dedupeError && dedupeError.code === '23505') {
+      // 23505 = unique_violation，代表這個事件已經處理過，直接回 200 讓 Stripe 不再重送
+      return new Response(
+        JSON.stringify({ received: true, duplicate: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 200 }
+      )
+    }
+
     // 處理付款成功事件
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
@@ -84,7 +98,10 @@ serve(async (req: Request) => {
         .eq('user_id', userId)
         .single()
 
-      // 計算新的結束日期
+      // 計算新的結束日期。
+      // 注意：這裡刻意不加 referral_bonus_days——那是「每次查詢當下」由資料庫
+      // get_subscription_end_date() 動態加總的獎勵，不會被消耗，如果這裡又手動加一次
+      // 再存回 subscription_end_at，同一批推薦獎勵天數會隨著每次付款被重複疊加。
       let startDate = now
       if (sub) {
         // 如果有現有訂閱且未過期，從現有結束日期開始計算
@@ -93,10 +110,6 @@ serve(async (req: Request) => {
           currentEnd = new Date(sub.subscription_end_at)
         } else if (sub.trial_end_at) {
           currentEnd = new Date(sub.trial_end_at)
-        }
-        
-        if (sub.referral_bonus_days > 0 && currentEnd) {
-          currentEnd.setDate(currentEnd.getDate() + sub.referral_bonus_days)
         }
 
         if (currentEnd && currentEnd > now) {

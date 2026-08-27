@@ -40,6 +40,17 @@ async function initUserId() {
         loadHomeScreenLink(uid);
         if (window.__uvacoSetupPersonalManifest) window.__uvacoSetupPersonalManifest(uid);
       }
+
+      // 訂閱管理僅企業帳號可見：個人使用不需要付費，避免個人帳號誤觸付款頁
+      if (s.session && window.UVACO_CLOUD && UVACO_CLOUD.getMyCard) {
+        try {
+          const { card } = await UVACO_CLOUD.getMyCard();
+          const subscriptionItem = document.getElementById('subscriptionMenuItem');
+          if (subscriptionItem && (!card || card.is_enterprise !== true)) {
+            subscriptionItem.remove();
+          }
+        } catch (e) {}
+      }
       
       // 檢查管理員狀態 - 僅「超級管理員」可見以下三個項目
       if (s.session && UVACO_CLOUD.isAdmin) {

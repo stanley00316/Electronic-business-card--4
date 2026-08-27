@@ -17,14 +17,27 @@ serve(async (req: Request) => {
   }
 
   try {
-    // 驗證請求（可選：加上 API Key 驗證）
-    const authHeader = req.headers.get('Authorization')
+    // 驗證請求：這是排程用的批次端點（給 Supabase Dashboard／cron.org 等外部排程呼叫），
+    // 不是使用者操作，所以用共用密鑰而不是使用者 JWT 驗證。
     const apiKey = req.headers.get('x-api-key')
-    
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    if (!cronSecret) {
+      return new Response(
+        JSON.stringify({ error: 'CRON_SECRET not configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 500 }
+      )
+    }
+    if (!apiKey || apiKey !== cronSecret) {
+      return new Response(
+        JSON.stringify({ error: 'UNAUTHORIZED' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 401 }
+      )
+    }
+
     // 使用 service role key 建立客戶端（需要完整權限）
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
     const now = new Date().toISOString()
@@ -86,6 +99,9 @@ serve(async (req: Request) => {
     }
 
     // 3. 更新推薦獎勵（檢查新的推薦關係）
+    // 公式改用資料庫既有的 update_referral_bonus() 函式（RPC），不要在這裡自己重算一次公式——
+    // 這裡之前寫死「每推薦 1 人 = 30 天」，跟資料庫 calculate_referral_bonus() 實際公式
+    // 「每 3 人給 180 天」不一致，兩邊會互相打架、算出來的天數忽高忽低。
     const { data: allSubs } = await supabase
       .from('subscriptions')
       .select('user_id, referral_bonus_days, last_referral_check')
@@ -102,18 +118,11 @@ serve(async (req: Request) => {
 
       // 如果推薦人數有變化，更新獎勵
       if (referralCount !== lastCheck) {
-        const bonusDays = referralCount * 30  // 每推薦 1 人 = 30 天
+        const { error: rpcError } = await supabase.rpc('update_referral_bonus', { p_user_id: sub.user_id })
 
-        await supabase
-          .from('subscriptions')
-          .update({
-            referral_bonus_days: bonusDays,
-            last_referral_check: referralCount,
-            updated_at: now
-          })
-          .eq('user_id', sub.user_id)
-
-        referralUpdates++
+        if (!rpcError) {
+          referralUpdates++
+        }
       }
     }
 

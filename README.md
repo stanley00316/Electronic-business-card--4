@@ -216,6 +216,42 @@ supabase functions deploy line-auth
 supabase functions deploy guest-card-intake
 ```
 
+#### 企業訂閱付款 Edge Function（`stripe-checkout`／`stripe-webhook`／`linepay-checkout`／`linepay-confirm`）
+
+訂閱付款僅限企業帳號使用（`cards.is_enterprise = true`），個人使用完全免費。這幾支函式需要另外設定：
+
+- `JWT_SECRET`（或舊名 `SUPABASE_JWT_SECRET`，跟 LINE/Google/Apple 登入共用同一把）
+- Stripe：`STRIPE_SECRET_KEY`、`STRIPE_WEBHOOK_SECRET`
+- LINE Pay：`LINEPAY_CHANNEL_ID`、`LINEPAY_CHANNEL_SECRET`、`LINEPAY_SANDBOX`（`true`/`false`）
+
+`stripe-webhook`（Stripe 官方伺服器直接呼叫，不會帶登入令牌）與 `check-subscriptions`（排程用批次端點）已在 `supabase/config.toml` 關閉平台層 JWT 驗證，改由函式自己驗證 `stripe-signature` 簽章／`x-api-key` 共用密鑰，部署時記得一併套用：
+
+```bash
+supabase functions deploy stripe-checkout
+supabase functions deploy stripe-webhook
+supabase functions deploy linepay-checkout
+supabase functions deploy linepay-confirm
+```
+
+#### 排程檢查過期訂閱（`check-subscriptions`）
+
+這支是排程用的批次端點，需要額外設定共用密鑰，並在外部排程服務（Supabase Dashboard 排程、cron.org 等）呼叫時帶上：
+
+- 設定 Secret：`CRON_SECRET`（自行產生一組隨機字串，例如 `openssl rand -hex 32`）
+- 排程呼叫時帶 Header：`x-api-key: <CRON_SECRET>`，不帶或帶錯會回 401
+
+```bash
+supabase functions deploy check-subscriptions
+```
+
+#### 大頭貼/Logo 上傳到 Cloudflare R2（`upload-r2`）
+
+需要設定：`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`、`R2_BUCKET_NAME`、`R2_PUBLIC_URL`（跟 `JWT_SECRET` 共用同一把）。上傳路徑必須是呼叫者自己的資料夾、單檔上限 8MB、僅接受 `image/webp`、`image/png`、`image/jpeg`、`image/gif`。
+
+```bash
+supabase functions deploy upload-r2
+```
+
 `supabase/config.toml` 已將 `guest-card-intake` 設為公開端點（`verify_jwt = false`），因為好友填表時沒有登入狀態；安全檢查由函式內部處理，並使用 service role 從後端建立名片。
 
 4. **前端**

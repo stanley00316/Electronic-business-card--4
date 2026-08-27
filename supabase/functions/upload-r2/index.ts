@@ -40,6 +40,53 @@ function normalizeSecret(v: string | undefined | null) {
   return s;
 }
 
+function base64UrlEncode(bytes: Uint8Array) {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function base64UrlDecode(str: string) {
+  let s = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const bin = atob(s);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+// 驗證使用者現有登入 JWT 是否有效，確保呼叫者真的是合法登入中的使用者本人。
+// 與 google-auth/index.ts 的 verifyJwtHS256 完全相同。
+async function verifyJwtHS256(token: string, secret: string): Promise<Record<string, unknown> | null> {
+  try {
+    const parts = String(token || "").split(".");
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, sigB64] = parts;
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      enc.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const expectedSig = await crypto.subtle.sign("HMAC", key, enc.encode(`${headerB64}.${payloadB64}`));
+    const expectedSigB64 = base64UrlEncode(new Uint8Array(expectedSig));
+    if (expectedSigB64 !== sigB64) return null;
+
+    const payload = JSON.parse(base64UrlDecode(payloadB64));
+    const exp = Number(payload?.exp || 0);
+    if (!exp || Math.floor(Date.now() / 1000) >= exp) return null;
+    if (!payload?.sub) return null;
+    return payload;
+  } catch (_e) {
+    return null;
+  }
+}
+
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB
+const ALLOWED_CONTENT_TYPES = new Set(["image/webp", "image/png", "image/jpeg", "image/gif"]);
+
 // AWS Signature V4 for R2
 async function signR2Request(
   method: string,
@@ -176,6 +223,7 @@ serve(async (req) => {
   const R2_SECRET_ACCESS_KEY = normalizeSecret(Deno.env.get("R2_SECRET_ACCESS_KEY"));
   const R2_BUCKET_NAME = normalizeSecret(Deno.env.get("R2_BUCKET_NAME"));
   const R2_PUBLIC_URL = normalizeSecret(Deno.env.get("R2_PUBLIC_URL"));
+  const JWT_SECRET = normalizeSecret(Deno.env.get("JWT_SECRET")) || normalizeSecret(Deno.env.get("SUPABASE_JWT_SECRET"));
 
   // 診斷端點
   if (req.method === "GET") {
@@ -210,13 +258,28 @@ serve(async (req) => {
 
   if (!key) return bad("MISSING_KEY");
 
-  // 驗證 JWT（確保只有登入用戶能上傳）
+  if (!JWT_SECRET) return bad("MISSING_JWT_SECRET", { build: BUILD_ID });
+
+  // 驗證 JWT：確保呼叫者真的是合法登入中的使用者本人，不是只檢查有沒有 Bearer 開頭。
   const authHeader = req.headers.get("authorization") || "";
-  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+  const bearerToken = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
+  const jwtPayload = bearerToken ? await verifyJwtHS256(bearerToken, JWT_SECRET) : null;
+  if (!jwtPayload) {
     return bad("UNAUTHORIZED", { build: BUILD_ID });
+  }
+  const verifiedUserId = String(jwtPayload.sub);
+
+  // 上傳路徑必須是自己的資料夾，比照 Supabase Storage 既有規則
+  // （name like (auth.uid()::text || '/%')）的精神，避免覆寫別人的檔案。
+  if (key !== verifiedUserId && !key.startsWith(`${verifiedUserId}/`)) {
+    return bad("FORBIDDEN_KEY_PATH", { build: BUILD_ID });
   }
 
   if (action === "upload") {
+    if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+      return bad("UNSUPPORTED_CONTENT_TYPE", { build: BUILD_ID });
+    }
+
     // 直接上傳模式
     const dataB64 = String(body?.data || "").trim();
     if (!dataB64) return bad("MISSING_DATA");
@@ -232,6 +295,10 @@ serve(async (req) => {
       }
     } catch (e) {
       return bad("INVALID_BASE64", { detail: String(e) });
+    }
+
+    if (data.length > MAX_UPLOAD_BYTES) {
+      return bad("FILE_TOO_LARGE", { build: BUILD_ID, maxBytes: MAX_UPLOAD_BYTES });
     }
 
     const result = await uploadToR2(

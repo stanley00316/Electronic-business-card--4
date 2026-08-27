@@ -7,6 +7,7 @@ import {
   SUPABASE_ANON_JWT
 } from './constants.js';
 import { fetchWithTimeout } from './http.js';
+import { getCustomJwt } from './jwt.js';
 
 
 export async function getMySubscription() {
@@ -764,16 +765,16 @@ export async function createStripeCheckout(planId) {
   
   try {
     const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/stripe-checkout';
-    
+    const customJwt = getCustomJwt();
+
     const resp = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
+        'Authorization': 'Bearer ' + (customJwt || SUPABASE_ANON_JWT)
       },
       body: JSON.stringify({
-        user_id: ctx.userId,
         plan_id: planId
       })
     }, 15000);
@@ -802,16 +803,16 @@ export async function createLinePayCheckout(planId) {
   
   try {
     const endpoint = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/linepay-checkout';
-    
+    const customJwt = getCustomJwt();
+
     const resp = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_JWT
+        'Authorization': 'Bearer ' + (customJwt || SUPABASE_ANON_JWT)
       },
       body: JSON.stringify({
-        user_id: ctx.userId,
         plan_id: planId
       })
     }, 15000);

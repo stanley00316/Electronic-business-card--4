@@ -1,5 +1,28 @@
 # 變更紀錄
 
+## 2026-08-27（修復：個人誤觸付款頁 bug + 付款相關 Edge Function 多項資安洞）
+
+### 修復：個人帳號不該看到「訂閱管理」付款頁
+
+- **問題緣起**：訂閱付款設計上僅限企業帳號使用（個人使用完全免費，含推薦獎勵），但 `settings.html` 的「訂閱管理」連結原本對所有登入用戶顯示，`subscription.html` 也沒有做任何身份檢查，個人帳號可以直接點進去付款。
+- **修改內容**：`settings.html`／`js/pages/settings/main.js` 載入時查 `cards.is_enterprise`，不是企業帳號就把「訂閱管理」選項整個移除（不是 CSS 隱藏）；`subscription.html` 頁面載入時一樣檢查，不是企業帳號直接導回 `directory.html`，防止直接輸入網址繞過。
+
+### 修復：付款相關 Edge Function 多項資安洞
+
+複查發現這批函式完全還沒做過資安檢查，逐一修復：
+
+- **`stripe-checkout`／`linepay-checkout`**：原本 `user_id` 直接信任前端傳來的值（等於任何人知道別人的 user_id——公開名片網址就查得到——就能以該身份建立付款連結）。改成用驗證過的登入 JWT 的 `sub` 帶入，不再信任前端。
+- **`linepay-confirm`**：原本完全沒有身份驗證任何人都能呼叫，且直接信任前端傳來的 `transaction_id` 拿去呼叫 LINE Pay 官方 API。已補上 JWT 驗證＋確認呼叫者就是訂單本人，且 `transaction_id` 改成比對資料庫建單時存的值，不一致直接拒絕。
+- **`upload-r2`**：原本的「JWT 驗證」只檢查有沒有 `Bearer ` 開頭字串，完全沒驗證內容，上傳路徑也完全信任前端指定，等於任何人都能覆寫別人的大頭貼或上傳任意檔案。已補上真正的簽章驗證，上傳路徑強制綁定為呼叫者自己的資料夾，並新增檔案大小上限（8MB）與類型白名單（僅 webp/png/jpeg/gif）。
+- **`check-subscriptions`**：原本讀了驗證用的 Header 卻從未真的檢查，任何人都能觸發全站批次重算。已改用共用密鑰（`CRON_SECRET`）驗證，並在 `supabase/config.toml` 關閉這個端點的平台層 JWT 驗證（它是排程用的伺服器對伺服器端口，不會有使用者登入令牌）。
+- **`stripe-webhook`**：新增 `processed_webhook_events` 資料表做防重複處理（idempotency）——Stripe 逾時或手動重送同一筆事件時，同一個 `event.id` 只會處理一次，避免訂閱天數、付款紀錄被重複灌。同時在 `config.toml` 關閉平台層 JWT 驗證（Stripe 官方伺服器呼叫不會帶登入令牌，之前這個端點設定 Stripe 金鑰後可能反而打不進去，已確認修復後能正確進到函式自己的簽章驗證邏輯）。
+- **`apple-auth`**：原本只要 Apple 回應缺 `id_token` 就會改信任前端自己夾帶的 `id_token`，且從未驗證任何簽章。已移除這條不安全的備援路徑，並新增 `aud`／`iss`／`exp` 欄位檢查（完整 JWKS 簽章驗證工程量較大，這次先做欄位檢查，已能擋掉大部分偽造嘗試）。
+- **`vcard`**：原本只檢查 `admin_disabled`，忘了檢查 `is_visible`，訂閱過期後其他頁面都會隱藏名片，這裡卻還能下載完整聯絡資訊。已補上 `is_visible` 檢查，行為跟其他頁面一致。
+- **推薦獎勵天數重複疊加**：`stripe-webhook`／`linepay-confirm` 原本在每次付款時，會把「推薦獎勵天數」手動疊加進 `subscription_end_at` 再存回資料庫——但這個天數本來就是資料庫 `get_subscription_end_date()` 每次查詢時動態加總的獎勵、不會被消耗，等於同一批推薦獎勵天數隨著每次付款被重複計入。已移除這段手動疊加。
+- **`check-subscriptions` 用錯推薦獎勵公式**：這支函式原本自己寫死「每推薦 1 人 = 30 天」，跟資料庫 `calculate_referral_bonus()` 實際公式「每 3 人給 180 天」不一致，兩邊算出來的天數會互相打架。已改成呼叫資料庫既有的 `update_referral_bonus()` RPC，統一只有一個地方定義公式。
+- **對應前端調整**：`js/cloud/subscription.js` 呼叫 `stripe-checkout`／`linepay-checkout` 時，`Authorization` 改成優先送使用者真正的登入 JWT（原本固定送公開的 anon key，跟後端新增的身份驗證搭配才有意義）；`subscription.html` 的 LINE Pay 確認流程原本完全沒有帶登入令牌，已補上。
+- **已知限制**：因為 Stripe／LINE Pay／Cloudflare R2／Apple 目前都還沒在正式環境設定金鑰，這批函式現階段呼叫都會先卡在「服務未設定」，還沒有辦法端對端實測真實金流；已確認修復後的驗證邏輯本身正確擋下未授權請求（curl 實測 401/403），程式邏輯交叉核對過，但建議之後設定金鑰時再找一筆小額測試付款實際跑一次。
+
 ## 2026-08-26（整理：合併散落的 SQL 修復檔，`supabase-setup.sql` 成為單一可信來源）
 
 ### 調整：根目錄零散修復 SQL 檔整併進 `supabase-setup.sql`

@@ -410,7 +410,8 @@ serve(async (req) => {
 
   try {
     const card = await fetchCard(supabaseUrl, serviceRoleKey, field, lookupValue);
-    if (!card || card.admin_disabled === true) return notFound();
+    // is_visible === false 代表訂閱過期或被隱藏，跟其他頁面的行為保持一致，不再讓完整聯絡資訊透過這個端口下載。
+    if (!card || card.admin_disabled === true || card.is_visible === false) return notFound();
 
     const vcard = buildVCard(card);
     const headers = withCors({

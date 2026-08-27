@@ -14,6 +14,51 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function base64UrlEncode(bytes: Uint8Array) {
+  let bin = ''
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function base64UrlDecode(str: string) {
+  let s = str.replace(/-/g, '+').replace(/_/g, '/')
+  while (s.length % 4) s += '='
+  const bin = atob(s)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
+// 驗證使用者現有登入 JWT 是否有效——跟簽發時用同一把密鑰重新計算簽章比對，
+// 確保呼叫者真的是合法登入中的使用者本人，不能只憑前端自己宣稱的 user_id。
+// 與 google-auth/index.ts 的 verifyJwtHS256 完全相同，複製過來避免跨函式共用模組。
+async function verifyJwtHS256(token: string, secret: string): Promise<Record<string, unknown> | null> {
+  try {
+    const parts = String(token || '').split('.')
+    if (parts.length !== 3) return null
+    const [headerB64, payloadB64, sigB64] = parts
+    const enc = new TextEncoder()
+    const key = await crypto.subtle.importKey(
+      'raw',
+      enc.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    )
+    const expectedSig = await crypto.subtle.sign('HMAC', key, enc.encode(`${headerB64}.${payloadB64}`))
+    const expectedSigB64 = base64UrlEncode(new Uint8Array(expectedSig))
+    if (expectedSigB64 !== sigB64) return null
+
+    const payload = JSON.parse(base64UrlDecode(payloadB64))
+    const exp = Number(payload?.exp || 0)
+    if (!exp || Math.floor(Date.now() / 1000) >= exp) return null
+    if (!payload?.sub) return null
+    return payload
+  } catch (_e) {
+    return null
+  }
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -25,6 +70,7 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://stanley00316.github.io/Electronic-business-card--4'
+    const jwtSecret = Deno.env.get('JWT_SECRET') || Deno.env.get('SUPABASE_JWT_SECRET') || ''
 
     if (!stripeSecretKey) {
       return new Response(
@@ -32,6 +78,25 @@ serve(async (req: Request) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 500 }
       )
     }
+    if (!jwtSecret) {
+      return new Response(
+        JSON.stringify({ error: 'JWT secret not configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 500 }
+      )
+    }
+
+    // 驗證呼叫者真實身份：user_id 一律用驗證過的登入 JWT 的 sub，不信任前端 body 傳來的值
+    // （否則任何人只要知道別人的 user_id——公開名片網址就查得到——就能以該身份建立付款連結）。
+    const authHeader = req.headers.get('authorization') || ''
+    const bearerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : ''
+    const jwtPayload = bearerToken ? await verifyJwtHS256(bearerToken, jwtSecret) : null
+    if (!jwtPayload) {
+      return new Response(
+        JSON.stringify({ error: 'UNAUTHORIZED' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 401 }
+      )
+    }
+    const user_id = String(jwtPayload.sub)
 
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2023-10-16',
@@ -41,11 +106,11 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // 解析請求
-    const { user_id, plan_id, return_url } = await req.json()
+    const { plan_id, return_url } = await req.json()
 
-    if (!user_id || !plan_id) {
+    if (!plan_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing user_id or plan_id' }),
+        JSON.stringify({ error: 'Missing plan_id' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }, status: 400 }
       )
     }

@@ -8,3 +8,13 @@ verify_jwt = false
 # 邀請好友免登入填表用：公開表單會呼叫此端點，由後端檢查欄位後自動建立名片。
 [functions.guest-card-intake]
 verify_jwt = false
+
+# Stripe 官方伺服器直接呼叫的付款通知，不會帶 Supabase JWT，身份改由函式內部驗證
+# stripe-signature（HMAC 簽章）把關，關掉平台層 JWT 驗證這個端點才打得進去。
+[functions.stripe-webhook]
+verify_jwt = false
+
+# 排程用的批次端點（給 Supabase Dashboard／cron.org 等外部排程呼叫），呼叫者是伺服器不是
+# 登入使用者、沒有 Supabase JWT，身份改由函式內部驗證 x-api-key（CRON_SECRET）把關。
+[functions.check-subscriptions]
+verify_jwt = false

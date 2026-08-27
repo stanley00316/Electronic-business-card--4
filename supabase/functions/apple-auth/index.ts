@@ -10,8 +10,12 @@
 // - APPLE_KEY_ID
 // - APPLE_PRIVATE_KEY (ES256 私鑰，PEM 格式，需移除換行)
 //
-// 前端呼叫：POST { code, redirect_uri, id_token? }
+// 前端呼叫：POST { code, redirect_uri }
 // 回傳：{ access_token, token_type, expires_in, user_id }
+//
+// 2026-08-27 修正：移除了原本「Apple 回應缺 id_token 時，改信任前端自己夾帶的 id_token」
+// 這條備援路徑——那條路徑完全不驗證簽章，等於任何人都能偽造身份。id_token 現在只接受
+// Apple 官方 token 端點用 code 換來的那份（server-to-server，前端無法偽造內容）。
 //
 // 注意：Apple Sign In 需要 Apple Developer Program ($99/年)
 
@@ -175,12 +179,20 @@ async function exchangeAppleCodeForToken(
   return { ok: true as const, data };
 }
 
-// 解碼 Apple ID Token 取得使用者資訊
-function decodeAppleIdToken(idToken: string): { sub: string; email?: string; name?: string } | null {
+// 解碼 Apple ID Token 取得使用者資訊，並檢查 aud／iss／exp 這幾個欄位。
+// 注意：這裡只檢查欄位內容，沒有驗證 RS256 簽章（完整 JWKS 簽章驗證工程量較大，未來可再補）；
+// 因為 id_token 現在只來自 Apple 官方 token 端點用 code 換來的回應（server-to-server，
+// 前端無法偽造內容），欄位檢查已能擋掉大部分偽造嘗試。
+function decodeAppleIdToken(idToken: string, expectedAudience: string): { sub: string; email?: string; name?: string } | null {
   try {
     const parts = idToken.split(".");
     if (parts.length < 2) return null;
     const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[1])));
+    if (!payload.sub) return null;
+    if (payload.iss !== "https://appleid.apple.com") return null;
+    if (payload.aud !== expectedAudience) return null;
+    const exp = Number(payload.exp || 0);
+    if (!exp || Math.floor(Date.now() / 1000) >= exp) return null;
     return {
       sub: payload.sub || "",
       email: payload.email || "",
@@ -278,8 +290,7 @@ serve(async (req) => {
 
   const code = String(body?.code || "").trim();
   const redirectUri = String(body?.redirect_uri || "").trim();
-  const idTokenFromBody = String(body?.id_token || "").trim();
-  
+
   if (!code) return bad("MISSING_CODE");
   if (!redirectUri) return bad("MISSING_REDIRECT_URI");
 
@@ -297,11 +308,11 @@ serve(async (req) => {
     return json({ error: "APPLE_TOKEN_EXCHANGE_FAILED", detail: tokenRes.data }, { status: 400 });
   }
   
-  const idToken = String((tokenRes.data as any)?.id_token || idTokenFromBody || "");
+  const idToken = String((tokenRes.data as any)?.id_token || "");
   if (!idToken) return bad("APPLE_NO_ID_TOKEN", { detail: tokenRes.data });
 
-  // 3) 解碼 id_token 取得使用者資訊
-  const userInfo = decodeAppleIdToken(idToken);
+  // 3) 解碼 id_token 取得使用者資訊，並驗證 aud/iss/exp
+  const userInfo = decodeAppleIdToken(idToken, APPLE_CLIENT_ID);
   if (!userInfo || !userInfo.sub) {
     return bad("APPLE_INVALID_ID_TOKEN");
   }
