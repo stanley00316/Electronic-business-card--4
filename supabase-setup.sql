@@ -58,7 +58,8 @@ alter table public.admin_users enable row level security;
 alter table public.admin_users no force row level security;
 
 -- 沿用 update_admin_schema.sql 當初解決 policy 遞迴（stack depth exceeded）的設計：
--- super admin 判斷一律走 admin_allowlist（SECURITY DEFINER），不要在 admin_users 的 policy 裡查 admin_users 本身。
+-- super admin 判斷統一走這個 SECURITY DEFINER 函式，避免 policy 直接回頭查 admin_users 引發遞迴。
+-- 同時支援 Email 白名單，以及 LINE 登入使用的「不限公司」管理員記錄。
 create or replace function public.is_super_admin_allowlist()
 returns boolean
 language sql
@@ -71,8 +72,16 @@ as $$
     from public.admin_allowlist a
     where a.enabled = true
       and lower(a.email) = public.current_email()
+  ) or exists(
+    select 1
+    from public.admin_users au
+    where au.user_id::text = auth.uid()::text
+      and au.managed_company is null
+      and au.target_company is null
   );
 $$;
+
+grant execute on function public.is_super_admin_allowlist() to authenticated;
 
 -- 一般管理員判斷：admin_allowlist（超級管理員）或 admin_users（company admin）任一有記錄就算。
 -- 必須是 security definer + 固定 search_path，才能在自己的 policy 裡查這兩張表而不觸發遞迴/RLS 卡死。

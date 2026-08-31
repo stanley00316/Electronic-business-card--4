@@ -61,7 +61,8 @@ async function initUserId() {
         const userIdItem = document.getElementById('userIdItem');
         
         // 只有「超級管理員」才顯示這三個項目（企業管理員不顯示）
-        const isSuperAdmin = adminStatus && adminStatus.isAdmin && !adminStatus.managedCompany;
+        const isSuperAdmin = adminStatus && adminStatus.isAdmin &&
+          adminStatus.canManageAdmins && !adminStatus.managedCompany;
         
         if (isSuperAdmin) {
           // 顯示管理後台連結

@@ -149,10 +149,10 @@
 
 ## Supabase（雲端名片 / 全平台搜尋 / Storage / LINE 登入）
 
-### 目前正式專案狀態（2026-08-26）
+### 目前正式專案狀態（2026-08-31）
 
 - **正式專案**：`https://nqxibryjhgftyxttopuo.supabase.co`
-- **已套用 migration**：最新已到 `20260826240000_audit_remaining_functions.sql`
+- **已套用 migration**：最新已到 `20260831160000_restore_chiu_super_admin.sql`（恢復邱瑋浚超級管理員權限，並統一 LINE／Email 超級管理員判定）
 - **已部署 Edge Function**：`guest-card-intake`（線上 build 標記：`2026-08-26-guest-card-intake-rate-limit`，新增免登入端口的 IP／推薦人雙層速率限制）
 - **已啟用能力**：企業邀請免登入建立名片、客戶待跟進資料、NFC 感應來源統計。
 - **保留不變**：GitHub Pages repo 路徑仍是 `Electronic-business-card--4`，公開名片與 NFC 既有網址規則不變。

@@ -1,5 +1,17 @@
 # 變更紀錄
 
+## 2026-08-31（修復：邱瑋浚恢復超級管理員最大權限）
+
+### 修復：8/27 資安校正誤將邱瑋浚降為單一公司管理員
+
+- **問題根因**：正式名片「邱瑋浚 Stanley」的帳號 ID，就是 `20260827030000_fix_admin_users_scope.sql` 當時被寫成「曜鼎科技」單一公司範圍的那筆管理員。當時為了修補企業管理員可自我升級的漏洞，誤把原本應保留最大權限的邱瑋浚一併降級。
+- **正式資料庫修復**：新增 migration `20260831160000_restore_chiu_super_admin.sql`，將邱瑋浚的 `role` 恢復為 `super_admin`，`target_company` / `managed_company` 同時恢復為空值（不限公司）；已套用正式 Supabase，查詢確認三個欄位均正確。
+- **權限判定對齊**：LINE 自訂登入憑證不一定有 Email，資料庫的 `is_super_admin_allowlist()` 現在同時支援 Email 白名單與 `admin_users` 的不限公司記錄；前端 `isAdmin()` 改為直接呼叫這個資料庫判定，不再透過 JWT／名片 Email 自行猜測。
+- **資安邊界**：只恢復指定的邱瑋浚帳號；企業管理員仍然無法把自己的公司欄位清空、無法跨公司修改管理員，不放寬原有 RLS 防護。
+- **防回歸驗證**：新增 `tests/admin-roles.test.mjs`，測試「資料庫已確認超級管理員時，前端不能再被舊公司欄位降級」；修復前可穩定重現失敗，修復後 `npm test` 通過。正式資料庫也以邱瑋浚的登入身分模擬呼叫驗證，`has_maximum_permission = true`。
+- **快取與打包**：已重新執行 `npm run build:static`；所有引用 `cloud.js` 的頁面統一升為 `?v=20260831a`，設定頁程式同步升版，`service-worker.js` 的 `CACHE_VERSION` 升為 `v1.37.26`。
+- **影響範圍**：僅影響管理員身分判定與邱瑋浚的權限資料；不修改 NFC ID、公開 `card.html?id=...` / `card.html?nfc=...` 網址、名片資料結構或其他使用者權限。
+
 ## 2026-08-27（整理：剩餘 6 份根目錄 SQL 檔併入 supabase-setup.sql + 修正 cloud.js 忘記重新打包）
 
 ### 修復：`cloud.js` 打包檔沒有跟上稍早的原始碼修正，網站實際還在跑舊版
