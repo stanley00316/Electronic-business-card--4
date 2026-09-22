@@ -1,0 +1,49 @@
+# PR 動了原始碼，就必須動 CHANGELOG.md。
+#
+# 為什麼：每個專案的 CLAUDE.md 都寫「每次變更必補 CHANGELOG」，但沒有任何東西強制它，
+# 靠人（或模型）記得。這裡把規則搬到合併前：沒補就紅。
+# 只在 pull_request 觸發：push 到 main 的都是已合併的 PR，沒必要再查一次。
+#
+# 不算「原始碼」、改了也不用補 CHANGELOG：文件（*.md、docs/）、workflow 本身、測試檔、
+# lockfile、.gitignore。要例外時給 PR 貼 `skip-changelog` 標籤，並在 PR 說明寫原因。
+
+name: changelog-guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check:
+    name: changelog-guard
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Require CHANGELOG.md when source changed
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "$BASE" "$HEAD")"
+          echo "$changed" | sed 's/^/  /'
+          if printf '%s\n' "$changed" | grep -qx 'CHANGELOG.md'; then
+            echo "CHANGELOG.md 有更新，通過。"; exit 0
+          fi
+          source_changed="$(printf '%s\n' "$changed" | grep -vE \
+            '(^|/)[^/]*\.md$|^docs/|^\.github/|\.(test|spec)\.[a-z]+$|(^|/)__tests__/|(^|/)tests?/|^\.gitignore$|(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb|Cargo\.lock|poetry\.lock|uv\.lock)$' \
+            || true)"
+          if [ -z "$source_changed" ]; then
+            echo "只改了文件／測試／lockfile，不需要 CHANGELOG。"; exit 0
+          fi
+          echo "::error file=CHANGELOG.md::這個 PR 改了原始碼但沒有更新 CHANGELOG.md。補一筆（日期、改了什麼、為什麼、影響檔案），或貼 skip-changelog 標籤並說明原因。"
+          printf '改到的原始碼：\n%s\n' "$source_changed" | sed 's/^/  /'
+          exit 1
