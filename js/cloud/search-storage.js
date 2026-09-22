@@ -44,38 +44,56 @@ export async function searchCards(params) {
   const client = ctx.client;
   const q = String(params?.q || '').trim();
   const limit = Math.min(Math.max(parseInt(params?.limit || 50, 10) || 50, 1), 200);
-
-  const baseQuery = () => client
-    .from('cards')
-    // 盡量只取通訊錄顯示需要的欄位；完整預覽再用 getCardByUserId
-    .select('user_id,name,company,title,theme,updated_at')
-    .order('updated_at', { ascending: false })
-    .limit(limit);
-
-  if (!q) {
-    const { data, error } = await baseQuery();
-    if (error) throw error;
-    return { rows: data || [] };
-  }
-
-  const esc = buildSearchPattern(q);
-  if (!esc) {
-    const { data, error } = await baseQuery();
-    if (error) throw error;
-    return { rows: data || [] };
-  }
+  const esc = q ? buildSearchPattern(q) : '';
 
   const columnFilters = SEARCH_COLUMNS.map(c => `${c}.ilike.%${esc}%`);
   const jsonFilters = SEARCH_JSON_KEYS.map(k => `profile_json->>${k}.ilike.%${esc}%`);
 
-  const { data, error } = await baseQuery().or(columnFilters.concat(jsonFilters).join(','));
-  if (!error) return { rows: data || [] };
+  // 可見性過濾：只有「明確被關閉」才排除，欄位是 NULL 的舊資料一律視為可見，
+  // 與 supabase/functions/vcard 的判定一致（那裡也是只看 === false / === true）。
+  //   directory_visible = false → 使用者自己在設定頁關閉了通訊錄公開
+  //   admin_disabled    = true  → 管理員人工停用（RLS 沒涵蓋這個欄位，必須在查詢層擋）
+  //   is_visible        = false → 訂閱到期／停用（RLS 已擋其他人，這裡一併擋自己的，
+  //                               避免自己的通訊錄列出一張其他人看不到的名片）
+  function buildQuery(opts) {
+    let query = client
+      .from('cards')
+      // 盡量只取通訊錄顯示需要的欄位；完整預覽再用 getCardByUserId
+      .select('user_id,name,company,title,theme,updated_at')
+      .not('admin_disabled', 'is', true)
+      .not('is_visible', 'is', false);
 
-  // 退路：若資料庫不接受 profile_json 的取值查詢（權限或版本差異），
-  // 退回只比對一般欄位，讓搜尋至少維持原本的能力，不要整個壞掉。
-  const fallback = await baseQuery().or(columnFilters.join(','));
-  if (fallback.error) throw fallback.error;
-  return { rows: fallback.data || [] };
+    // directory_visible 是後來才加的欄位。若資料庫還沒套用 migration，
+    // 帶著它查詢會直接失敗，所以要能在退路中拿掉。
+    if (opts.withDirectoryFlag) {
+      query = query.not('directory_visible', 'is', false);
+    }
+
+    query = query.order('updated_at', { ascending: false }).limit(limit);
+
+    if (esc) {
+      const filters = opts.withJsonSearch ? columnFilters.concat(jsonFilters) : columnFilters;
+      query = query.or(filters.join(','));
+    }
+    return query;
+  }
+
+  // 三層漸退：越後面的退路功能越少，但至少讓通訊錄可以用。
+  // 順序刻意把「隱私過濾」放到最後才放棄——寧可少搜幾個欄位，
+  // 也不要先把使用者選擇不公開的名片洩漏出去。
+  const attempts = [
+    { withJsonSearch: true,  withDirectoryFlag: true  },
+    { withJsonSearch: false, withDirectoryFlag: true  },
+    { withJsonSearch: false, withDirectoryFlag: false }
+  ];
+
+  let lastError = null;
+  for (const opts of attempts) {
+    const { data, error } = await buildQuery(opts);
+    if (!error) return { rows: data || [] };
+    lastError = error;
+  }
+  throw lastError;
 }
 
 /* =========================================================================
@@ -213,4 +231,36 @@ export async function upsertMyCard(payload) {
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+/* =========================================================================
+ * 通訊錄公開設定（使用者自選）
+ * ========================================================================= */
+
+// 讀取目前設定。欄位不存在或為 NULL 時一律回 true（預設公開），
+// 避免資料庫還沒套用 migration 時設定頁顯示成「不公開」而誤導使用者。
+export async function getMyDirectoryVisible() {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+  const { data, error } = await ctx.client
+    .from('cards')
+    .select('directory_visible')
+    .eq('user_id', ctx.userId)
+    .maybeSingle();
+  if (error) throw error;
+  return { directoryVisible: data?.directory_visible !== false, hasCard: Boolean(data) };
+}
+
+// 寫入設定。只動 directory_visible 一個欄位，
+// 不碰 is_visible（系統／訂閱）與 admin_disabled（管理員）。
+export async function setMyDirectoryVisible(visible) {
+  const ctx = await getAuthContext();
+  if (!ctx.ok) throw new Error('NO_SESSION');
+  const next = visible !== false;
+  const { error } = await ctx.client
+    .from('cards')
+    .update({ directory_visible: next })
+    .eq('user_id', ctx.userId);
+  if (error) throw error;
+  return { directoryVisible: next };
 }

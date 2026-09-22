@@ -227,6 +227,11 @@ create table if not exists public.consents (
 -- 名片是否公開可見（訂閱過期/管理員停用時會設為 false）
 alter table public.cards add column if not exists is_visible boolean default true;
 
+-- 使用者自選：名片是否出現在平台通訊錄（預設公開）。
+-- 刻意與 is_visible（系統／訂閱控制）、admin_disabled（管理員控制）分開，三者互不覆蓋。
+-- 關閉只影響通訊錄清單與搜尋，直接連結與 NFC 仍可開啟名片。
+alter table public.cards add column if not exists directory_visible boolean not null default true;
+
 -- ===== RLS =====
 alter table public.cards enable row level security;
 alter table public.directory_contacts enable row level security;

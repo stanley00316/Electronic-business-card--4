@@ -89,7 +89,14 @@ import {
   getLeadInquiriesAdmin,
   updateLeadInquiryStatus
 } from './admin-operations.js';
-import { searchCards, uploadMyAsset, getSignedAssetUrl, upsertMyCard } from './search-storage.js';
+import {
+  searchCards,
+  uploadMyAsset,
+  getSignedAssetUrl,
+  upsertMyCard,
+  getMyDirectoryVisible,
+  setMyDirectoryVisible
+} from './search-storage.js';
 import {
   ensureConsent,
   toCsv,
@@ -166,6 +173,8 @@ window.UVACO_CLOUD = {
   getCardViewSummariesForAdmin,
   searchCards,
   upsertMyCard,
+  getMyDirectoryVisible,
+  setMyDirectoryVisible,
   deleteCard,
 
   recordCardView,

@@ -429,10 +429,72 @@ function updateSettingsLangButtons() {
 })();
 
 
+/* =========================================================================
+ * 公開在通訊錄（使用者自選）
+ * 只影響平台通訊錄的清單與搜尋；直接連結與 NFC 不受影響。
+ * ========================================================================= */
+
+// 把兩顆按鈕的選中狀態畫出來，沿用語言按鈕的 active 樣式。
+function paintDirectoryVisibleButtons(visible) {
+  const onBtn = document.getElementById('directoryVisibleOnBtn');
+  const offBtn = document.getElementById('directoryVisibleOffBtn');
+  if (!onBtn || !offBtn) return;
+  onBtn.classList.remove('active');
+  offBtn.classList.remove('active');
+  (visible ? onBtn : offBtn).classList.add('active');
+}
+
+async function initDirectoryVisible() {
+  const item = document.getElementById('directoryVisibleItem');
+  if (!item) return;
+  try {
+    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig() || !UVACO_CLOUD.getMyDirectoryVisible) return;
+    const s = await UVACO_CLOUD.getSession();
+    if (!s || !s.session) return;
+
+    const { directoryVisible, hasCard } = await UVACO_CLOUD.getMyDirectoryVisible();
+    // 還沒建立名片的人沒有東西可以公開，這個設定先不顯示，避免造成困惑。
+    if (!hasCard) return;
+
+    paintDirectoryVisibleButtons(directoryVisible);
+    item.style.display = '';
+  } catch (e) {
+    // 讀取失敗就不顯示這個設定，不要讓整個設定頁壞掉
+  }
+}
+
+async function setDirectoryVisible(visible) {
+  const onBtn = document.getElementById('directoryVisibleOnBtn');
+  const offBtn = document.getElementById('directoryVisibleOffBtn');
+  if (!onBtn || !offBtn) return;
+
+  // 先鎖住按鈕避免連點送出兩次相反的設定
+  onBtn.disabled = true;
+  offBtn.disabled = true;
+  try {
+    const { directoryVisible } = await UVACO_CLOUD.setMyDirectoryVisible(visible);
+    paintDirectoryVisibleButtons(directoryVisible);
+  } catch (e) {
+    const isZh = (localStorage.getItem('lang') || 'zh') === 'zh';
+    alert(isZh ? '設定沒有存成功，請稍後再試一次。' : 'Could not save this setting. Please try again.');
+    // 存失敗就把畫面改回資料庫的真實狀態，不要讓按鈕停在使用者以為成功的那一邊
+    try {
+      const { directoryVisible } = await UVACO_CLOUD.getMyDirectoryVisible();
+      paintDirectoryVisibleButtons(directoryVisible);
+    } catch (e2) {}
+  } finally {
+    onBtn.disabled = false;
+    offBtn.disabled = false;
+  }
+}
+
 // 頁面載入時更新按鈕狀態並確保語言正確顯示
 function initSettingsPage() {
   // 顯示 User ID
   initUserId();
+
+  // 公開在通訊錄
+  initDirectoryVisible();
 
   // 連結 Google 帳號狀態
   initGoogleLink();
@@ -467,3 +529,4 @@ window.copyHomeScreenLink = copyHomeScreenLink;
 window.handleLogout = handleLogout;
 window.handleSettingsClick = handleSettingsClick;
 window.startGoogleLinkFlow = startGoogleLinkFlow;
+window.setDirectoryVisible = setDirectoryVisible;
