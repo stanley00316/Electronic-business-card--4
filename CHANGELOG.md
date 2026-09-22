@@ -1,5 +1,10 @@
 # 變更紀錄
 
+## 2026-09-22（CI：補三個守門 workflow）
+
+- **新增**（來自 `~/.claude/templates/ci/`，各 repo 共用同一套）：`secret-scan.yml`（gitleaks 掃 PR／push 範圍內 commit）、`file-size.yml`（改到的原始碼檔 ≤ 900 行；既有 5 個超標檔沒變長就放行）、`changelog-guard.yml`（PR 動了原始碼就必須動本檔；例外貼 `skip-changelog` 標籤）。〔`.github/workflows/*`〕
+- 沒加 branch-guard：這個 repo 是直推 main，加了每次 push 都會開 issue。
+
 ## 2026-08-31（修復：邱瑋浚恢復超級管理員最大權限）
 
 ### 修復：8/27 資安校正誤將邱瑋浚降為單一公司管理員
