@@ -10,6 +10,34 @@ import { getCustomJwt } from './jwt.js';
 import { fetchWithTimeout } from './http.js';
 
 
+// 通訊錄搜尋比對的欄位。
+// cards 資料表只有單一的 name/title/company，雙語名片的「另一半」（例如
+// 「邱瑋浚｜Stanley」的 Stanley）只存在 profile_json 裡，所以必須一起比對，
+// 否則用英文名或英文職稱搜尋會找不到人。
+// 注意：profile_json 內含 base64 圖片與整張名片的 HTML，體積很大，
+// 這裡只在資料庫端取出需要比對的文字欄位，不把整包 JSON 傳回前端。
+const SEARCH_COLUMNS = ['name', 'company', 'title', 'phone', 'email'];
+const SEARCH_JSON_KEYS = [
+  'nameZh',
+  'nameEn',
+  'titleZh',
+  'titleEn',
+  'companyZh',
+  'companyEn',
+  'companyCanonical'
+];
+
+// PostgREST 的 or() 過濾字串是用逗號分隔、用括號包住的，
+// 關鍵字裡若出現這些字元會把過濾條件切壞，所以先去掉。
+// %、_ 是 LIKE 的萬用字元，要轉義成純文字比對。
+function buildSearchPattern(q) {
+  return String(q)
+    .replace(/[(),"']/g, ' ')
+    .trim()
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_');
+}
+
 export async function searchCards(params) {
   const ctx = await getAuthContext();
   if (!ctx.ok) throw new Error('NO_SESSION');
@@ -17,23 +45,37 @@ export async function searchCards(params) {
   const q = String(params?.q || '').trim();
   const limit = Math.min(Math.max(parseInt(params?.limit || 50, 10) || 50, 1), 200);
 
-  let query = client
+  const baseQuery = () => client
     .from('cards')
     // 盡量只取通訊錄顯示需要的欄位；完整預覽再用 getCardByUserId
     .select('user_id,name,company,title,theme,updated_at')
     .order('updated_at', { ascending: false })
     .limit(limit);
 
-  if (q) {
-    const esc = q.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    query = query.or(
-      `name.ilike.%${esc}%,company.ilike.%${esc}%,title.ilike.%${esc}%`
-    );
+  if (!q) {
+    const { data, error } = await baseQuery();
+    if (error) throw error;
+    return { rows: data || [] };
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return { rows: data || [] };
+  const esc = buildSearchPattern(q);
+  if (!esc) {
+    const { data, error } = await baseQuery();
+    if (error) throw error;
+    return { rows: data || [] };
+  }
+
+  const columnFilters = SEARCH_COLUMNS.map(c => `${c}.ilike.%${esc}%`);
+  const jsonFilters = SEARCH_JSON_KEYS.map(k => `profile_json->>${k}.ilike.%${esc}%`);
+
+  const { data, error } = await baseQuery().or(columnFilters.concat(jsonFilters).join(','));
+  if (!error) return { rows: data || [] };
+
+  // 退路：若資料庫不接受 profile_json 的取值查詢（權限或版本差異），
+  // 退回只比對一般欄位，讓搜尋至少維持原本的能力，不要整個壞掉。
+  const fallback = await baseQuery().or(columnFilters.join(','));
+  if (fallback.error) throw fallback.error;
+  return { rows: fallback.data || [] };
 }
 
 /* =========================================================================

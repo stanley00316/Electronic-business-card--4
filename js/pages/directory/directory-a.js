@@ -1,29 +1,3 @@
-// 前往「我的編輯頁」：一律帶 uid/next，確保編輯到自己的名片
-async function gotoMyEditFromDirectory(event) {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-  try {
-    if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) {
-      window.location.href = 'edit.html';
-      return false;
-    }
-    const s = await UVACO_CLOUD.getSession();
-    const uid = s && s.session && s.session.user ? String(s.session.user.id || '').trim() : '';
-    if (!uid) {
-      window.location.href = 'auth.html?next=' + encodeURIComponent('directory.html');
-      return false;
-    }
-    const next = 'card.html?id=' + encodeURIComponent(uid);
-    window.location.href = 'edit.html?uid=' + encodeURIComponent(uid) + '&next=' + encodeURIComponent(next);
-    return false;
-  } catch (e) {
-    window.location.href = 'edit.html';
-    return false;
-  }
-}
-
 // 前往「我的名片」頁面
 async function gotoMyCard(event) {
   if (event) {
@@ -59,10 +33,7 @@ async function gotoMyCard(event) {
 
       // 若已登入但尚未建立名片，提示前往編輯（不強制跳轉，避免「平台目錄」導向錯覺）
       const my = await UVACO_CLOUD.getMyCard();
-      renderMyCardPanel(my.card);
-      // 避免「我的名片」在下方全平台清單重複出現（你回報的兩個預覽）
       window.__uvacoDirectoryState = window.__uvacoDirectoryState || { rows: [], loading: false };
-      window.__uvacoDirectoryState.myUserId = my && my.card ? (my.card.user_id || '') : '';
       if (!my.card) {
         const msg = getCurrentLang && getCurrentLang() === 'en'
           ? 'You have not created your business card yet. Go to Edit page now?'
@@ -88,52 +59,6 @@ function getCurrentLang() {
 
 function safeText(v) {
   return String(v ?? '').replace(/\s+/g, ' ').trim();
-}
-
-function renderMyCardPanel(card) {
-  const panel = document.getElementById('myCardPanel');
-  if (!panel) return;
-  if (!card) {
-    panel.style.display = 'none';
-    return;
-  }
-
-  // profile_json：保留雙語資訊；沒有就退回 cards 的欄位
-  let pj = card.profile_json;
-  if (typeof pj === 'string') {
-    try { pj = JSON.parse(pj); } catch (e) { pj = null; }
-  }
-  pj = (pj && typeof pj === 'object') ? pj : {};
-
-  const nameZh = safeText(pj.nameZh) || safeText(card.name);
-  const nameEn = safeText(pj.nameEn) || safeText(card.name);
-  const titleZh = safeText(pj.titleZh) || safeText(card.title);
-  const titleEn = safeText(pj.titleEn) || safeText(card.title);
-  const companyZh = safeText(pj.companyZh) || safeText(card.company);
-  const companyEn = safeText(pj.companyEn) || safeText(card.company);
-  const email = safeText(card.email);
-
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val || '-';
-  };
-  set('myCardNameZh', nameZh);
-  set('myCardNameEn', nameEn);
-  set('myCardTitleZh', titleZh);
-  set('myCardTitleEn', titleEn);
-  set('myCardCompanyZh', companyZh);
-  set('myCardCompanyEn', companyEn);
-  set('myCardEmail', email || '-');
-
-  // 更新預覽連結
-  const uid = card.user_id || '';
-  const previewUrl = uid ? `card.html?id=${encodeURIComponent(uid)}` : 'card.html';
-  const previewZh = document.getElementById('myCardPreviewZh');
-  const previewEn = document.getElementById('myCardPreviewEn');
-  if (previewZh) previewZh.href = previewUrl;
-  if (previewEn) previewEn.href = previewUrl;
-
-  panel.style.display = 'block';
 }
 
 // ===== 平台通訊錄：全平台公開搜尋（登入者）=====
@@ -232,7 +157,15 @@ function escapeHtml(s) {
 
 async function refreshDirectoryResults() {
   if (!window.UVACO_CLOUD || !UVACO_CLOUD.hasConfig()) return;
-  if (window.__uvacoDirectoryState.loading) return;
+
+  const requestedQuery = (document.getElementById('directorySearchInput')?.value || '').trim();
+
+  // 已經有一個請求在跑：不要把這次的輸入丟掉（舊行為會讓畫面停在舊關鍵字的結果），
+  // 先把最新關鍵字記下來，等前一個請求結束後再補跑一次。
+  if (window.__uvacoDirectoryState.loading) {
+    window.__uvacoDirectoryState.pendingQuery = requestedQuery;
+    return;
+  }
   window.__uvacoDirectoryState.loading = true;
 
   const resultsDiv = document.getElementById('directoryResults');
@@ -245,12 +178,11 @@ async function refreshDirectoryResults() {
   }
 
   try {
-    const q = (document.getElementById('directorySearchInput')?.value || '').trim();
+    const q = requestedQuery;
     const { rows } = await UVACO_CLOUD.searchCards({ q, limit: 100 });
+    // 上方「我的名片」面板已移除，所以自己的名片也要留在清單裡，
+    // 否則搜尋自己的姓名會找不到人。
     const all = rows || [];
-    const myId = String(window.__uvacoDirectoryState.myUserId || '').trim();
-    // 排除自己（我的名片已在上方面板顯示）
-    const filtered = myId ? all.filter(r => String(r?.user_id || '') !== myId) : all;
 
     // 合併雲端搜尋結果與「新增好友」存在自己帳號底下的聯絡人，避免只有這類資料時主列表永遠為 0
     const pals = await getStoredFriends();
@@ -267,17 +199,10 @@ async function refreshDirectoryResults() {
         email: String(f.email || '').trim()
       }));
 
-    const merged = filtered.concat(localRows);
+    const merged = all.concat(localRows);
     window.__uvacoDirectoryState.rows = merged;
 
-    // 平台上只有自己一張公開名片、且雲端結果為空也無本地好友時，用 emptyHint 標明原因
-    const onlySelf =
-      Boolean(myId) &&
-      all.length === 1 &&
-      String(all[0]?.user_id || '') === myId &&
-      filtered.length === 0 &&
-      localRows.length === 0;
-    window.__uvacoDirectoryState.emptyHint = onlySelf ? 'only_self' : null;
+    window.__uvacoDirectoryState.emptyHint = null;
 
     renderDirectoryResults(merged);
   } catch (e) {
@@ -291,6 +216,13 @@ async function refreshDirectoryResults() {
     }
   } finally {
     window.__uvacoDirectoryState.loading = false;
+
+    // 這次請求期間若使用者又打了字，補跑最新的關鍵字
+    const pending = window.__uvacoDirectoryState.pendingQuery;
+    window.__uvacoDirectoryState.pendingQuery = null;
+    if (pending != null && pending !== requestedQuery) {
+      refreshDirectoryResults();
+    }
     // 更新語言顯示（沿用現有邏輯）
     const zhElements = document.querySelectorAll('.lang-zh');
     const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';

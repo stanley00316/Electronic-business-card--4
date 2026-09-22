@@ -408,11 +408,23 @@ function closeAdvancedFilter() {
 }
 
 // 搜尋處理
+// 原本每打一個字就送一次請求，但 refreshDirectoryResults 遇到「上一個請求還在跑」
+// 會直接丟掉，導致畫面停在舊關鍵字的結果。這裡改成停止輸入一小段時間後才送出，
+// 按 Enter 則立刻送出。
+let __uvacoSearchTimer = null;
+const SEARCH_DEBOUNCE_MS = 250;
+
 function handleDirectorySearch(event) {
-  if (event.key === 'Enter' || event.type === 'keyup') {
-    closeSearchOptions(); // 關閉搜尋選項
-    searchDirectory();
+  closeSearchOptions(); // 關閉搜尋選項
+  if (__uvacoSearchTimer) {
+    clearTimeout(__uvacoSearchTimer);
+    __uvacoSearchTimer = null;
   }
+  if (event && event.key === 'Enter') {
+    searchDirectory();
+    return;
+  }
+  __uvacoSearchTimer = setTimeout(searchDirectory, SEARCH_DEBOUNCE_MS);
 }
 
 // 執行搜尋
@@ -429,23 +441,7 @@ function updateDirectoryResults(count) {
   
   const resultsDiv = document.getElementById('directoryResults');
   if (count === 0) {
-    // 與 directory-a 設定的 emptyHint 搭配：平台上只有自己一張名片時提示原因
-    const onlySelf =
-      window.__uvacoDirectoryState && window.__uvacoDirectoryState.emptyHint === 'only_self';
-    if (onlySelf) {
-      resultsDiv.innerHTML = `
-      <div class="directory-empty-icon">ℹ️</div>
-      <div class="directory-empty-text lang-zh">
-        目前平台上沒有其他會員的名片可列出（此處已隱藏您自己的名片，避免與上方重複）。<br>
-        請使用「+ 新增好友」儲存聯絡人，或邀請他人建立名片。
-      </div>
-      <div class="directory-empty-text lang-en">
-        No other members' cards to list yet (your own card is hidden here to avoid duplicating the panel above).<br>
-        Use "+ Add Friend" to save contacts, or invite others to create a card.
-      </div>
-    `;
-    } else {
-      resultsDiv.innerHTML = `
+    resultsDiv.innerHTML = `
       <div class="directory-empty-icon">🔍</div>
       <div class="directory-empty-text lang-zh">
         找不到符合條件的名片<br>
@@ -456,7 +452,6 @@ function updateDirectoryResults(count) {
         Please try adjusting your search keywords or filters.
       </div>
     `;
-    }
     // 更新語言顯示
     const zhElements = document.querySelectorAll('.lang-zh');
     const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
