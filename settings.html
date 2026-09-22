@@ -94,6 +94,37 @@ body {
   font-weight: 500;
 }
 
+/* 公開在通訊錄：這一項有說明文字，不能沿用 .settings-theme-item 的橫向排列。
+   父層的 .settings-item-content 是 flex: 0 0 auto（永不收縮），長文字會把整塊
+   撐寬、溢出卡片並把右側按鈕推出畫面外。所以改成上下兩段：
+   第一段維持「標題 + 按鈕」同一行（外觀與語言設定一致），第二段放可換行的說明。 */
+.settings-directory-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.settings-directory-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-directory-row .settings-item-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settings-directory-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.7;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 </style>
 </head>
 
@@ -184,27 +215,25 @@ body {
 
       <!-- 公開在通訊錄：使用者自選。只影響通訊錄清單與搜尋，
            拿到直接連結或刷 NFC 的人仍然看得到名片。預設公開。 -->
-      <div class="settings-item settings-theme-item" id="directoryVisibleItem" style="display: none;">
-        <div class="settings-item-content">
-          <div class="settings-item-title lang-zh">公開在通訊錄</div>
-          <div class="settings-item-title lang-en">Show in Directory</div>
-          <div class="settings-item-subtitle lang-zh" style="font-size: 11px; line-height: 1.5;">
-            關閉後別人在通訊錄瀏覽或搜尋都找不到你；拿到你名片連結或刷 NFC 的人仍然看得到。
+      <div class="settings-item settings-theme-item settings-directory-item" id="directoryVisibleItem" style="display: none;">
+        <div class="settings-directory-row">
+          <div class="settings-item-content">
+            <div class="settings-item-title lang-zh">公開在通訊錄</div>
+            <div class="settings-item-title lang-en">Show in Directory</div>
           </div>
-          <div class="settings-item-subtitle lang-en" style="font-size: 11px; line-height: 1.5;">
-            When off, others cannot find you by browsing or searching the directory. People with your card link or an NFC tap can still view it.
+          <div class="settings-theme-buttons">
+            <button class="settings-theme-btn" id="directoryVisibleOnBtn" onclick="setDirectoryVisible(true)">
+              <span class="settings-theme-btn-text lang-zh">公開</span>
+              <span class="settings-theme-btn-text lang-en">Public</span>
+            </button>
+            <button class="settings-theme-btn" id="directoryVisibleOffBtn" onclick="setDirectoryVisible(false)">
+              <span class="settings-theme-btn-text lang-zh">不公開</span>
+              <span class="settings-theme-btn-text lang-en">Hidden</span>
+            </button>
           </div>
         </div>
-        <div class="settings-theme-buttons">
-          <button class="settings-theme-btn" id="directoryVisibleOnBtn" onclick="setDirectoryVisible(true)">
-            <span class="settings-theme-btn-text lang-zh">公開</span>
-            <span class="settings-theme-btn-text lang-en">Public</span>
-          </button>
-          <button class="settings-theme-btn" id="directoryVisibleOffBtn" onclick="setDirectoryVisible(false)">
-            <span class="settings-theme-btn-text lang-zh">不公開</span>
-            <span class="settings-theme-btn-text lang-en">Hidden</span>
-          </button>
-        </div>
+        <div class="settings-directory-hint lang-zh">關閉後不會出現在通訊錄，名片連結與 NFC 仍可使用。</div>
+        <div class="settings-directory-hint lang-en">When off, you will not appear in the directory. Your card link and NFC still work.</div>
       </div>
 
       <!-- 系統資訊 (User ID) - 僅管理員可見 -->

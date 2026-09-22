@@ -50,6 +50,14 @@
 
 已執行 `npm run build:static`（`common.js` 無變更）；13 個頁面的 `cloud.js` 版本參數升為 `?v=20260922b`，設定頁 `main.js` 同步升版，`service-worker.js` 的 `CACHE_VERSION` 遞增為 `v1.37.28`。
 
+### 修正：「公開在通訊錄」的說明文字溢出卡片、按鈕被推出畫面
+
+- **問題根因**：這一項沿用了 `.settings-theme-item` 的橫向排列（左標題右按鈕），但該樣式的 `.settings-item-content` 是 `flex: 0 0 auto`（永不收縮）、標題是 `white-space: nowrap`。語言設定沒事是因為標題只有四個字；這一項多了說明文字，內容區就一路撐寬、溢出卡片邊界，並把右側兩顆按鈕整個推出畫面外——實機上完全看不到「公開／不公開」可以按。
+- **修改內容**：新增 `.settings-directory-item` 專屬樣式改為上下兩段。第一段 `.settings-directory-row` 維持「標題 + 按鈕」同一行（外觀與語言設定一致），第二段 `.settings-directory-hint` 放說明文字，允許換行（`white-space: normal` ＋ `overflow-wrap: anywhere`）。
+- **說明文字同步縮短**：原本一長串改為「關閉後不會出現在通訊錄，名片連結與 NFC 仍可使用。」，符合手機版精簡原則。
+- **驗證方式**：抽出頁面真實的 `<style>` 與這段 HTML 做本機預覽，在 390px 與 320px 兩種寬度截圖確認文字不再溢出、兩顆按鈕都看得到，並與語言設定並排比對外觀一致。
+- `service-worker.js` 的 `CACHE_VERSION` 遞增為 `v1.37.29`。
+
 ### 影響範圍
 
 只動到通訊錄搜尋條件與設定頁。不修改名片資料結構、公開名片網址（`card.html?id=...` / `?nfc=...`）、NFC、權限判定與訂閱邏輯。
