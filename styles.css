@@ -4356,7 +4356,11 @@ body.theme-light .address-text {
 
 /* 公司名稱輸入欄位樣式修正 - 確保可編輯 */
 .info-item-company-name .info-value {
-  display: block !important;
+  /* 用 block（原本 .info-value 的 flex 會干擾可編輯欄位）。
+     不可加 !important：公司名稱的中文、英文各是一欄，同一時間只顯示其中一欄，
+     靠的是語系規則與欄位上的 display；加了 !important 會把它們全部蓋掉，
+     兩欄同時顯示，名片上就會出現兩行一樣的公司名稱。 */
+  display: block;
   min-height: 1.5em;
   padding: 4px 8px;
   border-radius: 4px;
