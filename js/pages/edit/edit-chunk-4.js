@@ -738,15 +738,22 @@ const UVACO_RICH_TEXT_SANITIZE_CONFIG = {
   ]
 };
 
-// 儲存前用 DOMPurify 過濾危險標籤/屬性；DOMPurify 沒載入成功時整段當純文字，不冒險存入未過濾 HTML
+// 儲存前用 DOMPurify 過濾危險標籤/屬性；DOMPurify 沒載入成功時只存純文字，不冒險存入未過濾 HTML
 function sanitizeRichTextHtmlForSave(html) {
   if (!html) return html;
   if (typeof DOMPurify !== 'undefined') {
     return DOMPurify.sanitize(html, UVACO_RICH_TEXT_SANITIZE_CONFIG);
   }
-  const plain = document.createElement('div');
-  plain.textContent = html;
-  return plain.textContent;
+  // 用離線文件取出文字（不載入圖片、不執行任何程式），再轉成 < > & 不會被當成標籤的安全字串。
+  // 原本把字串塞進 div 再讀 textContent，讀回來的其實是原字串，等於沒過濾。
+  try {
+    const doc = new DOMParser().parseFromString(String(html), 'text/html');
+    const box = document.createElement('div');
+    box.textContent = doc.body ? (doc.body.textContent || '') : '';
+    return box.innerHTML;
+  } catch (e) {
+    return '';
+  }
 }
 
 // 清理 HTML 片段（移除編輯元素和系統提示文字）

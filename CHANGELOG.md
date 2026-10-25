@@ -1,5 +1,52 @@
 # 變更紀錄
 
+## 2026-10-25（資安修復：公開名片頁三個植入程式漏洞 + 微信按鈕點了沒反應）
+
+### 修復：姓名欄可被植入程式（免登入就能做到）
+
+- **問題根因**：名字含「｜」或「（英文）」時，`card.html` 的 `renderBilingualName()` 用 `innerHTML` 把名字當 HTML 放進畫面。免登入加入（guest-join）的後端只刪掉「有右括號」的 `<…>`，像 `<img src=x onerror=…;// ｜x` 這種沒寫右括號的名字會原樣存進公開名片，任何人打開名片，藏在名字裡的程式就會在他手機上執行；若對方是已登入的會員或管理員，登入身分可能被偷走。
+- **修改內容**：姓名一律用 `textContent` 當純文字寫入，英文名換行的外觀不變（新增 `setNameWithEnglishLine()`）。舊示例頁 `yuyuko.html` 的 `renderName` 有同樣寫法，一併修正。
+
+### 修復：沒有自訂聯絡按鈕時，電話／Email 備援按鈕可被植入程式
+
+- **問題根因**：`applyContacts()` 的備援按鈕把 `cards.phone`／`cards.email` 直接塞進 HTML 字串（`href="tel:${phone}"`），電話欄若是 `"><img onerror=…>` 就會變成程式。會員可透過資料庫權限直接改自己的電話欄。
+- **修改內容**：改用 DOM 一個一個建立按鈕、網址用 `setAttribute` 寫入（新增 `buildFallbackContactButton()`），電話裡藏什麼都只會被當成網址文字。
+
+### 修復：過濾工具 DOMPurify 沒載入時，保護完全失效
+
+- **問題根因**：8/26 加的「DOMPurify 沒載入就改成純文字」寫法有錯——把字串塞進 div 再讀 `textContent`，讀回來的就是原字串，等於原封不動放行；而且字串一塞進 div，`<img onerror>` 當下就執行了。DOMPurify 從外部 CDN（jsdelivr）載入，中國大陸、公司網路或 CDN 故障時就會走到這條路。編輯頁儲存端（`edit-chunk-4.js` 的 `sanitizeRichTextHtmlForSave()`）有同一個錯誤。
+- **修改內容**：
+  1. 兩處備援改成用 `DOMParser` 產生的離線文件取出純文字（不載入圖片、不執行程式），再轉成 `< > &` 不會被當成標籤的安全字串（`card.html` 新增 `textOnlyFromUntrustedHtml()`、`escapePlainText()`）。
+  2. DOMPurify 改放在專案根目錄 `purify.min.js`，不再依賴外部 CDN；版本從 3.1.6 升到 **3.4.17**（3.1.6 之後有多個一般用法就會中的安全公告，例如 3.3.2 才修好的突變型 XSS）。檔案取自 npm 官方套件，已核對 npm 公布的 sha512 完整性雜湊。
+- **格式不受影響**：用舊版（3.1.6）與新版（3.4.17）顯示同一份含字級、顏色、粗斜底線、LINE／電話按鈕的名片，結果只有屬性排列順序不同，標籤、屬性與數值完全相同。
+
+### 修復：公開名片上的微信按鈕點了沒反應（8/26 起）
+
+- **問題根因**：DOMPurify 不認得 `weixin://` 連結，會把微信按鈕的 `href` 拿掉；`enhanceWeChatContactLinks()` 只處理「有 href」的按鈕，於是微信按鈕變成點了沒反應。
+- **修改內容**：改成連沒有 href 的按鈕也處理，用編輯頁一直有存的微信號（`data-wechat-id`）重建 `weixin://dl/chat?…` 連結。**已經存好的名片不用重新編輯就會恢復**，資料庫不用動。
+
+### 驗證方式
+
+- 在 scratchpad 複製名片頁、把 `cloud.js` 換成假資料版（不連正式資料庫），用 Chrome 無頭模式實測。修改前：姓名、電話備援、DOMPurify 被擋三種情境都**實際執行了植入的程式**；修改後全部擋下（每個情境各跑兩次）。編輯頁儲存端另外抽出函式單獨實測，沒有過濾工具時存進去的是安全純文字。
+- 手機寬度 390px、320px 排版正常。
+- 新增 `tests/card-xss-guards.test.mjs`（5 項），檢查危險寫法沒有被改回來：新版全過；拿修改前的舊版跑，5 項全部失敗，證明測得出來。`npm test` 共 6 項通過。
+
+### 快取
+
+`edit.html` 的 `edit-chunk-4.js` 版本參數升為 `?v=20261025a`；`purify.min.js` 加入 `service-worker.js` 離線快取清單，`CACHE_VERSION` 遞增為 `v1.37.30`。`js/cloud`、`js/common` 沒有變更，不需重新打包。
+
+### 影響範圍
+
+只動名片頁的姓名、備援聯絡按鈕、微信按鈕與過濾工具載入方式，以及編輯頁的過濾工具載入與儲存端備援。不修改資料結構、公開名片網址（`card.html?id=...` / `?nfc=...`）、NFC、權限與訂閱邏輯。
+
+### 本次檢查發現、尚未處理（需要改 Supabase，要能對正式資料庫驗證時再一起做）
+
+- 被管理員停用的名片，畫面顯示「已停用」，但匿名訪客透過網路請求仍讀得到電話、Email 與 `admin_disabled_reason`（`getCardPublic()` 用 `select('*')`，RLS `cards_public_select` 只檢查 `is_visible`）。
+- 會員可自行改 `is_visible`／`admin_disabled`（9/22「已知問題」那一項，仍未處理）。
+- 選了「不公開在通訊錄」的人只是畫面搜不到，用 API 仍可一次抓下所有 `is_visible` 的名片。
+- 免登入加入（`guest-card-intake`）後端可再把名字裡的 `< >` 一律擋掉，作為第二層保護（需部署 Edge Function）。
+- 小問題：個人名片公司名稱下方兩條分隔線疊在一起；找不到名片時只跳視窗、留下「-」的空殼畫面。
+
 ## 2026-09-22（新增：可自行選擇要不要公開在通訊錄）
 
 ### 新增：設定頁可選擇「公開在通訊錄」

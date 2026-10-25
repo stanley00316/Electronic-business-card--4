@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <!-- Sentry 錯誤監控 SDK -->
 <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
-<!-- DOMPurify：過濾使用者可控的富文字 HTML（標語／公司資訊／聯絡方式），避免儲存型 XSS -->
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
+<!-- DOMPurify：過濾使用者可控的富文字 HTML（標語／公司資訊／聯絡方式），避免儲存型 XSS。
+     放在專案自己的檔案（3.4.17，取自 npm 官方並核對過雜湊），不靠外部 CDN：
+     中國大陸或公司網路擋住 CDN 時，過濾工具一樣載得到。 -->
+<script src="purify.min.js?v=3.4.17"></script>
 <!-- 防止瀏覽器快取（GitHub Pages / 本機測試皆可能被快取舊版 HTML/CSS/JS） -->
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -708,6 +710,24 @@ function safeText(v) {
   return String(v ?? '').replace(/\s+/g, ' ').trim();
 }
 
+// 從不可信的 HTML 只取出文字。DOMParser 產生的是「離線文件」：不載入圖片、不執行 onerror 等任何程式，
+// 所以可以安全地拆掉標籤。
+function textOnlyFromUntrustedHtml(html) {
+  try {
+    const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+    return doc.body ? (doc.body.textContent || '') : '';
+  } catch (e) {
+    return String(html || '').replace(/<[^>]*>?/g, ' ');
+  }
+}
+
+// 把純文字轉成可以放進 innerHTML 的安全字串：< > & 會變成看得到的符號，不會被當成標籤
+function escapePlainText(text) {
+  const box = document.createElement('div');
+  box.textContent = String(text ?? '');
+  return box.innerHTML;
+}
+
 function cleanVCardText(value) {
   return filterSystemText(safeText(value))
     .replace(/[\u0000-\u001F\u007F]/g, ' ')
@@ -845,9 +865,11 @@ function handleWeChatContactClick(event) {
   }, 900);
 }
 
+// 這裡把微信按鈕接上「開微信／複製微信號」。過濾工具不認得 weixin: 連結會把 href 拿掉，
+// 所以連沒有 href 的按鈕也要處理：normalizeWeChatContactAnchor 會用按鈕上存的微信號（data-wechat-id）重建連結。
 function enhanceWeChatContactLinks(group) {
   if (!group) return;
-  group.querySelectorAll('a[href]').forEach(function (anchor) {
+  group.querySelectorAll('a').forEach(function (anchor) {
     normalizeWeChatContactAnchor(anchor);
     if (/^weixin:/i.test(String(anchor.getAttribute('href') || ''))) {
       anchor.removeEventListener('click', handleWeChatContactClick);
@@ -1032,14 +1054,14 @@ function filterSystemHtml(html) {
     '請輸入內容',
     'Enter content'
   ];
-  // DOMPurify 沒載入成功時（CDN 異常等），寧可整段當純文字顯示，也不要冒險輸出未過濾的 HTML
+  // DOMPurify 沒載入成功時，寧可只顯示純文字，也不要冒險輸出未過濾的 HTML。
+  // 注意：不能拿一般的 div 來拆標籤——字串塞進 div 的瞬間，裡面的 <img onerror> 就會被執行；
+  // 改用離線文件取出純文字，再轉成不會被當成標籤的安全文字。
   let sanitized;
   if (typeof DOMPurify !== 'undefined') {
     sanitized = DOMPurify.sanitize(html, UVACO_RICH_TEXT_SANITIZE_CONFIG);
   } else {
-    const plain = document.createElement('div');
-    plain.textContent = html;
-    sanitized = plain.textContent;
+    sanitized = escapePlainText(textOnlyFromUntrustedHtml(html));
   }
   // 建立 DOM 來處理已過濾的安全 HTML
   const temp = document.createElement('div');
@@ -1057,6 +1079,8 @@ function filterSystemHtml(html) {
   return temp.innerHTML;
 }
 
+// 姓名一律當「純文字」放進畫面，不當 HTML：名字是使用者自己填的（免登入加入也能填），
+// 若用 innerHTML，名字裡藏的 <img onerror=…> 會在每個看名片的人手機上執行。
 function renderBilingualName(htmlTargetId, raw) {
   const el = document.getElementById(htmlTargetId);
   if (!el) return;
@@ -1067,17 +1091,25 @@ function renderBilingualName(htmlTargetId, raw) {
   // - 「中文（英文）」/「中文(英文)」→ 英文換到下一列
   const parts = s.split(/\s*｜\s*/);
   if (parts.length >= 2) {
-    const left = parts[0] || '';
-    const right = parts.slice(1).join(' ｜ ');
-    el.innerHTML = `${left}<span class="en">${right}</span>`;
+    setNameWithEnglishLine(el, parts[0] || '', parts.slice(1).join(' ｜ '));
     return;
   }
   const m = s.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
   if (m) {
-    el.innerHTML = `${m[1].trim()}<span class="en">${m[2].trim()}</span>`;
+    setNameWithEnglishLine(el, m[1].trim(), m[2].trim());
     return;
   }
   el.textContent = s;
+}
+
+// 主名字＋下一列英文名。兩段都用 textContent 寫入，畫面結構與原本「名字<span class="en">英文</span>」相同
+function setNameWithEnglishLine(el, mainText, englishText) {
+  const en = document.createElement('span');
+  en.className = 'en';
+  en.textContent = englishText;
+  el.textContent = '';
+  el.appendChild(document.createTextNode(mainText));
+  el.appendChild(en);
 }
 
 async function applyAssets(pj) {
@@ -1178,6 +1210,20 @@ function renderTrustPanel(card, pj) {
   panel.classList.add('show');
 }
 
+// 產生一顆備援聯絡按鈕（外觀與原本的 <a class="btn …"><img …> 文字</a> 相同），所有內容都不經過 HTML 解析
+function buildFallbackContactButton(variantClass, href, iconSrc, iconAlt, iconClass, label) {
+  const a = document.createElement('a');
+  a.className = 'btn ' + variantClass;
+  a.setAttribute('href', href);
+  const icon = document.createElement('img');
+  icon.setAttribute('src', iconSrc);
+  icon.setAttribute('alt', iconAlt);
+  icon.className = iconClass;
+  a.appendChild(icon);
+  a.appendChild(document.createTextNode(' ' + label));
+  return a;
+}
+
 function applyContacts(pj, card) {
   const group = document.getElementById('viewerContacts');
   if (!group) return;
@@ -1200,30 +1246,19 @@ function applyContacts(pj, card) {
       enhanceWeChatContactLinks(group);
     } catch (e) {}
   } else {
-    // fallback：只用 phone/email
+    // fallback：只用 phone/email。按鈕用 DOM 一個一個建立、網址用 setAttribute 寫入，
+    // 電話或 Email 欄位裡就算藏了 "><img onerror=…>，也只會被當成網址文字，不會變成程式。
     const phone = safeText(card.phone);
     const email = safeText(card.email);
 
     if (phone) {
-      group.insertAdjacentHTML('beforeend', `
-        <a class="btn btn-primary lang-zh" href="tel:${phone}">
-          <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> 立即來電
-        </a>
-        <a class="btn btn-primary lang-en" href="tel:${phone}">
-          <img src="phone-icon.svg" alt="Phone" class="btn-icon-phone"> Call Now
-        </a>
-      `);
+      group.appendChild(buildFallbackContactButton('btn-primary lang-zh', 'tel:' + phone, 'phone-icon.svg', 'Phone', 'btn-icon-phone', '立即來電'));
+      group.appendChild(buildFallbackContactButton('btn-primary lang-en', 'tel:' + phone, 'phone-icon.svg', 'Phone', 'btn-icon-phone', 'Call Now'));
     }
 
     if (email) {
-      group.insertAdjacentHTML('beforeend', `
-        <a class="btn btn-secondary lang-zh" href="mailto:${email}">
-          <img src="email-icon.svg" alt="Email" class="btn-icon-email"> 寄送 Email
-        </a>
-        <a class="btn btn-secondary lang-en" href="mailto:${email}">
-          <img src="email-icon.svg" alt="Email" class="btn-icon-email"> Send Email
-        </a>
-      `);
+      group.appendChild(buildFallbackContactButton('btn-secondary lang-zh', 'mailto:' + email, 'email-icon.svg', 'Email', 'btn-icon-email', '寄送 Email'));
+      group.appendChild(buildFallbackContactButton('btn-secondary lang-en', 'mailto:' + email, 'email-icon.svg', 'Email', 'btn-icon-email', 'Send Email'));
     }
   }
 

@@ -1,6 +1,6 @@
 // 數位身分平台 - Service Worker
 // 版本號：每次更新資源時需要更新此版本
-const CACHE_VERSION = 'v1.37.29';
+const CACHE_VERSION = 'v1.37.30';
 const CACHE_NAME = `digital-identity-${CACHE_VERSION}`;
 
 // 需要快取的靜態資源
@@ -25,6 +25,7 @@ const STATIC_ASSETS = [
   './common.js',
   './cloud.js',
   './supabase.min.js',
+  './purify.min.js',
   './uvaco-logo.svg',
   './default-avatar.svg',
   './icon-192.svg',

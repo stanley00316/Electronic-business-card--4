@@ -317,14 +317,23 @@ document.addEventListener('DOMContentLoaded', function () {
               if (!el) return;
               const s = safeText(raw);
               if (!s) return;
+              // 名字一律當純文字寫入（不用 innerHTML），避免名字裡藏的 HTML 被當成程式執行
+              const setNameWithEnglishLine = (mainText, englishText) => {
+                const en = document.createElement('span');
+                en.className = 'en';
+                en.textContent = englishText;
+                el.textContent = '';
+                el.appendChild(document.createTextNode(mainText));
+                el.appendChild(en);
+              };
               const parts = s.split(/\s*｜\s*/);
               if (parts.length >= 2) {
-                el.innerHTML = `${parts[0] || ''}<span class="en">${parts.slice(1).join(' ｜ ')}</span>`;
+                setNameWithEnglishLine(parts[0] || '', parts.slice(1).join(' ｜ '));
                 return;
               }
               const m = s.match(/^(.+?)\s*[（(]\s*([^)）]+)\s*[)）]\s*$/);
               if (m) {
-                el.innerHTML = `${m[1].trim()}<span class="en">${m[2].trim()}</span>`;
+                setNameWithEnglishLine(m[1].trim(), m[2].trim());
                 return;
               }
               el.textContent = s;
