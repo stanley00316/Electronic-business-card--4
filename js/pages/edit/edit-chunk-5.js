@@ -18,6 +18,21 @@ function buildErrorActions(result, opts) {
 
 async function saveCard() {
   console.log('saveCard started...');
+
+  // 名片資料當初沒讀到（網路不穩）：這時畫面上是空白或不完整的內容，
+  // 一旦儲存就會把資料庫裡原本的名片整張蓋掉，所以先擋下來，請使用者重新載入。
+  if (window.__uvacoCardLoadFailed) {
+    await showSaveFeedback('error', {
+      titleZh: '名片內容還沒讀到', titleEn: 'Card Not Loaded Yet',
+      msgZh: '剛剛網路不穩，名片內容沒有讀進來。現在儲存會蓋掉您原本的名片，請先按「重新載入」，讀到名片後再編輯、儲存。',
+      msgEn: 'Your card did not load because of an unstable network. Saving now would overwrite your saved card. Please tap "Reload" first, then edit and save.',
+      actions: [
+        { labelZh: '重新載入', labelEn: 'Reload', primary: true, onClick: function () { window.location.reload(); } },
+        { labelZh: '取消', labelEn: 'Cancel', primary: false }
+      ]
+    });
+    return;
+  }
   const zhElements = document.querySelectorAll('.lang-zh');
   const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
 
@@ -515,5 +530,16 @@ function evaluateGuideEntry() {
 // 現在「自己編輯」情境改用上面 showGuideInlineHintIfNeeded() 的常駐提示卡，
 // 「精靈逐步引導」情境則是 wizard.js 的 5 步驟精靈，兩者是目前唯二、不互相覆蓋的引導入口。
 
-// 頁面載入後檢查是否需要顯示教學
-setTimeout(checkOnboarding, 1500);
+// 頁面載入後檢查是否需要顯示教學。
+// 一定要等名片讀完（edit-chunk-1.js 的 window.__uvacoEditInitReady）才判斷：
+// 原本固定 1.5 秒後就檢查，網路慢、名片還沒讀到時，畫面上的姓名還是空的，
+// 老用戶會被誤當成新手，跳出全螢幕「歡迎使用」視窗蓋住名片。
+// 已有名片、名片沒讀到、或頁面正在跳去登入頁時都不顯示。
+Promise.resolve(window.__uvacoEditInitReady)
+  .then(function (result) {
+    if (result && (result.hasCard || result.loadFailed || result.redirecting)) return;
+    setTimeout(checkOnboarding, 300);
+  })
+  .catch(function () {
+    setTimeout(checkOnboarding, 300);
+  });

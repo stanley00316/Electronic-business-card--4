@@ -41,13 +41,20 @@ async function initUserId() {
         if (window.__uvacoSetupPersonalManifest) window.__uvacoSetupPersonalManifest(uid);
       }
 
-      // 訂閱管理僅企業帳號可見：個人使用不需要付費，避免個人帳號誤觸付款頁
+      // 訂閱管理僅企業帳號可見：個人使用不需要付費，避免個人帳號誤觸付款頁。
+      // 這個選項在 settings.html 預設是藏起來的，確認是企業帳號才打開；
+      // 確認不是企業帳號就整個移除（不是只藏起來）；查詢失敗就維持藏著。
+      // 這樣個人帳號的選單從頭到尾不會跳動，不會點到錯的選項。
       if (s.session && window.UVACO_CLOUD && UVACO_CLOUD.getMyCard) {
         try {
-          const { card } = await UVACO_CLOUD.getMyCard();
+          const { card, error } = await UVACO_CLOUD.getMyCard();
           const subscriptionItem = document.getElementById('subscriptionMenuItem');
-          if (subscriptionItem && (!card || card.is_enterprise !== true)) {
-            subscriptionItem.remove();
+          if (subscriptionItem && !error) {
+            if (card && card.is_enterprise === true) {
+              subscriptionItem.style.display = '';
+            } else {
+              subscriptionItem.remove();
+            }
           }
         } catch (e) {}
       }
@@ -310,6 +317,10 @@ function handleLogout() {
   }
 }
 
+// 讀登入狀態最多等幾毫秒：超過就不等了，直接打開編輯頁，讓編輯頁自己檢查登入，
+// 避免使用者點了「編輯名片」卻一直停在設定頁、以為按鈕壞掉。
+const GOTO_EDIT_SESSION_TIMEOUT_MS = 3000;
+
 // 前往「我的編輯頁」：一律帶 uid/next，確保編輯到自己的名片
 async function gotoMyEdit(event) {
   if (event) {
@@ -321,10 +332,20 @@ async function gotoMyEdit(event) {
       window.location.href = 'edit.html';
       return false;
     }
-    const s = await UVACO_CLOUD.getSession();
+    const TIMED_OUT = {};
+    const s = await Promise.race([
+      UVACO_CLOUD.getSession(),
+      new Promise(function (resolve) { setTimeout(function () { resolve(TIMED_OUT); }, GOTO_EDIT_SESSION_TIMEOUT_MS); })
+    ]);
+    if (s === TIMED_OUT) {
+      window.location.href = 'edit.html';
+      return false;
+    }
     const uid = s && s.session && s.session.user ? String(s.session.user.id || '').trim() : '';
     if (!uid) {
-      window.location.href = 'auth.html?next=' + encodeURIComponent('settings.html');
+      // 登入過期（LINE 登入每 7 天到期）：登入完要直接回到編輯頁，不是回設定頁，
+      // 否則使用者登入完又看到設定頁，會以為「編輯名片」打不開。
+      window.location.href = 'auth.html?next=' + encodeURIComponent('edit.html');
       return false;
     }
     const next = 'card.html?id=' + encodeURIComponent(uid);
