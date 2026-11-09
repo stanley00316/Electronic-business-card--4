@@ -107,6 +107,8 @@ body {
 .settings-directory-row {
   display: flex;
   flex-direction: row;
+  /* 手機空間不足時讓按鈕換到下一行，避免壓住中英文標題。 */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -114,7 +116,11 @@ body {
 
 .settings-directory-row .settings-item-content {
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: min-content;
+}
+
+.settings-directory-row .settings-item-title {
+  white-space: normal;
 }
 
 .settings-directory-hint {

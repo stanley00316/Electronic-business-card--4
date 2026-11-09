@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 const read = (file) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 const settingsHtml = read('settings.html');
 const settingsMain = read('js/pages/settings/main.js');
-const editChunk1 = read('js/pages/edit/edit-chunk-1.js');
+const editChunk1 = read('js/pages/edit/edit-init.js');
 const editChunk5 = read('js/pages/edit/edit-chunk-5.js');
 
 // 取出某個函式的原始碼（從 function 名稱到下一個頂層的「}」）

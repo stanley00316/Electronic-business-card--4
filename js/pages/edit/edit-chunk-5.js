@@ -33,6 +33,28 @@ async function saveCard() {
     });
     return;
   }
+  // 讀取中、登入轉頁中，或初始化程式沒有載入時，都不能先擷取空白畫面。
+  // 不排隊自動儲存：請使用者看到完整名片、確認內容後再按一次。
+  if (window.__uvacoEditLoadState !== 'ready') {
+    if (window.__uvacoEditLoadState === 'loading') {
+      await showSaveFeedback('error', {
+        icon: '⏳',
+        titleZh: '名片正在載入', titleEn: 'Loading Your Card',
+        msgZh: '請稍候，等名片內容完整出現後，再確認內容並按儲存。',
+        msgEn: 'Please wait for your complete card to appear, then review it and tap Save again.',
+        actions: [{ labelZh: '知道了', labelEn: 'OK', primary: true }]
+      });
+    } else {
+      await showSaveFeedback('error', {
+        titleZh: '編輯頁尚未準備好', titleEn: 'Editor Not Ready',
+        msgZh: '請重新載入頁面，等名片內容完整出現後再儲存。',
+        msgEn: 'Please reload and wait for your complete card before saving.',
+        actions: [{ labelZh: '重新載入', labelEn: 'Reload', primary: true,
+          onClick: function () { window.location.reload(); } }]
+      });
+    }
+    return;
+  }
   const zhElements = document.querySelectorAll('.lang-zh');
   const currentLang = zhElements.length > 0 && zhElements[0].style.display !== 'none' ? 'zh' : 'en';
 
@@ -531,15 +553,17 @@ function evaluateGuideEntry() {
 // 「精靈逐步引導」情境則是 wizard.js 的 5 步驟精靈，兩者是目前唯二、不互相覆蓋的引導入口。
 
 // 頁面載入後檢查是否需要顯示教學。
-// 一定要等名片讀完（edit-chunk-1.js 的 window.__uvacoEditInitReady）才判斷：
+// 一定要等名片讀完（edit-init.js 的 window.__uvacoEditInitReady）才判斷：
 // 原本固定 1.5 秒後就檢查，網路慢、名片還沒讀到時，畫面上的姓名還是空的，
 // 老用戶會被誤當成新手，跳出全螢幕「歡迎使用」視窗蓋住名片。
 // 已有名片、名片沒讀到、或頁面正在跳去登入頁時都不顯示。
 Promise.resolve(window.__uvacoEditInitReady)
   .then(function (result) {
-    if (result && (result.hasCard || result.loadFailed || result.redirecting)) return;
+    if (!result || window.__uvacoEditLoadState !== 'ready' || result.hasCard || result.loadFailed || result.redirecting) return;
     setTimeout(checkOnboarding, 300);
   })
   .catch(function () {
-    setTimeout(checkOnboarding, 300);
+    // 初始化出錯不代表新帳號；保持儲存關閉，不開啟歡迎視窗。
+    window.__uvacoCardLoadFailed = true;
+    window.__uvacoEditLoadState = 'failed';
   });

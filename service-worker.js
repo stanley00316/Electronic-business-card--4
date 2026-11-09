@@ -1,6 +1,6 @@
 // 數位身分平台 - Service Worker
 // 版本號：每次更新資源時需要更新此版本
-const CACHE_VERSION = 'v1.37.32';
+const CACHE_VERSION = 'v1.37.33';
 const CACHE_NAME = `digital-identity-${CACHE_VERSION}`;
 
 // 需要快取的靜態資源
@@ -59,7 +59,8 @@ const STATIC_ASSETS = [
   './mobile-icon.svg',
   './website-icon.svg',
   './file-icon.svg',
-  // 編輯頁外置樣式
+  // 編輯頁初始化與外置樣式
+  './js/pages/edit/edit-init.js',
   './css/edit-head.css',
   './css/edit-wizard.css'
 ];
