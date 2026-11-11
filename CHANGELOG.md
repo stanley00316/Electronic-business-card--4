@@ -11,6 +11,8 @@
 - 修復後 `npm test` 全部 40 項通過；`npm run test:subscriptions:db` 的 17 種資料情境通過，涵蓋個人試用／舊付費記錄、企業試用／付費／推薦延長、已過期記錄、手動取消／停用、缺少名片及重複執行。`deno check` 與差異檢查通過。
 - 部署前確認線上到期入口與修改前 main 相同，資料庫預演只包含 `20261111160000_personal_cards_exempt_subscription_expiry.sql`，沒有夾帶其他更新。
 - 已套用正式 migration 並部署 `check-subscriptions`；唯讀核對線上資料庫函式與已測試版本一致，企業日期計算與排程時間未變，原有 52 筆公開與 1 筆手動取消狀態保留。此次沒有修改前端畫面或共用打包檔。
+- 上線驗證：線上 `check-subscriptions` 原始碼與本次測試版本逐位元一致，無憑證請求仍回 401；原 QR 的名片可由未登入訪客讀取。修正已推送 main，GitHub Pages 部署成功。
+- 部署限制：GitHub Actions 的雲端自動部署缺少 `SUPABASE_ACCESS_TOKEN`，在部署前停止；本次已使用現有授權直接部署指定函式並完成上述核對，不依賴該自動流程。未新增或複製任何部署憑證到 GitHub。
 
 ## 2026-11-09（再次檢查與修復：名片未完整載入時的儲存保護）
 
