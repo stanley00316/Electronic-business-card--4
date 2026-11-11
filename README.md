@@ -114,6 +114,10 @@
 
 ## 企業付費功能（Phase 1）
 
+- **個人免費名片**不受訂閱試用到期影響。資料庫每日排程與 `check-subscriptions` 都只對 `cards.is_enterprise = true` 的企業名片執行到期停用；企業的到期日、推薦延長、手動取消與管理員停用規則保留。
+- 個人既有的訂閱資料仍保留，供推薦獎勵等既有流程使用；不代表個人名片需要付費。到期排程不會自動重新公開已隱藏的名片。
+- 訂閱回歸測試：`npm test` 測試排程入口；`npm run test:subscriptions:db` 另外建立獨立的 PostgreSQL 空白資料庫驗證每日排程，完成後自動關閉及清除。後者需要 PostgreSQL 工具，可用 `PG_BIN` 指定工具資料夾，不會連線到正式資料庫。
+
 `company-admin.html` 已提供企業管理員使用的低風險管理流程：
 
 - **員工批次管理**：
@@ -150,10 +154,11 @@
 
 ## Supabase（雲端名片 / 全平台搜尋 / Storage / LINE 登入）
 
-### 目前正式專案狀態（2026-08-31）
+### 目前正式專案狀態（2026-11-11）
 
 - **正式專案**：`https://nqxibryjhgftyxttopuo.supabase.co`
-- **已套用 migration**：最新已到 `20260831160000_restore_chiu_super_admin.sql`（恢復邱瑋浚超級管理員權限，並統一 LINE／Email 超級管理員判定）
+- **已套用 migration**：最新已到 `20261111160000_personal_cards_exempt_subscription_expiry.sql`（個人免費名片排除訂閱到期停用，企業規則保留）
+- **到期檢查**：`check-subscriptions` 已同步部署個人名片保護；每日資料庫排程仍照原定時間執行。
 - **已部署 Edge Function**：`guest-card-intake`（線上 build 標記：`2026-08-26-guest-card-intake-rate-limit`，新增免登入端口的 IP／推薦人雙層速率限制）
 - **已啟用能力**：企業邀請免登入建立名片、客戶待跟進資料、NFC 感應來源統計。
 - **保留不變**：GitHub Pages repo 路徑仍是 `Electronic-business-card--4`，公開名片與 NFC 既有網址規則不變。

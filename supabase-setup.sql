@@ -224,8 +224,11 @@ create table if not exists public.consents (
   created_at timestamptz not null default now()
 );
 
--- 名片是否公開可見（訂閱過期/管理員停用時會設為 false）
+-- 名片是否公開可見（企業訂閱過期／管理員取消時會設為 false）
 alter table public.cards add column if not exists is_visible boolean default true;
+
+-- 個人名片免費；只有明確標記為企業的名片，才套用訂閱到期隱藏規則。
+alter table public.cards add column if not exists is_enterprise boolean not null default false;
 
 -- 使用者自選：名片是否出現在平台通訊錄（預設公開）。
 -- 刻意與 is_visible（系統／訂閱控制）、admin_disabled（管理員控制）分開，三者互不覆蓋。
@@ -814,10 +817,15 @@ as $$
 declare
   v_count integer := 0;
 begin
-  update public.subscriptions
+  -- 舊有個人訂閱記錄保留供推薦獎勵使用，但不能因此停用免費名片。
+  update public.subscriptions s
   set status = 'expired', updated_at = now()
-  where status in ('trial', 'active')
-    and public.get_subscription_end_date(user_id) < now();
+  where s.status in ('trial', 'active')
+    and exists (
+      select 1 from public.cards c
+      where c.user_id = s.user_id and c.is_enterprise is true
+    )
+    and public.get_subscription_end_date(s.user_id) < now();
 
   get diagnostics v_count = row_count;
 
@@ -825,6 +833,7 @@ begin
   set is_visible = false
   from public.subscriptions s
   where c.user_id = s.user_id
+    and c.is_enterprise is true
     and s.status = 'expired'
     and c.is_visible = true;
 

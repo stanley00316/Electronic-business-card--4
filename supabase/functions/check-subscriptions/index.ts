@@ -1,5 +1,5 @@
 // Supabase Edge Function: check-subscriptions
-// 用途：定時檢查訂閱狀態，更新過期訂閱並隱藏名片
+// 用途：定時檢查企業訂閱，更新過期訂閱並隱藏企業名片；個人名片免費。
 // 建議透過 Supabase Dashboard 或 cron.org 設定每日執行
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -76,6 +76,18 @@ serve(async (req: Request) => {
 
       // 檢查是否過期
       if (endDate < new Date()) {
+        // 個人仍可保留推薦獎勵記錄，但只有確認是企業名片，才執行到期停用。
+        const { data: card, error: cardError } = await supabase
+          .from('cards')
+          .select('is_enterprise')
+          .eq('user_id', sub.user_id)
+          .maybeSingle()
+
+        if (cardError) {
+          throw new Error(`確認企業名片失敗: ${cardError.message}`)
+        }
+        if (card?.is_enterprise !== true) continue
+
         // 更新訂閱狀態為 expired
         const { error: updateError } = await supabase
           .from('subscriptions')
@@ -85,14 +97,16 @@ serve(async (req: Request) => {
         if (!updateError) {
           expiredCount++
 
-          // 隱藏該用戶的名片
-          const { error: hideError } = await supabase
+          // 寫入時再確認企業標記，避免檢查途中改成個人後仍被隱藏。
+          const { data: hiddenCards, error: hideError } = await supabase
             .from('cards')
             .update({ is_visible: false })
             .eq('user_id', sub.user_id)
+            .eq('is_enterprise', true)
+            .select('user_id')
 
           if (!hideError) {
-            hiddenCount++
+            hiddenCount += hiddenCards?.length || 0
           }
         }
       }
